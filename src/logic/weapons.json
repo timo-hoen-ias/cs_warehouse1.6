@@ -1,0 +1,74 @@
+{
+  "knife": {
+    "id": "knife", "name": "Messer", "type": "knife",
+    "damage": 35, "headFactor": 1,
+    "rpm": 0, "magSize": null, "reserve": null, "reloadTime": 0,
+    "spreadBase": 0, "spreadPerShot": 0, "moveSpread": 0,
+    "range": 1.8, "mode": "melee",
+    "recoil": { "up": 0, "side": 0, "ramp": 0, "cap": 0, "recovery": 0.2 },
+    "visual": { "model": "", "scale": 0.12, "pos": { "x": 0.3, "y": -0.22, "z": -0.4 }, "muzzle": { "x": 0, "y": 0.1, "z": -0.5 } }
+  },
+  "glock": {
+    "id": "glock", "name": "Glock 18", "type": "pistol",
+    "damage": 24, "headFactor": 4,
+    "rpm": 400, "magSize": 20, "reserve": 120, "reloadTime": 2.2,
+    "spreadBase": 0.006, "spreadPerShot": 0.004, "moveSpread": 0.03,
+    "range": 120, "mode": "hit",
+    "recoil": { "up": 0.01, "side": 0.002, "ramp": 0.12, "cap": 0.06, "recovery": 0.3 },
+    "visual": { "model": "Pistol_1", "scale": 0.09, "pos": { "x": 0.26, "y": -0.24, "z": -0.45 }, "muzzle": { "x": 0, "y": 0.03, "z": -0.6 } }
+  },
+  "usp": {
+    "id": "usp", "name": "USP", "type": "pistol",
+    "damage": 28, "headFactor": 4,
+    "rpm": 0, "magSize": 12, "reserve": 96, "reloadTime": 2.2,
+    "spreadBase": 0.004, "spreadPerShot": 0.005, "moveSpread": 0.025,
+    "range": 120, "mode": "hit",
+    "recoil": { "up": 0.012, "side": 0.0015, "ramp": 0.05, "cap": 0.06, "recovery": 0.32 },
+    "visual": { "model": "Pistol_2", "scale": 0.09, "pos": { "x": 0.26, "y": -0.24, "z": -0.45 }, "muzzle": { "x": 0, "y": 0.03, "z": -0.6 } }
+  },
+  "mp5": {
+    "id": "mp5", "name": "MP5", "type": "smg",
+    "damage": 22, "headFactor": 4,
+    "rpm": 750, "magSize": 30, "reserve": 120, "reloadTime": 2.6,
+    "spreadBase": 0.012, "spreadPerShot": 0.006, "moveSpread": 0.045,
+    "range": 140, "mode": "hit",
+    "recoil": { "up": 0.009, "side": 0.003, "ramp": 0.18, "cap": 0.09, "recovery": 0.32 },
+    "visual": { "model": "SubmachineGun_1", "scale": 0.085, "pos": { "x": 0.26, "y": -0.24, "z": -0.45 }, "muzzle": { "x": 0, "y": 0.05, "z": -0.55 } }
+  },
+  "ak47": {
+    "id": "ak47", "name": "AK-47", "type": "rifle",
+    "damage": 36, "headFactor": 4,
+    "rpm": 600, "magSize": 30, "reserve": 90, "reloadTime": 2.5,
+    "spreadBase": 0.01, "spreadPerShot": 0.008, "moveSpread": 0.06,
+    "range": 160, "mode": "hit",
+    "recoil": { "up": 0.015, "side": 0.006, "ramp": 0.3, "cap": 0.16, "recovery": 0.5 },
+    "visual": { "model": "AssaultRifle_1", "scale": 0.085, "pos": { "x": 0.26, "y": -0.24, "z": -0.45 }, "muzzle": { "x": 0, "y": 0.05, "z": -0.55 } }
+  },
+  "m4a1": {
+    "id": "m4a1", "name": "M4A1", "type": "rifle",
+    "damage": 32, "headFactor": 4,
+    "rpm": 666, "magSize": 30, "reserve": 90, "reloadTime": 2.5,
+    "spreadBase": 0.008, "spreadPerShot": 0.007, "moveSpread": 0.055,
+    "range": 160, "mode": "hit",
+    "recoil": { "up": 0.013, "side": 0.005, "ramp": 0.26, "cap": 0.14, "recovery": 0.45 },
+    "visual": { "model": "AssaultRifle_2", "scale": 0.085, "pos": { "x": 0.26, "y": -0.24, "z": -0.45 }, "muzzle": { "x": 0, "y": 0.05, "z": -0.55 } }
+  },
+  "awp": {
+    "id": "awp", "name": "AWP", "type": "sniper",
+    "damage": 110, "headFactor": 4,
+    "rpm": 0, "magSize": 10, "reserve": 30, "reloadTime": 3.7,
+    "spreadBase": 0.001, "spreadPerShot": 0, "moveSpread": 0.1,
+    "range": 300, "mode": "hit",
+    "recoil": { "up": 0.07, "side": 0.005, "ramp": 0, "cap": 0.09, "recovery": 0.9 },
+    "visual": { "model": "SniperRifle_1", "scale": 0.085, "pos": { "x": 0.24, "y": -0.26, "z": -0.5 }, "muzzle": { "x": 0, "y": 0.06, "z": -0.65 } }
+  },
+  "shotgun": {
+    "id": "shotgun", "name": "Shotgun", "type": "shotgun",
+    "damage": 15, "headFactor": 2,
+    "rpm": 70, "magSize": 8, "reserve": 32, "reloadTime": 3.4,
+    "spreadBase": 0.05, "spreadPerShot": 0.01, "moveSpread": 0.06,
+    "range": 40, "mode": "hit",
+    "recoil": { "up": 0.02, "side": 0.03, "ramp": 0.05, "cap": 0.12, "recovery": 0.55 },
+    "visual": { "model": "Shotgun_1", "scale": 0.085, "pos": { "x": 0.26, "y": -0.24, "z": -0.45 }, "muzzle": { "x": 0, "y": 0.05, "z": -0.55 } }
+  }
+}

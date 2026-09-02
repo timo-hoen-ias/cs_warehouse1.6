@@ -1,0 +1,27 @@
+# Node / Bun
+**/node_modules
+bun.lockb
+*.tsbuildinfo
+
+# Build
+dist
+build.log
+
+# Env & Datenbank-Zugangsdaten
+.env
+.env.*
+!.env.example
+
+# lokale Levels (aus DB gebacken) bewusst NICHT ignorieren → werden committet
+# Needle-Editor-Artefakte
+src/generated/
+include/three/
+include/draco/
+include/ktx2/
+include/console/
+custom-elements.json
+
+# Headless-Smoke-Artefakte
+.edge-test
+.edge-smoke
+smoke.png
