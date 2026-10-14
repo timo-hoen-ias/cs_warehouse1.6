@@ -262,8 +262,8 @@ export class CellPlan {
     const y0 = s.y0 - 0.05;
     const y1 = s.y1;
     slab(s.a, s.b, y0, y1, 0, T, st.mat, st.tint);
-    if (st.plinth) slab(s.a, s.b, y0, s.y0 + st.plinth.h, T, T + 0.05, st.plinth.mat, st.plinth.tint);
-    if (st.band && s.y0 + st.band.y + st.band.h < y1) slab(s.a, s.b, s.y0 + st.band.y, s.y0 + st.band.y + st.band.h, T, T + (st.plinth && st.band.y < st.plinth.h ? 0.08 : 0.025), st.band.mat, st.band.tint);
+    if (st.plinth) slab(s.a, s.b, y0, s.y0 + st.plinth.h, T, T + 0.03, st.plinth.mat, st.plinth.tint);
+    if (st.band && s.y0 + st.band.y + st.band.h < y1) slab(s.a, s.b, s.y0 + st.band.y, s.y0 + st.band.y + st.band.h, T, T + (st.plinth && st.band.y < st.plinth.h ? 0.05 : 0.02), st.band.mat, st.band.tint);
     // Gesims mit Attika (ragt über die Dachkante → Silhouette)
     if (st.cornice && s.outdoor) slab(s.a, s.b, y1 - st.cornice.h, y1 + 0.45, T, T + 0.18, st.cornice.mat, st.cornice.tint);
     const len = s.b - s.a;

@@ -93,12 +93,15 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
   const decorLight = (d: (typeof map.decor)[number]): RGB => {
     const h = (DECOR_HEIGHT[d.kind] ?? 1) * (d.scale?.[1] ?? 1);
     const y = d.pos[1] + (d.kind.startsWith('pipe') || d.kind.startsWith('cable') ? Math.min(h, 4) / 2 : h + 0.25);
-    let r = 0, g = 0, bb = 0;
+    // Hellste freie Probe (Proben in Wänden/Decken wären schwarz) etwas gedämpft
+    let best: RGB = [0, 0, 0];
+    let sum: RGB = [0, 0, 0];
     for (const n of [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]] as [number, number, number][]) {
       const c = light(d.pos[0] + n[0] * 0.6, y, d.pos[2] + n[2] * 0.6, n);
-      r += c[0]; g += c[1]; bb += c[2];
+      sum = [sum[0] + c[0], sum[1] + c[1], sum[2] + c[2]];
+      if (luminance(c) > luminance(best)) best = c;
     }
-    return [r / 5, g / 5, bb / 5];
+    return [best[0] * 0.6 + sum[0] * 0.08, best[1] * 0.6 + sum[1] * 0.08, best[2] * 0.6 + sum[2] * 0.08];
   };
   const decorMat = new THREE.MeshBasicMaterial({ vertexColors: true });
   for (const [kind, list] of byKind) {
