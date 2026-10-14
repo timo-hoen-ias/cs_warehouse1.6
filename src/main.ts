@@ -250,6 +250,9 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       return { ok: true, target: e.id, hp: e.hp, dist: +dist.toFixed(2), weapon: shooter.weaponId };
     };
     g.__counters = () => driver.debugCounters();
+    g.__platforms = () => world.solids.filter((s) => s.kind === 'platform' || s.kind === 'dock').map((s) => ({ kind: s.kind, minX: s.minX, maxX: s.maxX, minZ: s.minZ, maxZ: s.maxZ, maxY: s.maxY }));
+    g.__look = (yaw: number, pitch: number) => { player.setLook(yaw, pitch); return true; };
+    g.__cam = () => { const c = context.mainCamera!; return { rx: +c.rotation.x.toFixed(3), ry: +c.rotation.y.toFixed(3), rz: +c.rotation.z.toFixed(3), y: +c.position.y.toFixed(2), order: c.rotation.order }; };
     g.__pauseBots = (ms = 3000) => { driver.botsPaused = true; setTimeout(() => { driver.botsPaused = false; }, ms); return true; };
     g.__reviveId = (id: string) => driver.debugReviveId(id);
     g.__enemyHp = () => Object.values(driver.match.players).filter((p) => p.team !== driver.local?.team).map((p) => ({ id: p.id, hp: p.hp, alive: p.alive }));

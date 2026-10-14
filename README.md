@@ -37,11 +37,11 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 | Strg | Ducken |
 | Leertaste | Springen |
 | Linke Maustaste | Schießen |
-| Rechte Maustaste | Zoom (Scharfschützengewehre) / kurzer Granatenwurf |
+| Rechte Maustaste | Zielfernrohr (AWP, Scout, G3SG1, SG 550, AUG, SG 552) / schwerer Messerstich / kurzer Granatenwurf |
 | R | Nachladen |
 | 1–5 | Waffenslot wählen |
 | Mausrad / Q | Waffe wechseln |
-| G | Waffe fallen lassen |
+| G | Waffe oder C4 fallen lassen (Drüberlaufen hebt auf) |
 | B | Kaufmenü |
 | E | Bombe legen / entschärfen |
 | Tab | Punktetafel |
@@ -55,7 +55,13 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 - Wirtschaft nach CS-Vorbild: Startgeld 800 $, Rundensieg 3250 $, Verlierbonus von 1400 $ bis 3400 $, 300 $ pro Kill
 - Komplettes CS-1.6-Arsenal: Pistolen, Schrotflinten, MPs, Sturmgewehre, Scharfschützengewehre, M249, Granaten (HE, Blend, Rauch), Kevlar, Helm und Entschärfer-Kit
 - Bots in beiden Teams: kaufen ein, legen die Bombe, entschärfen und jagen Gegner
+- Waffengefühl nach CS: feste, lernbare Spray-Muster bei Automatikwaffen (gegenziehen!), Noscope-Streuung, Zielfernrohr mit Auto-Rezoom, Repetierzeiten, Rüstungsdurchschlag, Distanz-Schadensabfall, Kopfschüsse
+- Waffen und C4 fallen beim Tod zu Boden und lassen sich aufheben; Kaufen nur in der Kaufzone am Spawn
+- Zuschauer-Kamera nach dem Tod (Klick wechselt den Spieler), Schrittgeräusche, schneller werdendes Bomben-Piepen
+- Vertikalität: Zwischenebenen mit Treppen und Geländer, Laderampen, Paletten und Kisten zum Draufspringen
+- Einstellungen (O): Mausempfindlichkeit, Y-Invertierung, Sichtfeld, Lautstärke, Fadenkreuz (Farbe/Stil/Größe), Kopfbewegung, FPS-Anzeige
 - Host-autoritativer Mehrspieler mit Host-Migration; Raumcodes, Teilen-Link, optionaler Relay-Server
+- Grafikstufe für schwache Rechner: `?quality=low` (ohne Schatten, reduzierte Auflösung)
 - Karten aus Lager-Daten gebacken und als JSON eingecheckt, damit alle Clients identisch spielen
 
 ## Karten

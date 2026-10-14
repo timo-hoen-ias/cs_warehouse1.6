@@ -277,12 +277,47 @@ function structMat(kind: SolidBox['kind']): THREE.Material {
 
 /** Struktur-Teil rendern: Plattform (Gitterrost), Stufen (Beton), Stützen (Stahl), Geländer (gelb), Rampe (Beton). */
 function addStructure(group: THREE.Group, s: SolidBox): void {
+  if (s.kind === 'rail') {
+    addRail(group, s);
+    return;
+  }
   addSolidBox(group, s, structMat(s.kind));
   if (s.kind === 'dock') {
     const edge = new THREE.Mesh(new THREE.BoxGeometry(s.maxX - s.minX, 0.02, 0.3), new THREE.MeshBasicMaterial({ color: 0xd9b400 }));
     edge.position.set((s.minX + s.maxX) / 2, s.maxY + 0.01, s.minZ + 0.15);
     group.add(edge);
   }
+}
+
+/** Geländer als offenes Stahlgitter: Handlauf, Knieleiste, Pfosten (Kollision bleibt die volle Box). */
+function addRail(group: THREE.Group, s: SolidBox): void {
+  const mat = structMat('rail');
+  const alongX = s.maxX - s.minX >= s.maxZ - s.minZ;
+  const len = alongX ? s.maxX - s.minX : s.maxZ - s.minZ;
+  const cx = (s.minX + s.maxX) / 2;
+  const cz = (s.minZ + s.maxZ) / 2;
+  const geos: THREE.BufferGeometry[] = [];
+  const bar = (y: number, h: number): void => {
+    const g = new THREE.BoxGeometry(alongX ? len : 0.06, h, alongX ? 0.06 : len);
+    g.translate(cx, y, cz);
+    geos.push(g);
+  };
+  bar(s.maxY - 0.03, 0.06); // Handlauf
+  bar(s.minY + (s.maxY - s.minY) * 0.5, 0.04); // Knieleiste
+  bar(s.minY + 0.05, 0.1); // Fußleiste
+  const n = Math.max(2, Math.round(len / 1.2) + 1);
+  for (let i = 0; i < n; i++) {
+    const t = -len / 2 + (len * i) / (n - 1);
+    const g = new THREE.BoxGeometry(0.05, s.maxY - s.minY, 0.05);
+    g.translate(alongX ? cx + t : cx, (s.minY + s.maxY) / 2, alongX ? cz : cz + t);
+    geos.push(g);
+  }
+  const merged = mergeGeometries(geos, false);
+  for (const g of geos) g.dispose();
+  if (!merged) return;
+  const mesh = new THREE.Mesh(merged, mat);
+  mesh.castShadow = true;
+  group.add(mesh);
 }
 
 /** Requisite rendern (Paletten-Stapel, Gitterbox, Kiste, Container). */

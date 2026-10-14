@@ -32,7 +32,8 @@ export class World {
     const view = buildLevelView(level);
     this.group = view.group;
     this.solids = view.solids;
-    this.aabbs = this.solids.map((s) => ({ minX: s.minX, minY: s.minY, minZ: s.minZ, maxX: s.maxX, maxY: s.maxY, maxZ: s.maxZ }));
+    // Geländer sind offene Gitter: blockieren Bewegung, aber keine Schüsse, Sicht oder Granaten
+    this.aabbs = this.solids.filter((s) => s.kind !== 'rail').map((s) => ({ minX: s.minX, minY: s.minY, minZ: s.minZ, maxX: s.maxX, maxY: s.maxY, maxZ: s.maxZ }));
     this.parts = this.aabbs.map((box) => ({ part: 'body' as const, box }));
     // Bots laufen am Boden: Requisiten, Stützen, Stufen, Rampe blockieren; hohe Plattformen/Geländer nicht
     this.waypoints = buildWaypoints(level.lager, undefined, groundBlockers(this.solids.filter((s) => s.kind !== 'rack' && s.kind !== 'wall')));

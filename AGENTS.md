@@ -13,7 +13,9 @@ Stack: Needle Engine 5.x (Vite + TypeScript, kein React), Bun 1.4, Vitest.
 - Ausnahme: reine Trivialitäten (Einzeiler ohne Verzweigung) brauchen keinen Test.
 - Tests liegen als `*.test.ts` **neben** der Quelle (z. B. `layout.test.ts` neben `layout.ts`).
 - **Workflow:** Test zuerst schreiben bzw. mit schreiben — nicht nachschieben. Rot → Grün → Refactor.
-- Vor Abschluss eines Meilensteins laufen: `bun run test`, `bunx tsc --noEmit`, `bun run build`.
+- Vor Abschluss eines Meilensteins laufen: `bun run test`, `bunx tsc --noEmit`, `bun run build`,
+  bei Spiel-/Netzänderungen zusätzlich `BROWSER=<chromium> bun scripts/smoke.mjs` und `bun scripts/net-test.mjs`
+  (Dev-Server muss laufen; Tests nutzen `?quality=low`).
 - Fehlerhafte/rote Tests blockieren den Abschluss — kein „mache ich später".
 
 ## Best Practices
@@ -28,7 +30,11 @@ Stack: Needle Engine 5.x (Vite + TypeScript, kein React), Bun 1.4, Vitest.
 - **Keine neuen Abhängigkeiten** für Dinge, die wenige Zeilen Standardlösung sind (ponytail-Prinzip).
 - Karten sind DB-abhängig → Bake-Ergebnisse (`levels/*.json`) committen, damit alle Clients identisch spielen.
 - Waffen-Modelle (Quaternius, CC0) liegen unter `assets/weapons/` (`.blend` editierbar + `.obj`/`.mtl` zur Laufzeit). Zuordnung in `weapons.ts` (`visual`). Neue Assets in `assets/` ablegen (Needle kopiert `assets/` → `dist/assets/`).
-- Netzwerk: Host authoritativ, Clients senden Input, Snapshots vom Host. Logik dafür auf dem Host einkapseln.
+- Netzwerk: Host authoritativ (Dienstältester im Raum), Clients senden Posen/Schüsse/Käufe, Host sendet
+  Snapshots + Ereignisse (`src/logic/net.ts`, `src/game/MatchDriver.ts`). Neue Spielregeln immer als pure
+  Funktion in `src/logic/` + Test, der Driver ruft sie nur auf. Eingaben fremder Clients auf dem Host prüfen.
+- Spielzeit nie direkt aus `context.time.deltaTime` (auf 0.1 s gedeckelt) für Timer verwenden, sondern über den
+  Driver (eigene Uhr, Teilschritte).
 - Vor größeren Refactors/Features `IMPLEMENTIERUNGSPLAN.md` lesen und nach Abschluss aktualisieren.
 
 ## Wiederverwendung aus ias.warehouse-map (Framework-frei)
