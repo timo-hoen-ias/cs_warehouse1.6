@@ -6,6 +6,7 @@ import type { Smoke } from './grenade';
 import { defaultLoadout } from './loadout';
 import { makeGun } from './fire';
 import { WEAPONS } from './weapons';
+import type { DroppedItem } from './drops';
 
 /**
  * Netzwerk-Protokoll (pure Typen + Helfer). Transport: Needle `context.connection`
@@ -25,11 +26,12 @@ export type AmmoMsg = { t: 'ammo'; id: string; slot: 1 | 2 };
 export type TeamMsg = { t: 'team'; id: string; team: Team };
 export type ChatMsg = { t: 'chat'; id: string; name: string; text: string; team: Team | null };
 export type ReloadMsg = { t: 'reload'; id: string; w: string };
+export type DropMsg = { t: 'dropreq'; id: string; w: string };
 export type SnapMsg = { t: 'snap'; s: Snapshot };
 export type EventMsg = { t: 'ev'; e: GameEvent };
 export type PosesMsg = { t: 'poses'; p: PoseMsg[] };
 
-export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg | TeamMsg | ChatMsg | ReloadMsg | SnapMsg | EventMsg | PosesMsg;
+export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg | TeamMsg | ChatMsg | ReloadMsg | DropMsg | SnapMsg | EventMsg | PosesMsg;
 
 /** Ereignisse vom Host (einmalig, nicht im Snapshot). */
 export type GameEvent =
@@ -43,6 +45,8 @@ export type GameEvent =
   | { k: 'round'; what: 'start' | 'end'; round: number; outcome?: string; reason?: string }
   | { k: 'buy'; id: string; item: string; ok: boolean; reason?: string }
   | { k: 'match'; winner: Team }
+  | { k: 'drop'; item: DroppedItem; by: string | null }
+  | { k: 'pickup'; id: number; by: string; weapon: string }
   | { k: 'join'; id: string; name: string; team: Team }
   | { k: 'leave'; id: string; name: string };
 
@@ -79,6 +83,8 @@ export type Snapshot = {
   nades: { id: number; kind: GrenadeKind; p: [number, number, number] }[];
   smokes: { p: [number, number, number]; r: number; t: number }[];
   bombPos: [number, number, number] | null;
+  /** Liegende Waffen/C4 (ohne Munitionsstand). */
+  drops?: { id: number; weapon: string; p: [number, number, number] }[];
 };
 
 /** Host = kleinste ID (String-Vergleich) aller Nutzer im Raum. */
@@ -110,7 +116,7 @@ export function packPlayer(p: MatchPlayer): PlayerSnap {
   };
 }
 
-export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapshot['nades']; smokes: Smoke[]; bombPos: Snapshot['bombPos'] }): Snapshot {
+export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapshot['nades']; smokes: Smoke[]; bombPos: Snapshot['bombPos']; drops?: Snapshot['drops'] }): Snapshot {
   return {
     seq,
     time: m.time,
@@ -122,6 +128,7 @@ export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapsho
     nades: extra.nades,
     smokes: extra.smokes.map((s) => ({ p: [s.pos.x, s.pos.y, s.pos.z], r: s.radius, t: s.timeLeft })),
     bombPos: extra.bombPos,
+    drops: extra.drops ?? [],
   };
 }
 

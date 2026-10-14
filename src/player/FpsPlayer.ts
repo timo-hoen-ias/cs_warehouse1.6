@@ -59,6 +59,12 @@ export class FpsPlayer extends Behaviour {
   private bobPhase = 0;
   private prevX = 0;
   private prevZ = 0;
+  /** Zuschauer-Pose (fremder Spieler) — überschreibt die Kamera, solange gesetzt. */
+  private specPose: { x: number; y: number; z: number; yaw: number; pitch: number } | null = null;
+  spectate(pose: { x: number; y: number; z: number; yaw: number; pitch: number } | null): void {
+    this.specPose = pose;
+  }
+
   /** Kamera-Shake (Schuss/Explosion): kurzer zufälliger Winkel-Impuls, klingt ab. */
   private shakeAmp = 0;
   private shakeX = 0;
@@ -225,6 +231,12 @@ export class FpsPlayer extends Behaviour {
     // Ducken senkt die Kamera (Physik-Boden bleibt bei PLAYER.eye, sichtbar tiefer).
     const eyeDrop = PLAYER.eye - this.stanceY + this.deathT * 1.15;
 
+    if (this.specPose) {
+      const sp = this.specPose;
+      cam.rotation.set(sp.pitch, sp.yaw, 0);
+      cam.position.set(sp.x, sp.y + PLAYER.eye, sp.z);
+      return;
+    }
     this.writeLook(cam);
     cam.rotation.z += bobRoll;
     cam.position.set(this.motion.x + bobX, this.motion.y + bobY - eyeDrop, this.motion.z);

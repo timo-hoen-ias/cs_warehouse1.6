@@ -230,6 +230,8 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       const enemies = Object.values(driver.match.players).filter((p) => p.alive && p.team !== me?.team && (!botsOnly || p.bot));
       if (!enemies.length || !me) return { error: 'kein Gegner' };
       const e = enemies[0]!;
+      driver.botsPaused = true;
+      setTimeout(() => { driver.botsPaused = false; }, 2500);
       const px = e.pose.x - 4;
       const pz = e.pose.z;
       driver.debugRevive();
@@ -244,7 +246,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       setTimeout(() => {
         document.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
         setTimeout(() => document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })), 60);
-      }, 250);
+      }, 700);
       return { ok: true, target: e.id, hp: e.hp, dist: +dist.toFixed(2), weapon: shooter.weaponId };
     };
     g.__counters = () => driver.debugCounters();
@@ -259,7 +261,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       setTimeout(() => {
         document.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
         setTimeout(() => document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })), 60);
-      }, 120);
+      }, 700); // mindestens ein Frame, damit die Kamera am neuen Ort steht
       return { ok: true };
     };
     g.__throwNade = (kind: 'he' | 'flash' | 'smoke') => {

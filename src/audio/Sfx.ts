@@ -65,6 +65,22 @@ export class Sfx {
     }
   }
 
+  /** Schritt in `dist` Metern (0 = eigener): dumpfer Klack auf Beton, leiser mit Entfernung. */
+  step(dist: number): void {
+    if (!this.ok) return;
+    const g = dist <= 0 ? 0.12 : Math.max(0, 0.35 * (1 - dist / 30));
+    if (g < 0.01) return;
+    this.burst(0.05, 180 + Math.random() * 120, g);
+    this.tone('sine', 90 + Math.random() * 30, 0.06, g * 0.6);
+  }
+
+  /** Bomben-Piepen, leiser mit Entfernung (hörbar bis ~60 m). */
+  beep(dist: number): void {
+    if (!this.ok) return;
+    const g = Math.max(0.03, 0.3 * (1 - dist / 60));
+    this.tone('square', 2600, 0.06, g);
+  }
+
   play(name: SfxName, strength = 1): void {
     if (!this.ok) return;
     const s = Math.max(0, Math.min(1, strength));

@@ -19,3 +19,17 @@ export function spotAt(
   if (inRadius(px, pz, spots.b, radius)) return 'b';
   return null;
 }
+
+/** Radius der Kaufzone um den Team-Spawn (m). */
+export const BUY_ZONE_RADIUS = 14;
+
+/** Steht der Spieler in der Kaufzone seines Teams? */
+export function inBuyZone(px: number, pz: number, team: 'T' | 'CT', zones: { t: ZonePoint; ct: ZonePoint }, radius = BUY_ZONE_RADIUS): boolean {
+  return inRadius(px, pz, team === 'T' ? zones.t : zones.ct, radius);
+}
+
+/** Bomben-Piepen: Intervall (s) aus der Restzeit — 1 s am Anfang, zum Ende hin 0.1 s. */
+export function beepInterval(fuseLeft: number, fuseTotal = 40): number {
+  const f = Math.max(0, Math.min(1, fuseLeft / fuseTotal));
+  return 0.1 + 0.9 * f * f;
+}

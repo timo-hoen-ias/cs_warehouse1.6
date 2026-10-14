@@ -135,6 +135,15 @@ describe('decideBot – Rollen', () => {
   });
 });
 
+describe('decideBot – liegende Bombe', () => {
+  it('T ohne Bombe läuft zur liegenden C4; CT ignoriert sie', () => {
+    const w = world({ bomb: { phase: 'none', spot: null, pos: null, dropped: { x: 5, z: 7 } } });
+    expect(decideBot(w, newBotMemory(rnd), 0.016, rnd).moveTo).toEqual({ x: 5, z: 7 });
+    const ct = world({ bomb: { phase: 'none', spot: null, pos: null, dropped: { x: 5, z: 7 } } }, { team: 'CT' });
+    expect(decideBot(ct, newBotMemory(rnd), 0.016, rnd).moveTo).not.toEqual({ x: 5, z: 7 });
+  });
+});
+
 describe('aimError / reactionTime / Namen', () => {
   it('Zielfehler sinkt mit Zielzeit und Skill', () => {
     expect(aimError(0, 1)).toBeGreaterThan(aimError(BOT.aimSettleTime, 1));

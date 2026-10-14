@@ -67,7 +67,7 @@ export type BotWorld = {
   solids: PartBox[];
   smokes: Smoke[];
   zones: { a: XZ; b: XZ; t: XZ; ct: XZ };
-  bomb: { phase: BombPhase; spot: 'a' | 'b' | null; pos: XZ | null };
+  bomb: { phase: BombPhase; spot: 'a' | 'b' | null; pos: XZ | null; dropped?: XZ | null };
   phase: 'warmup' | 'freeze' | 'live' | 'bomb' | 'roundEnd';
   /** Team-Plan dieser Runde: Ziel-Spot der T. */
   plan: 'a' | 'b';
@@ -126,6 +126,8 @@ function roleGoal(w: BotWorld, mem: BotMemory): { moveTo: XZ | null; plant: bool
       const hold = { x: bombPos.x + mem.jitter.x * 1.5, z: bombPos.z + mem.jitter.z * 1.5 };
       return { moveTo: dist(self.pos, hold) > BOT.arrive ? hold : null, plant: false, defuse: false, role: 'hold' };
     }
+    // Liegende C4 aufsammeln (vor dem Plant hat das Vorrang)
+    if (!self.hasBomb && w.bomb.dropped) return { moveTo: w.bomb.dropped, plant: false, defuse: false, role: 'goal' };
     const target = spot(w.plan);
     if (self.hasBomb) {
       if (dist(self.pos, target) <= BOT.spotRadius * 0.8) return { moveTo: null, plant: true, defuse: false, role: 'plant' };

@@ -26,6 +26,10 @@ import { PLAYER, stepPlayer, type PlayerMotion } from '../logic/move';
 import { GRENADE, flashStrength, heDamageAt, stepGrenade, throwGrenade, type GrenadeState, type Smoke } from '../logic/grenade';
 import { applySnapshot, lerpPose, packSnapshot, poseMsg, sanitizeName, type GameEvent, type NetMsg, type PoseMsg, type Snapshot } from '../logic/net';
 import { mulberry32 } from '../logic/demo';
+import { capDrops, dropActive, dropOnDeath, droppedBomb, nextDropId, tryPickup, type DroppedItem } from '../logic/drops';
+import { beepInterval, inBuyZone } from '../logic/zones';
+import { BOMB } from '../logic/bombs';
+import { DroppedView } from '../weapons/DroppedView';
 
 export type DriverOptions = {
   localName: string;
@@ -99,6 +103,15 @@ export class MatchDriver extends Behaviour {
   private chatLines: { who: string; text: string; team: Team | null }[] = [];
   private pendingHandled = false;
   private botIndex = 0;
+  /** Liegende Waffen/C4 (Host autoritativ, Clients gespiegelt). */
+  private drops: DroppedItem[] = [];
+  private readonly dropView = new DroppedView();
+  /** Zuschauer: Index in der Liste lebender Spieler, die man beobachten kann. */
+  private specIndex = 0;
+  private specTarget: string | null = null;
+  /** Schritt-Akkumulatoren (Meter seit letztem Schritt) je Spieler. */
+  private readonly stepAcc = new Map<string, { x: number; z: number; d: number }>();
+  private beepTimer = 0;
   private lastNow = 0;
   /** Debug-Zähler (Smoke/Netztest). */
   readonly counters = { firesSent: 0, firesHandled: 0, hitsApplied: 0, snapsApplied: 0, posesIn: 0 };
@@ -127,10 +140,21 @@ export class MatchDriver extends Behaviour {
     this.hud.onBuyAmmo = (slot) => this.requestAmmo(slot);
     this.hud.onChat = (text) => this.sendChat(text);
     this.hud.onTeam = (team) => this.requestTeam(team);
+    this.shooter.onDrop = (w) => this.requestDrop(w);
+    this.context.scene.add(this.dropView.root);
+    document.addEventListener('mousedown', this.onSpecClick);
     if (!this.net.online) this.becomeHost();
   }
 
+  private readonly onSpecClick = (e: MouseEvent): void => {
+    if (!this.player.isDead() || e.button !== 0) return;
+    this.specIndex += 1;
+    this.specTarget = null;
+  };
+
   onDestroy(): void {
+    document.removeEventListener('mousedown', this.onSpecClick);
+    this.dropView.root.removeFromParent();
     for (const s of this.soldiers.values()) s.dispose();
     this.soldiers.clear();
     this.net.dispose();
@@ -216,6 +240,9 @@ export class MatchDriver extends Behaviour {
         this.pushChat(msg.name, msg.text, msg.team);
         break;
       case 'reload':
+        break;
+      case 'dropreq':
+        if (this.isHost) this.hostDrop(msg.id, msg.w);
         break;
     }
   }
@@ -390,8 +417,50 @@ export class MatchDriver extends Behaviour {
 
   private onHostKill(victim: MatchPlayer, killerId: string | null, weapon: string, hs: boolean): void {
     this.emit({ k: 'kill', killer: killerId, victim: victim.id, weapon, hs });
+    // CS: beste Schusswaffe und C4 fallen auf den Boden
+    for (const item of dropOnDeath(victim.loadout, { x: victim.pose.x, y: victim.pose.y, z: victim.pose.z })) this.addDrop(item, null);
     const b = this.bots.get(victim.id);
     if (b) b.path = [];
+  }
+
+  private addDrop(item: DroppedItem, by: string | null): void {
+    this.drops = capDrops([...this.drops, item]);
+    this.emit({ k: 'drop', item: { id: item.id, weapon: item.weapon, x: item.x, y: item.y, z: item.z }, by });
+  }
+
+  /** G: gehaltene Waffe fallen lassen (Host). */
+  private hostDrop(id: string, weaponId: string): void {
+    const p = this.match.players[id];
+    if (!p || !p.alive) return;
+    const item = dropActive(p.loadout, weaponId, { x: p.pose.x, y: p.pose.y, z: p.pose.z }, p.pose.yaw, nextDropId);
+    if (!item) return;
+    if (p.weapon === weaponId) p.weapon = bestWeapon(p.loadout);
+    this.addDrop(item, id);
+    // Kurz nicht wieder aufheben (sonst landet die Waffe sofort wieder im Inventar)
+    this.pickupBlock.set(id, { item: item.id, until: this.match.time + 1.5 });
+  }
+
+  requestDrop(weaponId: string): void {
+    if (this.player.isDead()) return;
+    if (this.isHost) this.hostDrop(this.localId, weaponId);
+    else this.net.send({ t: 'dropreq', id: this.localId, w: weaponId });
+  }
+
+  private readonly pickupBlock = new Map<string, { item: number; until: number }>();
+
+  /** Host: lebende Spieler heben Waffen/C4 beim Drüberlaufen auf. */
+  private hostPickups(): void {
+    if (!this.drops.length) return;
+    for (const p of Object.values(this.match.players)) {
+      if (!p.alive) continue;
+      const block = this.pickupBlock.get(p.id);
+      const candidates = block && block.until > this.match.time ? this.drops.filter((d) => d.id !== block.item) : this.drops;
+      const got = tryPickup(p.loadout, p.team, candidates, { x: p.pose.x, y: p.pose.y, z: p.pose.z });
+      if (!got) continue;
+      this.drops = this.drops.filter((d) => d.id !== got.id);
+      if (p.bot && got.weapon !== 'c4') p.weapon = bestWeapon(p.loadout);
+      this.emit({ k: 'pickup', id: got.id, by: p.id, weapon: got.weapon });
+    }
   }
 
   private hostThrow(id: string, kind: 'he' | 'flash' | 'smoke', origin: Vec3, dir: Vec3, strength: number): void {
@@ -412,6 +481,10 @@ export class MatchDriver extends Behaviour {
     const canBuy = phase === 'warmup' || phase === 'freeze' || (phase === 'live' && this.match.round.timer > ROUND.roundTime - 15);
     if (!canBuy || !p.alive) {
       this.emit({ k: 'buy', id, item, ok: false, reason: 'Kaufzeit vorbei' });
+      return;
+    }
+    if (!inBuyZone(p.pose.x, p.pose.z, p.team, this.world.zones)) {
+      this.emit({ k: 'buy', id, item, ok: false, reason: 'Nicht in der Kaufzone (Spawn)' });
       return;
     }
     const r = buyItem(p.loadout, p.money, item, p.team);
@@ -556,12 +629,30 @@ export class MatchDriver extends Behaviour {
           if (at) this.grenades.detonate(-1, 'he', at, 3);
         }
         break;
+      case 'drop':
+        if (!this.isHost) this.drops = [...this.drops.filter((d) => d.id !== e.item.id), e.item];
+        this.dropView.add(e.item.id, e.item.weapon, e.item.x, e.item.y, e.item.z);
+        if (e.by === this.localId) this.sfx?.play('switch');
+        break;
+      case 'pickup': {
+        if (!this.isHost) this.drops = this.drops.filter((d) => d.id !== e.id);
+        this.dropView.remove(e.id);
+        if (e.by === this.localId) {
+          this.sfx?.play('buy');
+          this.hud.notice(`Aufgehoben: ${WEAPONS[e.weapon]?.name ?? e.weapon}`);
+          const def = WEAPONS[e.weapon];
+          if (def && def.slot === 1 && this.shooter.weaponId !== e.weapon && WEAPONS[this.shooter.weaponId]?.slot !== 1) this.shooter.setWeapon(e.weapon);
+        }
+        break;
+      }
       case 'round':
         if (e.what === 'start') {
           this.hud.showBanner(`Runde ${e.round}`, '#dfe6ee');
           this.hud.setSpectator(null);
           this.sfx?.play('roundStart');
           this.grenades.clearAll();
+          this.dropView.clear();
+          if (!this.isHost) this.drops = [];
           this.smokes = [];
           this.bombPos = null;
         } else {
@@ -601,6 +692,10 @@ export class MatchDriver extends Behaviour {
     this.smokes = s.smokes.map((x) => ({ pos: { x: x.p[0], y: x.p[1], z: x.p[2] }, radius: x.r, timeLeft: x.t }));
     this.bombPos = s.bombPos ? { x: s.bombPos[0], y: s.bombPos[1], z: s.bombPos[2] } : null;
     this.grenades.syncPositions(s.nades);
+    if (s.drops) {
+      this.drops = s.drops.map((d) => ({ id: d.id, weapon: d.weapon, x: d.p[0], y: d.p[1], z: d.p[2] }));
+      this.dropView.sync(this.drops);
+    }
     const me = this.local;
     if (me) {
       this.player.hp = me.hp;
@@ -634,6 +729,9 @@ export class MatchDriver extends Behaviour {
     }
     this.renderSoldiers(total);
     this.grenades.tick(total, this.isHost ? this.nades.map((n) => ({ id: n.id, p: n.g.pos })) : null);
+    this.dropView.tick(now / 1000);
+    this.updateSpectator();
+    this.updateAudio(total);
     this.updateHud();
   }
 
@@ -666,6 +764,7 @@ export class MatchDriver extends Behaviour {
 
     // Bots denken/laufen/schießen
     for (const b of this.bots.values()) this.tickBot(b, dt);
+    this.hostPickups();
 
     // Bombe: Plant (T mit Bombe, E, im Spot) / Defuse (CT, E, am Bombenspot)
     const carrier = bombCarrier(m);
@@ -800,6 +899,7 @@ export class MatchDriver extends Behaviour {
     if (!this.net.online) return;
     const snap = packSnapshot(this.match, ++this.snapSeq, {
       nades: this.nades.map((n) => ({ id: n.id, kind: n.g.kind, p: [n.g.pos.x, n.g.pos.y, n.g.pos.z] })),
+      drops: this.drops.map((d) => ({ id: d.id, weapon: d.weapon, p: [d.x, d.y, d.z] as [number, number, number] })),
       smokes: this.smokes,
       bombPos: this.bombPos ? [this.bombPos.x, this.bombPos.y, this.bombPos.z] : null,
     });
@@ -838,13 +938,19 @@ export class MatchDriver extends Behaviour {
     this.nades = [];
     this.smokes = [];
     this.bombPos = null;
+    this.drops = [];
+    this.pickupBlock.clear();
     this.emit({ k: 'round', what: 'start', round: m.round.round });
     this.broadcastSnapshot();
   }
 
   // ---------------------------------------------------------------- Host: Bots
 
+  /** Debug/Smoke: Bots anhalten (deterministische Treffertests). */
+  botsPaused = false;
+
   private tickBot(b: BotRuntime, dt: number): void {
+    if (this.botsPaused) return;
     const m = this.match;
     const p = m.players[b.id];
     if (!p || !p.alive) {
@@ -862,7 +968,7 @@ export class MatchDriver extends Behaviour {
       solids: this.world.parts,
       smokes: this.smokes,
       zones: this.world.zones,
-      bomb: { phase: m.round.bomb.phase, spot: m.round.bomb.spot, pos: this.bombPos ? { x: this.bombPos.x, z: this.bombPos.z } : null },
+      bomb: { phase: m.round.bomb.phase, spot: m.round.bomb.spot, pos: this.bombPos ? { x: this.bombPos.x, z: this.bombPos.z } : null, dropped: (() => { const d = droppedBomb(this.drops); return d ? { x: d.x, z: d.z } : null; })() },
       phase: m.round.phase,
       plan: this.plan,
     }, b.mem, dt, b.rnd);
@@ -996,6 +1102,79 @@ export class MatchDriver extends Behaviour {
 
   // ---------------------------------------------------------------- Darstellung
 
+  /** Zuschauer-Kamera: tot → lebende Teamkameraden (sonst alle) aus deren Sicht; Klick wechselt. */
+  private updateSpectator(): void {
+    const me = this.local;
+    if (!this.player.isDead() || !me || this.match.round.phase === 'freeze') {
+      if (this.specTarget) this.soldiers.get(this.specTarget)?.root && (this.soldiers.get(this.specTarget)!.root.visible = true);
+      this.specTarget = null;
+      this.player.spectate(null);
+      return;
+    }
+    // Erst 2 s Todeskamera, dann zuschauen
+    if (this.localDeadSince >= 0 && this.match.time - this.localDeadSince < 2) return;
+    const alive = Object.values(this.match.players).filter((p) => p.alive && p.id !== this.localId);
+    const mates = alive.filter((p) => p.team === me.team);
+    const pool = mates.length ? mates : alive;
+    if (!pool.length) {
+      this.player.spectate(null);
+      return;
+    }
+    const target = pool[((this.specIndex % pool.length) + pool.length) % pool.length]!;
+    if (this.specTarget !== target.id) {
+      if (this.specTarget) { const old = this.soldiers.get(this.specTarget); if (old) old.root.visible = true; }
+      this.specTarget = target.id;
+      this.hud.setSpectator(`Zuschauer: ${target.name} (${target.team}) — Klick = nächster Spieler`);
+    }
+    const s = this.soldiers.get(target.id);
+    if (s) s.root.visible = false; // nicht durch das eigene Modell schauen
+    const bot = this.bots.get(target.id);
+    const r = this.remotePoses.get(target.id);
+    const pose = this.isHost && bot ? bot.pose : r ? lerpPose(r.prev, r.next, r.t) : target.pose;
+    this.player.spectate(pose);
+  }
+
+  /** Schritte (alle Spieler, entfernungsabhängig) und Bomben-Piepen. */
+  private updateAudio(dt: number): void {
+    if (!this.sfx) return;
+    const lx = this.player.motionX();
+    const lz = this.player.motionZ();
+    const track = (id: string, x: number, z: number, crouch: boolean, local: boolean): void => {
+      let a = this.stepAcc.get(id);
+      if (!a) {
+        a = { x, z, d: 0 };
+        this.stepAcc.set(id, a);
+      }
+      const moved = Math.hypot(x - a.x, z - a.z);
+      a.x = x;
+      a.z = z;
+      if (moved > 2) return; // Teleport/Spawn
+      // Geduckt schleichen ist lautlos (CS: Shift-Walk); Schritt alle 2.2 m
+      if (crouch || moved / Math.max(dt, 1e-3) < 2.6) return;
+      a.d += moved;
+      if (a.d < 2.2) return;
+      a.d = 0;
+      this.sfx!.step(local ? 0 : Math.hypot(x - lx, z - lz));
+    };
+    if (!this.player.isDead()) track(this.localId, lx, lz, this.player.crouching(), true);
+    for (const p of Object.values(this.match.players)) {
+      if (p.id === this.localId || !p.alive) continue;
+      const bot = this.bots.get(p.id);
+      const r = this.remotePoses.get(p.id);
+      const pose = this.isHost && bot ? bot.pose : r ? lerpPose(r.prev, r.next, r.t) : p.pose;
+      track(p.id, pose.x, pose.z, r?.c ?? false, false);
+    }
+    // Bomben-Piepen: schneller, je weniger Zeit bleibt
+    const b = this.match.round.bomb;
+    if ((b.phase === 'planted' || b.phase === 'defusing') && this.bombPos) {
+      this.beepTimer -= dt;
+      if (this.beepTimer <= 0) {
+        this.beepTimer = beepInterval(b.fuseLeft, BOMB.fuseTime);
+        this.sfx.beep(Math.hypot(this.bombPos.x - lx, this.bombPos.z - lz));
+      }
+    } else this.beepTimer = 0;
+  }
+
   private renderSoldiers(dt: number): void {
     const m = this.match;
     for (const p of Object.values(m.players)) {
@@ -1058,7 +1237,7 @@ export class MatchDriver extends Behaviour {
         hasKit: me.loadout.defuseKit,
         nades: me.loadout.grenades,
         alive: me.alive,
-        canBuy: phase === 'warmup' || phase === 'freeze' || (phase === 'live' && m.round.timer > ROUND.roundTime - 15),
+        canBuy: (phase === 'warmup' || phase === 'freeze' || (phase === 'live' && m.round.timer > ROUND.roundTime - 15)) && inBuyZone(this.player.motionX(), this.player.motionZ(), me.team, this.world.zones),
       });
     }
     this.hud.setRadar(
@@ -1098,6 +1277,10 @@ export class MatchDriver extends Behaviour {
       hp: this.local?.hp,
       nades: this.nades.length,
       smokes: this.smokes.length,
+      drops: this.drops.length,
+      dropViews: this.dropView.count(),
+      weapon: this.shooter.weaponId,
+      secondary: this.local?.loadout.secondary ?? null,
     };
   }
 

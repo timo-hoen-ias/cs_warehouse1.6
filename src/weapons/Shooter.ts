@@ -45,6 +45,8 @@ export class Shooter extends Behaviour {
   onReload?: () => void;
   onShotSfx?: (weaponId: string) => void;
   onEmptyClick?: () => void;
+  /** G: gehaltene Waffe fallen lassen. */
+  onDrop?: (weaponId: string) => void;
 
   /** Solide Level-Boxen (Wände/Regale) für die lokale Strahl-Vorschau. */
   solids: SolidBox[] = [];
@@ -423,6 +425,10 @@ export class Shooter extends Behaviour {
     if (this.menuOpen?.()) return;
     if (e.code === RELOAD_KEY) {
       this.reloadRequested = true;
+      return;
+    }
+    if (e.code === 'KeyG') {
+      if (!(this.blocked?.() ?? false)) this.onDrop?.(this.weaponId);
       return;
     }
     if (e.code === LAST_WEAPON_KEY) {

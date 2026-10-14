@@ -152,11 +152,12 @@ async function run() {
     await evJson('globalThis.__unzoom?.()');
 
     // 8) Wand-Decal
+    const wallBefore = (await evJson('globalThis.__fxWall?.()')) ?? 0;
     await evJson('globalThis.__wallShot?.()');
-    await sleep(1200);
+    const wallAfter = (await waitFor('({ n: globalThis.__fxWall?.() })', (v) => v.n > wallBefore, 5000, 200))?.n ?? 0;
     const decals = await evJson('globalThis.__decals?.()');
-    if (decals && decals.count >= 1 && decals.maxSize <= 0.1) ok(`Wand-Decal: ${decals.count} aktiv, ${decals.nearest} m, ≤${decals.maxSize} m`);
-    else fail(`Wand-Decal fehlt (${JSON.stringify(decals)})`);
+    if (wallAfter > wallBefore && decals && decals.maxSize <= 0.1) ok(`Wand-Decal: ${wallAfter - wallBefore} neu, Größe ≤${decals.maxSize} m`);
+    else fail(`Wand-Decal fehlt (${wallBefore} → ${wallAfter}, ${JSON.stringify(decals)})`);
 
     // 9) Granate werfen → fliegt → Rauch
     await evJson('globalThis.__throwNade?.("smoke")');
@@ -167,10 +168,24 @@ async function run() {
     if (sm?.smokes >= 1) ok('Rauchwolke aktiv');
     else fail('Rauch nicht gezündet: ' + JSON.stringify(sm));
 
+    // 9b) Waffe fallen lassen (G) und wieder aufheben (Drüberlaufen)
+    const before9 = await evJson('globalThis.__state?.()');
+    await ev(`(() => { const s = globalThis.__state(); globalThis.__weapon(s.secondary); document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyG', bubbles: true })); document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyG', bubbles: true })); return 1; })()`);
+    const dropped = await waitFor('globalThis.__state?.()', (v) => v.drops > before9.drops && v.secondary === null, 5000, 200);
+    if (dropped && dropped.secondary === null && dropped.dropViews >= 1) ok(`Fallenlassen: ${before9.secondary} liegt am Boden (${dropped.drops} Drops)`);
+    else fail('Fallenlassen fehlgeschlagen: ' + JSON.stringify(dropped));
+    await sleep(1800);
+    // vorwärts laufen (W) bis aufgehoben
+    await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true }))`);
+    const picked = await waitFor('globalThis.__state?.()', (v) => v.secondary !== null, 6000, 200);
+    await ev(`document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW', bubbles: true }))`);
+    if (picked?.secondary === before9.secondary) ok(`Aufheben: ${picked.secondary} wieder im Inventar`);
+    else fail('Aufheben fehlgeschlagen: ' + JSON.stringify(picked));
+
     // 10) Alle CT eliminieren → Runde endet 1:0
     await evJson('globalThis.__killTeam?.("CT")');
     const st2 = await waitFor('globalThis.__state?.()', (v) => v.score === '1:0', 10000, 300);
-    if (st2?.score === '1:0' && (st2.phase === 'roundEnd' || st2.phase === 'freeze')) ok(`Eliminierung: ${st2.score} → ${st2.phase}, Geld ${st2.money}`);
+    if (st2?.score === '1:0' && (st2.phase === 'roundEnd' || st2.phase === 'freeze')) ok(`Eliminierung: ${st2.score} → ${st2.phase}, Geld ${st2.money}, ${st2.drops} Waffen am Boden`);
     else fail(`Eliminierung fehlgeschlagen: ${JSON.stringify(st2)}`);
 
     // 11) Nächste Runde startet (freeze) und Spieler lebt
