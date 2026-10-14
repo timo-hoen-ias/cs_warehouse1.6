@@ -2,7 +2,7 @@ import type { HudState } from '../weapons/Shooter';
 import type { Team } from '../logic/economy';
 import type { MatchState, Pose } from '../logic/match';
 import type { GameEvent } from '../logic/net';
-import type { SolidBox } from '../logic/level';
+import type { Raster } from '../logic/overview';
 import type { Vec3 } from '../logic/hitbox';
 import { scoreboard } from '../logic/match';
 import { worldToRadar } from '../logic/radar';
@@ -100,11 +100,20 @@ export class Hud {
   private lastPlayer: PlayerInfo | null = null;
   private lastShooter: HudState | null = null;
   private feedEntries: { html: string; t: number }[] = [];
-  private solids: SolidBox[] = [];
+  /** Vorgerenderte Karten-Draufsicht fürs Radar. */
+  private radarMap: { canvas: HTMLCanvasElement; minX: number; minZ: number; w: number; h: number } | null = null;
   private readonly el = () => document.querySelector('needle-engine') as HTMLElement | null;
 
-  mount(solids: SolidBox[] = []): void {
-    this.solids = solids;
+  /** Radarbild der Karte setzen (Draufsicht aus logic/overview). */
+  setRadarMap(r: Raster): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = r.w;
+    canvas.height = r.h;
+    canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.w, r.h), 0, 0);
+    this.radarMap = { canvas, minX: r.minX, minZ: r.minZ, w: r.w / r.pxPerM, h: r.h / r.pxPerM };
+  }
+
+  mount(): void {
     const host = this.el() ?? document.body;
     const mk = (style: Partial<CSSStyleDeclaration>, tag: 'div' | 'canvas' | 'input' = 'div'): HTMLElement => {
       const d = document.createElement(tag);
@@ -414,16 +423,18 @@ export class Hud {
     c.beginPath();
     c.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
     c.clip();
-    // Solids (Regale/Wände/Props) als gedrehte Rechtecke
-    c.fillStyle = 'rgba(140,160,180,.55)';
-    for (const s of this.solids) {
-      const corners = [[s.minX, s.minZ], [s.maxX, s.minZ], [s.maxX, s.maxZ], [s.minX, s.maxZ]].map(([x, z]) => worldToRadar(self.x, self.z, self.yaw, x!, z!, view));
-      if (!corners.some((p) => p.inside)) continue;
-      c.beginPath();
-      c.moveTo(corners[0]!.x, corners[0]!.y);
-      for (const p of corners.slice(1)) c.lineTo(p.x, p.y);
-      c.closePath();
-      c.fill();
+    // Karten-Draufsicht: um den Spieler gedreht (Blickrichtung oben)
+    if (this.radarMap) {
+      const k = size / 2 / view.range;
+      c.save();
+      c.translate(size / 2, size / 2);
+      c.scale(k, k);
+      c.rotate(self.yaw);
+      c.translate(-self.x, -self.z);
+      c.globalAlpha = 0.85;
+      c.imageSmoothingEnabled = true;
+      c.drawImage(this.radarMap.canvas, this.radarMap.minX, this.radarMap.minZ, this.radarMap.w, this.radarMap.h);
+      c.restore();
     }
     if (bombPos) {
       const b = worldToRadar(self.x, self.z, self.yaw, bombPos.x, bombPos.z, view);

@@ -1,4 +1,4 @@
-import { castParts, rayIntersectAabb, type Aabb, type PartBox, type Vec3 } from './hitbox';
+import { castBlockers, isRayCaster, type Blockers, type Vec3 } from './hitbox';
 import type { GrenadeKind } from './weapons';
 
 /**
@@ -65,35 +65,67 @@ export function throwGrenade(kind: GrenadeKind, eye: Vec3, dir: Vec3, owner: str
   };
 }
 
+/** Strahl gegen Hindernisse; Quaderlisten (Altformat) haben zusätzlich den Hallenboden y = 0. */
+function castWorld(solids: Blockers, o: Vec3, d: Vec3, maxT: number): { t: number; normal: Vec3 } | null {
+  let hit = castBlockers(solids, o, d, maxT);
+  if (!isRayCaster(solids) && d.y < -1e-9 && o.y >= 0) {
+    const t = -o.y / d.y;
+    if (t <= maxT && (!hit || t < hit.t)) hit = { t, normal: { x: 0, y: 1, z: 0 } };
+  }
+  return hit;
+}
+
 /**
- * Ein Simulationsschritt. Bewegt die Granate, prallt an Solids/Boden ab und
- * zählt den Zünder herunter. Liefert true, sobald die Granate in diesem Schritt zündet.
+ * Ein Simulationsschritt. Bewegt die Granate (Strahl entlang der Bahn), prallt an
+ * Wänden, Böden und Rampen entlang der getroffenen Flächennormale ab, rollt auf
+ * Böden aus und zählt den Zünder herunter. Liefert true, sobald die Granate zündet.
  */
-export function stepGrenade(g: GrenadeState, dt: number, solids: Aabb[]): boolean {
+export function stepGrenade(g: GrenadeState, dt: number, solids: Blockers): boolean {
   if (g.detonated) return false;
   dt = Math.min(dt, 0.05);
   g.fuse -= dt;
 
   if (!g.resting) {
     g.vel.y -= GRENADE.gravity * dt;
-    // Achsengetrennt bewegen und je Achse abprallen (robust gegen Ecken)
-    moveAxis(g, 'x', g.vel.x * dt, solids);
-    moveAxis(g, 'y', g.vel.y * dt, solids);
-    moveAxis(g, 'z', g.vel.z * dt, solids);
-
-    // Boden
-    if (g.pos.y <= GRENADE.radius) {
-      g.pos.y = GRENADE.radius;
-      if (g.vel.y < 0) {
-        g.vel.y = -g.vel.y * GRENADE.restitution;
-        g.bounces += 1;
-        if (Math.abs(g.vel.y) < 1.2) g.vel.y = 0;
+    const r = GRENADE.radius;
+    let remaining = dt;
+    let onGround = false;
+    for (let iter = 0; iter < 3 && remaining > 1e-6; iter++) {
+      const speed = Math.hypot(g.vel.x, g.vel.y, g.vel.z);
+      if (speed < 1e-6) break;
+      const dir = { x: g.vel.x / speed, y: g.vel.y / speed, z: g.vel.z / speed };
+      const dist = speed * remaining;
+      const hit = castWorld(solids, g.pos, dir, dist + r);
+      if (!hit) {
+        g.pos.x += g.vel.x * remaining;
+        g.pos.y += g.vel.y * remaining;
+        g.pos.z += g.vel.z * remaining;
+        break;
       }
+      const n = hit.normal;
+      // An die Kontaktstelle setzen (Radius Abstand zur Fläche)
+      g.pos = { x: g.pos.x + dir.x * hit.t + n.x * r, y: g.pos.y + dir.y * hit.t + n.y * r, z: g.pos.z + dir.z * hit.t + n.z * r };
+      remaining *= Math.max(0, 1 - hit.t / Math.max(dist, 1e-6));
+      const vn = g.vel.x * n.x + g.vel.y * n.y + g.vel.z * n.z;
+      if (vn >= 0) continue;
+      const vt = { x: g.vel.x - vn * n.x, y: g.vel.y - vn * n.y, z: g.vel.z - vn * n.z };
+      const ground = n.y > 0.6;
+      if (ground) onGround = true;
+      if (ground && -vn < 1.2) {
+        // Aufliegen: Normalanteil weg, nur noch rollen
+        g.vel = vt;
+      } else {
+        // Abprall: Normalanteil gespiegelt + gedämpft, Querreibung
+        g.vel = { x: vt.x * 0.8 - vn * n.x * GRENADE.restitution, y: vt.y * 0.8 - vn * n.y * GRENADE.restitution, z: vt.z * 0.8 - vn * n.z * GRENADE.restitution };
+        g.bounces += 1;
+      }
+    }
+    if (onGround) {
       // Rollreibung
       const f = Math.max(0, 1 - GRENADE.friction * dt);
       g.vel.x *= f;
       g.vel.z *= f;
-      if (g.vel.y === 0 && Math.hypot(g.vel.x, g.vel.z) < 0.15) {
+      if (Math.abs(g.vel.y) < 0.6 && Math.hypot(g.vel.x, g.vel.y, g.vel.z) < 0.15) {
         g.vel = { x: 0, y: 0, z: 0 };
         g.resting = true;
       }
@@ -107,46 +139,22 @@ export function stepGrenade(g: GrenadeState, dt: number, solids: Aabb[]): boolea
   return false;
 }
 
-function moveAxis(g: GrenadeState, axis: 'x' | 'y' | 'z', delta: number, solids: Aabb[]): void {
-  if (delta === 0) return;
-  const next = g.pos[axis] + delta;
-  const r = GRENADE.radius;
-  const p = { ...g.pos, [axis]: next } as Vec3;
-  for (const b of solids) {
-    if (p.x + r <= b.minX || p.x - r >= b.maxX || p.y + r <= b.minY || p.y - r >= b.maxY || p.z + r <= b.minZ || p.z - r >= b.maxZ) continue;
-    // Kollision auf dieser Achse: an die Fläche setzen, Geschwindigkeit spiegeln
-    const lo = axis === 'x' ? b.minX : axis === 'y' ? b.minY : b.minZ;
-    const hi = axis === 'x' ? b.maxX : axis === 'y' ? b.maxY : b.maxZ;
-    p[axis] = delta > 0 ? lo - r : hi + r;
-    g.vel[axis] = -g.vel[axis] * GRENADE.restitution;
-    // Querreibung an der Wand
-    for (const other of ['x', 'y', 'z'] as const) if (other !== axis) g.vel[other] *= 0.8;
-    g.bounces += 1;
-    break;
-  }
-  g.pos[axis] = p[axis];
-}
-
-/** Freie Sichtlinie zwischen zwei Punkten (keine Solid-Box dazwischen)? */
-export function lineOfSight(a: Vec3, b: Vec3, solids: Aabb[]): boolean {
+/** Freie Sichtlinie zwischen zwei Punkten (kein Hindernis dazwischen)? */
+export function lineOfSight(a: Vec3, b: Vec3, solids: Blockers): boolean {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const dz = b.z - a.z;
   const dist = Math.hypot(dx, dy, dz);
   if (dist < 1e-6) return true;
-  const dir = { x: dx / dist, y: dy / dist, z: dz / dist };
-  for (const box of solids) {
-    const t = rayIntersectAabb(a, dir, box);
-    if (t !== null && t > 0.01 && t < dist) return false;
-  }
-  return true;
+  const hit = castBlockers(solids, a, { x: dx / dist, y: dy / dist, z: dz / dist }, dist);
+  return !hit || hit.t >= dist;
 }
 
 /**
  * HE-Schaden auf ein Ziel: linearer Abfall bis zum Radius, 0 ohne Sichtlinie
  * (Explosion hinter Regal/Wand). Zielpunkt = Körpermitte.
  */
-export function heDamageAt(center: Vec3, target: Vec3, solids: Aabb[], radius: number = GRENADE.heRadius, max: number = GRENADE.heDamage): number {
+export function heDamageAt(center: Vec3, target: Vec3, solids: Blockers, radius: number = GRENADE.heRadius, max: number = GRENADE.heDamage): number {
   const d = Math.hypot(target.x - center.x, target.y - center.y, target.z - center.z);
   if (d >= radius) return 0;
   if (!lineOfSight(center, target, solids)) return 0;
@@ -157,7 +165,7 @@ export function heDamageAt(center: Vec3, target: Vec3, solids: Aabb[], radius: n
  * Blend-Stärke 0..1 für einen Betrachter: Entfernung (bis flashRadius), Sichtlinie
  * und Blickwinkel (direkt hinsehen = 1, Rücken = 0.15 Restblendung).
  */
-export function flashStrength(viewerEye: Vec3, viewDir: Vec3, flashPos: Vec3, solids: Aabb[]): number {
+export function flashStrength(viewerEye: Vec3, viewDir: Vec3, flashPos: Vec3, solids: Blockers): number {
   const dx = flashPos.x - viewerEye.x;
   const dy = flashPos.y - viewerEye.y;
   const dz = flashPos.z - viewerEye.z;
@@ -196,15 +204,7 @@ export function segmentHitsSmoke(a: Vec3, b: Vec3, smokes: Smoke[]): boolean {
   return false;
 }
 
-/** Sichtlinie inkl. Rauch: frei von Solids UND nicht durch Rauch. */
-export function canSee(a: Vec3, b: Vec3, solids: PartBox[], smokes: Smoke[]): boolean {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const dz = b.z - a.z;
-  const dist = Math.hypot(dx, dy, dz);
-  if (dist > 1e-6) {
-    const hit = castParts(a, { x: dx / dist, y: dy / dist, z: dz / dist }, solids);
-    if (hit && hit.dist < dist) return false;
-  }
-  return !segmentHitsSmoke(a, b, smokes);
+/** Sichtlinie inkl. Rauch: frei von Hindernissen UND nicht durch Rauch. */
+export function canSee(a: Vec3, b: Vec3, solids: Blockers, smokes: Smoke[]): boolean {
+  return lineOfSight(a, b, solids) && !segmentHitsSmoke(a, b, smokes);
 }

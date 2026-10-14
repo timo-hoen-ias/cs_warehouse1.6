@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BOT, BOT_NAMES, aimError, decideBot, newBotMemory, reactionTime, visibleEnemy, type BotWorld } from './botDecide';
 
-const wall = { part: 'body' as const, box: { minX: 10, maxX: 10.5, minY: 0, maxY: 6, minZ: -20, maxZ: 20 } };
+const wall = { minX: 10, maxX: 10.5, minY: 0, maxY: 6, minZ: -20, maxZ: 20 };
 
 function world(over: Partial<BotWorld> = {}, self: Partial<BotWorld['self']> = {}): BotWorld {
   return {

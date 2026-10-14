@@ -90,9 +90,37 @@ describe('Rauch', () => {
   });
 
   it('canSee kombiniert Solids und Rauch', () => {
-    const parts = [{ part: 'body' as const, box: wall }];
-    expect(canSee({ x: 0, y: 1, z: 0 }, { x: 3, y: 1, z: 0 }, parts, [])).toBe(true);
-    expect(canSee({ x: 0, y: 1, z: 0 }, { x: 8, y: 1, z: 0 }, parts, [])).toBe(false);
+    expect(canSee({ x: 0, y: 1, z: 0 }, { x: 3, y: 1, z: 0 }, [wall], [])).toBe(true);
+    expect(canSee({ x: 0, y: 1, z: 0 }, { x: 8, y: 1, z: 0 }, [wall], [])).toBe(false);
     expect(canSee({ x: 0, y: 1, z: 0 }, { x: 3, y: 1, z: 0 }, [], [{ pos: { x: 1.5, y: 1, z: 0 }, radius: 1, timeLeft: 5 }])).toBe(false);
+  });
+});
+
+describe('Granaten in der Kartenwelt (Collider)', () => {
+  it('rollt eine Rampe hinunter und bleibt am Fuß liegen; prallt an Wänden ab', async () => {
+    const { Collider, COL } = await import('./collision');
+    const w = new Collider([
+      { minX: 0, maxX: 40, minY: -0.3, maxY: 0, minZ: -5, maxZ: 5, mask: COL.all },
+      { minX: 10, maxX: 16, minY: 0, maxY: 3, minZ: -5, maxZ: 5, mask: COL.all, ramp: 'px' },
+      { minX: 16, maxX: 20, minY: 0, maxY: 3, minZ: -5, maxZ: 5, mask: COL.all },
+    ], { floorY: -50 });
+    // auf die Plattform am oberen Rampenende legen, Richtung Rampe anstoßen
+    const g = throwGrenade('smoke', { x: 15.5, y: 3.4, z: 0 }, { x: -1, y: 0, z: 0 }, 'p', 0.25);
+    g.fuse = 100;
+    for (let i = 0; i < 600; i++) stepGrenade(g, 1 / 60, w);
+    expect(g.pos.x).toBeLessThan(10.5);
+    expect(g.pos.y).toBeLessThan(0.5);
+    expect(g.pos.y).toBeGreaterThan(-0.01);
+    // Wurf gegen eine Wand: bleibt davor
+    const wall2 = new Collider([
+      { minX: -40, maxX: 40, minY: -0.3, maxY: 0, minZ: -5, maxZ: 5, mask: COL.all },
+      { minX: 6, maxX: 6.5, minY: 0, maxY: 5, minZ: -5, maxZ: 5, mask: COL.all },
+    ], { floorY: -50 });
+    const h = throwGrenade('he', { x: 0, y: 1.65, z: 0 }, { x: 1, y: 0.1, z: 0 }, 'p');
+    h.fuse = 100;
+    for (let i = 0; i < 400; i++) stepGrenade(h, 1 / 60, wall2);
+    expect(h.pos.x).toBeLessThan(6);
+    expect(h.bounces).toBeGreaterThan(0);
+    expect(h.resting).toBe(true);
   });
 });

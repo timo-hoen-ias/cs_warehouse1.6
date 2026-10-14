@@ -1,275 +1,598 @@
 import * as THREE from 'three';
+import type { MaterialId } from '../logic/mapkit';
+import { mulberry32 } from '../logic/rng';
 
 /**
  * Prozedurale Lager-Texturen (Canvas 2D → CanvasTexture): keine Asset-Downloads,
- * deterministisch, klein. Alle Funktionen cachen ihr Ergebnis.
+ * deterministisch, gecacht. Albedo bewusst mittelhell — Farbton (tint) und gebackenes
+ * Licht multiplizieren in der Vertexfarbe.
  */
 const cache = new Map<string, THREE.CanvasTexture>();
+let maxSize = 256;
 
-function make(key: string, size: number, draw: (ctx: CanvasRenderingContext2D, s: number) => void, repeat = true): THREE.CanvasTexture {
+/** Texturgröße (Grafikstufe „niedrig“ = 128 px). */
+export function setTextureQuality(q: 'high' | 'low'): void {
+  maxSize = q === 'low' ? 128 : 256;
+}
+
+type Draw = (ctx: CanvasRenderingContext2D, s: number, r: () => number) => void;
+
+function make(key: string, draw: Draw, opts: { size?: number; repeat?: boolean; seed?: number } = {}): THREE.CanvasTexture {
   const hit = cache.get(key);
   if (hit) return hit;
+  const base = opts.size ?? 256;
+  const size = maxSize < 256 ? Math.max(64, base / 2) : base;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  draw(ctx, size);
+  // Zeichnen immer im 256er-Maßstab, damit Details bei kleiner Größe gleich bleiben
+  ctx.save();
+  ctx.scale(size / 256, size / 256);
+  draw(ctx, 256, mulberry32(opts.seed ?? hash(key)));
+  ctx.restore();
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  if (repeat) tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  if (opts.repeat !== false) tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 4;
   cache.set(key, tex);
   return tex;
 }
 
-/** Kleiner deterministischer Zufall für Rauschen. */
-function rng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function hash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
 }
 
-/** Betonboden: graues Rauschen + Fugenraster (1 Kachel = 2×2 m). */
-export function floorTexture(): THREE.CanvasTexture {
-  return make('floor', 256, (ctx, s) => {
-    const r = rng(11);
-    ctx.fillStyle = '#4a4e55';
-    ctx.fillRect(0, 0, s, s);
-    for (let i = 0; i < 2600; i++) {
-      const v = 60 + Math.floor(r() * 40);
-      ctx.fillStyle = `rgba(${v},${v + 2},${v + 6},0.35)`;
-      ctx.fillRect(r() * s, r() * s, 1 + r() * 3, 1 + r() * 3);
+function noise(ctx: CanvasRenderingContext2D, s: number, r: () => number, n: number, alpha: number, dark = 0, light = 255, size = 3): void {
+  for (let i = 0; i < n; i++) {
+    const v = dark + Math.floor(r() * (light - dark));
+    ctx.fillStyle = `rgba(${v},${v},${v},${alpha * (0.4 + r() * 0.6)})`;
+    const w = 1 + r() * size;
+    ctx.fillRect(r() * s, r() * s, w, w);
+  }
+}
+
+function blotches(ctx: CanvasRenderingContext2D, s: number, r: () => number, n: number, color: string, maxR: number): void {
+  for (let i = 0; i < n; i++) {
+    const x = r() * s, y = r() * s, rad = 6 + r() * maxR;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, color);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    // nahtlos: auch an den gegenüberliegenden Rändern zeichnen
+    for (const dx of [-s, 0, s]) for (const dy of [-s, 0, s]) ctx.fillRect(x - rad + dx, y - rad + dy, rad * 2, rad * 2);
+  }
+}
+
+function crack(ctx: CanvasRenderingContext2D, s: number, r: () => number, color: string): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  let x = r() * s, y = r() * s;
+  ctx.moveTo(x, y);
+  for (let i = 0; i < 8; i++) {
+    x += (r() - 0.5) * 30;
+    y += (r() - 0.5) * 30;
+    ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+const DRAW: Record<MaterialId, Draw> = {
+  concrete: (c, s, r) => {
+    c.fillStyle = '#8f8d87';
+    c.fillRect(0, 0, s, s);
+    blotches(c, s, r, 14, 'rgba(70,66,60,0.18)', 40);
+    blotches(c, s, r, 8, 'rgba(200,196,186,0.12)', 30);
+    noise(c, s, r, 3000, 0.22, 60, 200, 2);
+    for (let i = 0; i < 3; i++) crack(c, s, r, 'rgba(40,38,36,0.35)');
+    c.fillStyle = 'rgba(40,40,40,0.45)';
+    c.fillRect(0, 0, s, 2);
+    c.fillRect(0, 0, 2, s);
+  },
+  concreteDark: (c, s, r) => {
+    c.fillStyle = '#5f5e5a';
+    c.fillRect(0, 0, s, s);
+    blotches(c, s, r, 16, 'rgba(30,28,26,0.25)', 40);
+    noise(c, s, r, 3000, 0.25, 30, 140, 2);
+    for (let i = 0; i < 4; i++) crack(c, s, r, 'rgba(20,20,20,0.4)');
+    c.fillStyle = 'rgba(20,20,20,0.5)';
+    c.fillRect(0, 0, s, 2);
+  },
+  asphalt: (c, s, r) => {
+    c.fillStyle = '#4b4a4a';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 9000, 0.35, 20, 160, 1.5);
+    blotches(c, s, r, 10, 'rgba(25,24,24,0.3)', 46);
+    blotches(c, s, r, 5, 'rgba(120,112,100,0.12)', 50);
+    for (let i = 0; i < 3; i++) crack(c, s, r, 'rgba(15,15,15,0.55)');
+  },
+  paving: (c, s, r) => {
+    c.fillStyle = '#7b766d';
+    c.fillRect(0, 0, s, s);
+    const bw = 32, bh = 16;
+    for (let y = 0; y < s; y += bh) {
+      const off = (y / bh) % 2 ? bw / 2 : 0;
+      for (let x = -bw; x < s + bw; x += bw) {
+        const v = 100 + Math.floor(r() * 40);
+        c.fillStyle = `rgb(${v + 12},${v + 8},${v})`;
+        c.fillRect(x + off + 1, y + 1, bw - 2, bh - 2);
+      }
     }
-    ctx.strokeStyle = 'rgba(20,22,26,0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, s - 2, s - 2);
-  });
-}
-
-/** Wellblech-Wand mit Warnstreifen unten (1 Kachel = 4 m breit, volle Höhe). */
-export function wallTexture(): THREE.CanvasTexture {
-  return make('wall', 256, (ctx, s) => {
-    ctx.fillStyle = '#5c6670';
-    ctx.fillRect(0, 0, s, s);
+    noise(c, s, r, 2500, 0.2, 40, 200, 2);
+    blotches(c, s, r, 8, 'rgba(50,46,40,0.18)', 40);
+  },
+  plaster: (c, s, r) => {
+    c.fillStyle = '#c4b8a2';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 6000, 0.18, 120, 240, 2);
+    blotches(c, s, r, 12, 'rgba(120,100,80,0.15)', 50);
+    for (let i = 0; i < 6; i++) {
+      c.fillStyle = 'rgba(90,80,70,0.1)';
+      const x = r() * s;
+      c.fillRect(x, 0, 2 + r() * 4, s);
+    }
+  },
+  brick: (c, s, r) => {
+    c.fillStyle = '#6a5b50';
+    c.fillRect(0, 0, s, s);
+    const bw = 22, bh = 8;
+    for (let row = 0; row * bh < s; row++) {
+      const off = row % 2 ? bw / 2 : 0;
+      for (let x = -bw; x < s + bw; x += bw) {
+        const v = r();
+        const R = 128 + v * 40, G = 66 + v * 22, B = 50 + v * 16;
+        c.fillStyle = `rgb(${R | 0},${G | 0},${B | 0})`;
+        c.fillRect(x + off + 1, row * bh + 1, bw - 2, bh - 2);
+      }
+    }
+    noise(c, s, r, 3000, 0.18, 20, 200, 2);
+    blotches(c, s, r, 6, 'rgba(30,25,20,0.2)', 60);
+  },
+  wallPaint: (c, s, r) => {
+    c.fillStyle = '#b9bcb8';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 3500, 0.12, 120, 230, 2);
+    blotches(c, s, r, 8, 'rgba(90,90,85,0.12)', 50);
+  },
+  wallTile: (c, s, r) => {
+    c.fillStyle = '#9da3a2';
+    c.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 32) for (let x = 0; x < s; x += 32) {
+      const v = 205 + Math.floor(r() * 25);
+      c.fillStyle = `rgb(${v},${v},${v - 4})`;
+      c.fillRect(x + 1, y + 1, 30, 30);
+    }
+    noise(c, s, r, 1500, 0.1, 100, 200, 2);
+  },
+  corrugated: (c, s, r) => {
+    c.fillStyle = '#9ba3aa';
+    c.fillRect(0, 0, s, s);
     for (let x = 0; x < s; x += 16) {
-      ctx.fillStyle = 'rgba(0,0,0,0.18)';
-      ctx.fillRect(x, 0, 6, s);
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.fillRect(x + 9, 0, 3, s);
+      const g = c.createLinearGradient(x, 0, x + 16, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.22)');
+      g.addColorStop(0.35, 'rgba(255,255,255,0.14)');
+      g.addColorStop(0.7, 'rgba(0,0,0,0.05)');
+      g.addColorStop(1, 'rgba(0,0,0,0.22)');
+      c.fillStyle = g;
+      c.fillRect(x, 0, 16, s);
     }
-    // Sockel + Warnband
-    ctx.fillStyle = '#2d3136';
-    ctx.fillRect(0, s - 26, s, 26);
-    for (let x = -20; x < s; x += 24) {
-      ctx.fillStyle = '#d9b400';
-      ctx.beginPath();
-      ctx.moveTo(x, s - 26);
-      ctx.lineTo(x + 12, s - 26);
-      ctx.lineTo(x + 24, s - 14);
-      ctx.lineTo(x + 12, s - 14);
-      ctx.closePath();
-      ctx.fill();
+    for (let i = 0; i < 10; i++) {
+      c.fillStyle = `rgba(120,70,40,${0.05 + r() * 0.1})`;
+      const x = r() * s;
+      c.fillRect(x, r() * s * 0.5, 3, 40 + r() * 120);
     }
-  });
-}
-
-/** Hochregal-Front: orange Steher, Traversen, Kartons/Paletten in den Fächern (1 Kachel = 1 Fach). */
-export function rackTexture(): THREE.CanvasTexture {
-  return make('rack', 256, (ctx, s) => {
-    const r = rng(23);
-    ctx.fillStyle = '#23272d';
-    ctx.fillRect(0, 0, s, s);
-    // Kartons (2–3 pro Fach)
-    const n = 2 + Math.floor(r() * 2);
-    const w = (s - 40) / n;
-    for (let i = 0; i < n; i++) {
-      const h = s * (0.45 + r() * 0.35);
-      const shade = 120 + Math.floor(r() * 60);
-      ctx.fillStyle = `rgb(${shade},${shade - 35},${shade - 70})`;
-      ctx.fillRect(20 + i * w + 3, s - 22 - h, w - 6, h);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)';
-      ctx.fillRect(20 + i * w + 3, s - 22 - h, w - 6, 6);
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(20 + i * w + 8, s - 22 - h * 0.6, w * 0.4, 10);
+    noise(c, s, r, 1200, 0.1, 50, 200, 2);
+    c.fillStyle = 'rgba(30,30,30,0.35)';
+    c.fillRect(0, 0, s, 2);
+  },
+  corrugatedDark: (c, s, r) => {
+    c.fillStyle = '#5b6570';
+    c.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x += 16) {
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      c.fillRect(x, 0, 5, s);
+      c.fillStyle = 'rgba(255,255,255,0.08)';
+      c.fillRect(x + 8, 0, 3, s);
     }
-    // Palette unten
-    ctx.fillStyle = '#8a6a3c';
-    ctx.fillRect(16, s - 22, s - 32, 8);
-    ctx.fillStyle = '#6f5430';
-    for (let x = 20; x < s - 20; x += 22) ctx.fillRect(x, s - 14, 10, 10);
-    // Traverse (Querbalken) + Steher
-    ctx.fillStyle = '#e8601c';
-    ctx.fillRect(0, s - 6, s, 6);
-    ctx.fillRect(0, 0, s, 4);
-    ctx.fillStyle = '#2f5fb3';
-    ctx.fillRect(0, 0, 12, s);
-    ctx.fillRect(s - 12, 0, 12, s);
-  });
-}
-
-/** Flächen-/Blocklager: Palette mit Folie/Kartons von oben und Seite (1 Kachel = 1 m). */
-export function palletTexture(): THREE.CanvasTexture {
-  return make('pallet', 128, (ctx, s) => {
-    const r = rng(5);
-    ctx.fillStyle = '#7a6a4a';
-    ctx.fillRect(0, 0, s, s);
-    for (let i = 0; i < 3; i++) {
-      const shade = 150 + Math.floor(r() * 50);
-      ctx.fillStyle = `rgb(${shade},${shade - 30},${shade - 65})`;
-      ctx.fillRect(6 + i * 40, 6, 34, s - 12);
-      ctx.fillStyle = 'rgba(0,0,0,0.2)';
-      ctx.fillRect(6 + i * 40, 6, 34, 5);
+    noise(c, s, r, 1500, 0.12, 30, 160, 2);
+  },
+  metal: (c, s, r) => {
+    c.fillStyle = '#8b9095';
+    c.fillRect(0, 0, s, s);
+    for (let i = 0; i < 400; i++) {
+      c.fillStyle = `rgba(255,255,255,${r() * 0.06})`;
+      c.fillRect(0, r() * s, s, 1);
     }
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, s - 2, s - 2);
-  });
-}
-
-/** Holzkiste. */
-export function crateTexture(): THREE.CanvasTexture {
-  return make('crate', 128, (ctx, s) => {
-    ctx.fillStyle = '#9c7a48';
-    ctx.fillRect(0, 0, s, s);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
-    for (let y = 0; y < s; y += 22) ctx.fillRect(0, y, s, 3);
-    ctx.fillStyle = '#6b5131';
-    ctx.fillRect(0, 0, 12, s);
-    ctx.fillRect(s - 12, 0, 12, s);
-    ctx.fillRect(0, 0, s, 12);
-    ctx.fillRect(0, s - 12, s, 12);
-    ctx.strokeStyle = '#4d3a22';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(12, 12);
-    ctx.lineTo(s - 12, s - 12);
-    ctx.stroke();
-  });
-}
-
-/** Gitterbox (Drahtgitter auf Stahl). */
-export function cageTexture(): THREE.CanvasTexture {
-  return make('cage', 128, (ctx, s) => {
-    ctx.fillStyle = '#5a6168';
-    ctx.fillRect(0, 0, s, s);
-    ctx.strokeStyle = '#aab2ba';
-    ctx.lineWidth = 2;
-    for (let i = 0; i <= s; i += 16) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, s);
-      ctx.moveTo(0, i);
-      ctx.lineTo(s, i);
-      ctx.stroke();
+    noise(c, s, r, 1500, 0.12, 60, 200, 2);
+    blotches(c, s, r, 4, 'rgba(40,40,40,0.15)', 40);
+  },
+  steel: (c, s, r) => {
+    c.fillStyle = '#c9cacb';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 2000, 0.1, 100, 230, 2);
+    blotches(c, s, r, 6, 'rgba(60,60,60,0.12)', 30);
+    c.fillStyle = 'rgba(0,0,0,0.18)';
+    c.fillRect(0, 0, s, 3);
+    c.fillRect(0, 0, 3, s);
+  },
+  grating: (c, s) => {
+    c.fillStyle = '#2b2d2f';
+    c.fillRect(0, 0, s, s);
+    c.fillStyle = '#7d8286';
+    for (let x = 0; x < s; x += 16) c.fillRect(x, 0, 4, s);
+    c.fillStyle = '#676c70';
+    for (let y = 0; y < s; y += 32) c.fillRect(0, y, s, 3);
+  },
+  wood: (c, s, r) => {
+    c.fillStyle = '#9b7c55';
+    c.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 32) {
+      const v = r();
+      c.fillStyle = `rgb(${150 + v * 30 | 0},${118 + v * 20 | 0},${78 + v * 15 | 0})`;
+      c.fillRect(0, y + 1, s, 30);
+      for (let i = 0; i < 6; i++) {
+        c.fillStyle = 'rgba(80,55,30,0.25)';
+        c.fillRect(0, y + 3 + r() * 26, s, 1);
+      }
     }
-    ctx.fillStyle = '#3a4046';
-    ctx.fillRect(0, s - 14, s, 14);
-  });
-}
-
-/** Seecontainer: geripptes Blech in Firmenfarbe. */
-export function containerTexture(color: string): THREE.CanvasTexture {
-  return make('container-' + color, 128, (ctx, s) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, s, s);
-    for (let x = 0; x < s; x += 12) {
-      ctx.fillStyle = 'rgba(0,0,0,0.22)';
-      ctx.fillRect(x, 0, 4, s);
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.fillRect(x + 6, 0, 2, s);
+    noise(c, s, r, 1500, 0.12, 40, 160, 2);
+  },
+  crate: (c, s, r) => {
+    c.fillStyle = '#a5844f';
+    c.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 42) {
+      c.fillStyle = 'rgba(70,45,20,0.35)';
+      c.fillRect(0, y, s, 3);
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(0, s - 10, s, 10);
-  });
+    noise(c, s, r, 1500, 0.15, 60, 200, 2);
+    c.fillStyle = '#6f5430';
+    c.fillRect(0, 0, 26, s);
+    c.fillRect(s - 26, 0, 26, s);
+    c.fillRect(0, 0, s, 26);
+    c.fillRect(0, s - 26, s, 26);
+    c.strokeStyle = '#5d4426';
+    c.lineWidth = 18;
+    c.beginPath();
+    c.moveTo(26, 26);
+    c.lineTo(s - 26, s - 26);
+    c.stroke();
+    c.fillStyle = 'rgba(30,30,30,0.6)';
+    c.font = 'bold 22px Arial';
+    c.fillText('FRAGILE', 70, 140);
+  },
+  pallet: (c, s, r) => {
+    c.fillStyle = '#4a3a26';
+    c.fillRect(0, 0, s, s);
+    for (let x = 6; x < s; x += 46) {
+      const v = r();
+      c.fillStyle = `rgb(${176 + v * 30 | 0},${140 + v * 20 | 0},${92 + v * 15 | 0})`;
+      c.fillRect(x, 0, 34, s);
+    }
+    noise(c, s, r, 1200, 0.15, 40, 160, 2);
+  },
+  wrap: (c, s, r) => {
+    c.fillStyle = '#d6d0c4';
+    c.fillRect(0, 0, s, s);
+    // Kartons unter der Folie
+    for (let y = 0; y < s; y += 64) for (let x = 0; x < s; x += 85) {
+      c.fillStyle = 'rgba(80,60,40,0.35)';
+      c.fillRect(x, y, 85, 2);
+      c.fillRect(x, y, 2, 64);
+      c.fillStyle = 'rgba(255,255,255,0.35)';
+      c.fillRect(x + 30, y, 12, 64);
+    }
+    for (let i = 0; i < 30; i++) {
+      c.fillStyle = `rgba(255,255,255,${0.08 + r() * 0.12})`;
+      c.fillRect(0, r() * s, s, 2 + r() * 5);
+    }
+  },
+  carton: (c, s, r) => {
+    c.fillStyle = '#d2c1a0';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 2000, 0.12, 100, 220, 2);
+    c.fillStyle = 'rgba(230,220,200,0.8)';
+    c.fillRect(s / 2 - 14, 0, 28, s);
+    c.fillStyle = 'rgba(60,40,20,0.4)';
+    c.fillRect(0, 0, s, 3);
+    c.fillRect(0, 0, 3, s);
+    c.font = 'bold 18px Arial';
+    c.fillStyle = 'rgba(40,40,40,0.55)';
+    c.fillText('↑↑', 30, 60);
+  },
+  hazard: (c, s) => {
+    c.fillStyle = '#1b1b1b';
+    c.fillRect(0, 0, s, s);
+    c.fillStyle = '#e8b51c';
+    for (let x = -s; x < s * 2; x += 64) {
+      c.beginPath();
+      c.moveTo(x, 0);
+      c.lineTo(x + 32, 0);
+      c.lineTo(x + 32 + s, s);
+      c.lineTo(x + s, s);
+      c.closePath();
+      c.fill();
+    }
+  },
+  tile: (c, s, r) => {
+    c.fillStyle = '#6f7273';
+    c.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 64) for (let x = 0; x < s; x += 64) {
+      const v = 150 + Math.floor(r() * 25);
+      c.fillStyle = `rgb(${v},${v + 2},${v})`;
+      c.fillRect(x + 1, y + 1, 62, 62);
+    }
+    noise(c, s, r, 1500, 0.1, 80, 200, 2);
+  },
+  roof: (c, s, r) => {
+    c.fillStyle = '#7e8790';
+    c.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x += 64) {
+      c.fillStyle = 'rgba(0,0,0,0.28)';
+      c.fillRect(x, 0, 16, s);
+      c.fillStyle = 'rgba(255,255,255,0.12)';
+      c.fillRect(x + 28, 0, 12, s);
+    }
+    blotches(c, s, r, 10, 'rgba(60,50,40,0.2)', 50);
+  },
+  container: (c, s, r) => {
+    c.fillStyle = '#d8d8d8';
+    c.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x += 24) {
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      c.fillRect(x, 0, 8, s);
+      c.fillStyle = 'rgba(255,255,255,0.18)';
+      c.fillRect(x + 12, 0, 4, s);
+    }
+    for (let i = 0; i < 14; i++) {
+      c.fillStyle = `rgba(110,60,30,${0.08 + r() * 0.16})`;
+      c.fillRect(r() * s, r() * s, 3 + r() * 10, 10 + r() * 50);
+    }
+    c.fillStyle = 'rgba(0,0,0,0.35)';
+    c.fillRect(0, 0, s, 8);
+    c.fillRect(0, s - 8, s, 8);
+  },
+  rubber: (c, s, r) => {
+    c.fillStyle = '#1e1e1e';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 1500, 0.2, 0, 80, 2);
+  },
+  cage: (c, s) => {
+    c.clearRect(0, 0, s, s);
+    c.strokeStyle = '#c3cad0';
+    c.lineWidth = 4;
+    for (let i = 0; i <= s; i += 32) {
+      c.beginPath();
+      c.moveTo(i, 0);
+      c.lineTo(i, s);
+      c.moveTo(0, i);
+      c.lineTo(s, i);
+      c.stroke();
+    }
+    c.fillStyle = '#7b848c';
+    c.fillRect(0, 0, s, 10);
+    c.fillRect(0, s - 10, s, 10);
+  },
+  server: (c, s) => {
+    c.fillStyle = '#18191b';
+    c.fillRect(0, 0, s, s);
+  },
+  door: (c, s, r) => {
+    c.fillStyle = '#d0d0d0';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 1500, 0.1, 100, 230, 2);
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    c.fillRect(0, 0, s, 4);
+    c.fillRect(0, 0, 4, s);
+    c.fillRect(s / 2 - 2, 0, 4, s);
+    c.fillStyle = 'rgba(40,40,40,0.8)';
+    c.fillRect(s * 0.8, s * 0.5, 20, 6);
+  },
+  gate: (c, s, r) => {
+    c.fillStyle = '#c4c8cc';
+    c.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 42) {
+      c.fillStyle = 'rgba(0,0,0,0.3)';
+      c.fillRect(0, y, s, 4);
+      c.fillStyle = 'rgba(255,255,255,0.15)';
+      c.fillRect(0, y + 6, s, 3);
+      for (let x = 0; x < s; x += 64) {
+        c.fillStyle = 'rgba(0,0,0,0.08)';
+        c.fillRect(x + 6, y + 12, 52, 24);
+      }
+    }
+    noise(c, s, r, 800, 0.1, 60, 200, 2);
+  },
+  epoxy: (c, s, r) => {
+    c.fillStyle = '#7d8a83';
+    c.fillRect(0, 0, s, s);
+    blotches(c, s, r, 10, 'rgba(255,255,255,0.06)', 60);
+    blotches(c, s, r, 8, 'rgba(30,40,35,0.12)', 40);
+    noise(c, s, r, 1500, 0.08, 80, 200, 2);
+  },
+  gravel: (c, s, r) => {
+    c.fillStyle = '#77716a';
+    c.fillRect(0, 0, s, s);
+    for (let i = 0; i < 2600; i++) {
+      const v = 70 + Math.floor(r() * 110);
+      c.fillStyle = `rgb(${v + 6},${v + 2},${v - 4})`;
+      c.beginPath();
+      c.arc(r() * s, r() * s, 1 + r() * 2.5, 0, Math.PI * 2);
+      c.fill();
+    }
+  },
+  black: (c, s, r) => {
+    c.fillStyle = '#242424';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 800, 0.1, 0, 90, 2);
+  },
+  white: (c, s, r) => {
+    c.fillStyle = '#dedede';
+    c.fillRect(0, 0, s, s);
+    noise(c, s, r, 1200, 0.08, 150, 255, 2);
+  },
+  emissive: (c, s) => {
+    c.fillStyle = '#ffffff';
+    c.fillRect(0, 0, s, s);
+  },
+  sky: (c, s) => {
+    c.fillStyle = '#8ab';
+    c.fillRect(0, 0, s, s);
+  },
+};
+
+/** Textur eines Render-Materials. */
+export function materialTexture(mat: MaterialId): THREE.CanvasTexture {
+  return make('mat-' + mat, DRAW[mat], { size: mat === 'cage' || mat === 'grating' ? 128 : 256 });
 }
 
-/** Bombenspot-Markierung (Boden-Decal): Kreis + Buchstabe. */
-export function spotTexture(letter: string): THREE.CanvasTexture {
-  return make('spot-' + letter, 256, (ctx, s) => {
-    ctx.clearRect(0, 0, s, s);
-    ctx.strokeStyle = letter === 'A' ? '#ff5a4a' : '#ffb13a';
-    ctx.lineWidth = 14;
-    ctx.beginPath();
-    ctx.arc(s / 2, s / 2, s / 2 - 12, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = ctx.strokeStyle;
-    ctx.font = 'bold 150px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(letter, s / 2, s / 2 + 6);
-  }, false);
+/** Serverschrank-Front: perforierte Tür, Einschübe, Status-LEDs. */
+export function serverFrontTexture(): THREE.CanvasTexture {
+  return make('server-front', (c, s, r) => {
+    c.fillStyle = '#121315';
+    c.fillRect(0, 0, s, s);
+    c.fillStyle = '#26282c';
+    c.fillRect(16, 8, s - 32, s - 16);
+    for (let y = 14; y < s - 14; y += 11) {
+      c.fillStyle = '#34373c';
+      c.fillRect(20, y, s - 40, 8);
+      for (let x = 26; x < s - 30; x += 6) {
+        c.fillStyle = 'rgba(0,0,0,0.6)';
+        c.fillRect(x, y + 2, 3, 4);
+      }
+    }
+    c.fillStyle = '#9aa0a8';
+    c.fillRect(s - 26, s / 2 - 20, 5, 40);
+    void r;
+  }, { repeat: false });
 }
 
-/** Hängeschild: dunkler Grund, farbiger Rahmen + Text. */
-export function signTexture(text: string, color: string): THREE.CanvasTexture {
-  return make('sign-' + text + color, 512, (ctx, s) => {
-    ctx.clearRect(0, 0, s, s);
-    const h = s * 0.3;
-    const y0 = (s - h) / 2;
-    ctx.fillStyle = '#14181d';
-    ctx.fillRect(0, y0, s, h);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 10;
-    ctx.strokeRect(6, y0 + 6, s - 12, h - 12);
-    ctx.fillStyle = color;
-    let size = Math.floor(h * 0.42);
-    ctx.font = `bold ${size}px Arial`;
-    while (ctx.measureText(text).width > s - 40 && size > 12) {
+/** LED-Leiste (additiv über die Serverfront gelegt). */
+export function serverLedTexture(): THREE.CanvasTexture {
+  return make('server-leds', (c, s, r) => {
+    c.fillStyle = '#000';
+    c.fillRect(0, 0, s, s);
+    for (let y = 14; y < s - 14; y += 11) {
+      for (let k = 0; k < 4; k++) {
+        if (r() < 0.25) continue;
+        const col = r() < 0.7 ? '#33ff77' : r() < 0.6 ? '#33aaff' : '#ffaa22';
+        c.fillStyle = col;
+        c.fillRect(30 + k * 9 + r() * 4, y + 2, 4, 3);
+      }
+    }
+  }, { repeat: false });
+}
+
+/** Schild: dunkler Grund, farbiger Rahmen, Text + optionale Unterzeile. */
+export function signTexture(text: string, color: string, bg = '#16191d', sub?: string): THREE.CanvasTexture {
+  return make(`sign-${text}-${color}-${bg}-${sub ?? ''}`, (c, s) => {
+    const h = s / 2;
+    c.clearRect(0, 0, s, s);
+    c.fillStyle = bg;
+    c.fillRect(0, 0, s, h);
+    c.strokeStyle = color;
+    c.lineWidth = 6;
+    c.strokeRect(5, 5, s - 10, h - 10);
+    c.fillStyle = color;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    let size = sub ? 52 : 70;
+    c.font = `bold ${size}px Arial`;
+    while (c.measureText(text).width > s - 30 && size > 12) {
       size -= 2;
-      ctx.font = `bold ${size}px Arial`;
+      c.font = `bold ${size}px Arial`;
     }
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, s / 2, s / 2 + 4);
-  }, false);
+    c.fillText(text, s / 2, sub ? h * 0.42 : h / 2 + 3);
+    if (sub) {
+      c.font = 'bold 22px Arial';
+      c.fillStyle = 'rgba(230,230,230,0.85)';
+      c.fillText(sub, s / 2, h * 0.78);
+    }
+  }, { repeat: false, size: 512 });
 }
 
-
-
-/** Trapezblech (Dachunterseite): helle/dunkle Sicken, leichte Verschmutzung. */
-export function roofTexture(): THREE.CanvasTexture {
-  return make('roof', 128, (ctx, s) => {
-    ctx.fillStyle = '#8f98a2';
-    ctx.fillRect(0, 0, s, s);
-    for (let x = 0; x < s; x += 32) {
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
-      ctx.fillRect(x, 0, 8, s);
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(x + 14, 0, 6, s);
-      ctx.fillStyle = 'rgba(0,0,0,0.12)';
-      ctx.fillRect(x + 22, 0, 4, s);
+/** Bodenmarkierungen (transparente Decals). */
+export function decalTexture(kind: string, text = ''): THREE.CanvasTexture {
+  return make(`decal-${kind}-${text}`, (c, s, r) => {
+    c.clearRect(0, 0, s, s);
+    switch (kind) {
+      case 'letter':
+        c.strokeStyle = '#ffffff';
+        c.lineWidth = 12;
+        c.beginPath();
+        c.arc(s / 2, s / 2, s / 2 - 10, 0, Math.PI * 2);
+        c.stroke();
+        c.fillStyle = '#ffffff';
+        c.font = 'bold 150px Arial';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(text, s / 2, s / 2 + 6);
+        break;
+      case 'stripes':
+        c.fillStyle = '#e8b51c';
+        for (let x = -s; x < s * 2; x += 48) {
+          c.beginPath();
+          c.moveTo(x, 0);
+          c.lineTo(x + 24, 0);
+          c.lineTo(x + 24 + s, s);
+          c.lineTo(x + s, s);
+          c.closePath();
+          c.fill();
+        }
+        break;
+      case 'grid':
+        c.strokeStyle = 'rgba(255,255,255,0.25)';
+        c.lineWidth = 2;
+        for (let i = 0; i <= s; i += 32) {
+          c.beginPath();
+          c.moveTo(i, 0);
+          c.lineTo(i, s);
+          c.moveTo(0, i);
+          c.lineTo(s, i);
+          c.stroke();
+        }
+        break;
+      case 'stain': {
+        for (let i = 0; i < 6; i++) {
+          const x = s / 2 + (r() - 0.5) * s * 0.4, y = s / 2 + (r() - 0.5) * s * 0.4, rad = s * (0.15 + r() * 0.2);
+          const g = c.createRadialGradient(x, y, 0, x, y, rad);
+          g.addColorStop(0, 'rgba(20,18,15,0.45)');
+          g.addColorStop(1, 'rgba(20,18,15,0)');
+          c.fillStyle = g;
+          c.fillRect(0, 0, s, s);
+        }
+        break;
+      }
+      case 'arrow':
+        c.fillStyle = '#ffffff';
+        c.beginPath();
+        c.moveTo(s / 2, 10);
+        c.lineTo(s - 30, s * 0.45);
+        c.lineTo(s * 0.62, s * 0.45);
+        c.lineTo(s * 0.62, s - 10);
+        c.lineTo(s * 0.38, s - 10);
+        c.lineTo(s * 0.38, s * 0.45);
+        c.lineTo(30, s * 0.45);
+        c.closePath();
+        c.fill();
+        break;
+      default:
+        c.fillStyle = '#ffffff';
+        c.fillRect(0, 0, s, s);
     }
-    const r = rng(41);
-    for (let i = 0; i < 300; i++) {
-      ctx.fillStyle = `rgba(40,30,20,${0.04 + r() * 0.08})`;
-      ctx.fillRect(r() * s, r() * s, 2 + r() * 6, 2 + r() * 10);
-    }
-  });
+  }, { repeat: false });
 }
 
-/** Notausgang-Schild (grün, Piktogramm-Pfeil + Text). */
-export function exitSignTexture(): THREE.CanvasTexture {
-  return make('exit', 256, (ctx, s) => {
-    ctx.fillStyle = '#0d8a3c';
-    ctx.fillRect(0, 0, s, s);
-    ctx.fillStyle = '#f2fff5';
-    ctx.font = 'bold 44px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('NOTAUSGANG', s / 2, s * 0.68);
-    ctx.beginPath();
-    ctx.moveTo(s * 0.3, s * 0.32);
-    ctx.lineTo(s * 0.6, s * 0.32);
-    ctx.lineTo(s * 0.6, s * 0.22);
-    ctx.lineTo(s * 0.78, s * 0.38);
-    ctx.lineTo(s * 0.6, s * 0.54);
-    ctx.lineTo(s * 0.6, s * 0.44);
-    ctx.lineTo(s * 0.3, s * 0.44);
-    ctx.closePath();
-    ctx.fill();
-  }, false);
+/** Weicher Lichtkegel/Leuchthof (radialer Verlauf). */
+export function glowTexture(): THREE.CanvasTexture {
+  return make('glow', (c, s) => {
+    const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.25, 'rgba(255,255,255,0.45)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, s, s);
+  }, { repeat: false, size: 128 });
 }

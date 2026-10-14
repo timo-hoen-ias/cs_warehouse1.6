@@ -62,6 +62,34 @@ export function rayIntersectAabb(origin: Vec3, dir: Vec3, box: Aabb): number | n
   return tMin >= 0 ? tMin : tMax;
 }
 
+/** Strahl-Abfrage einer Kollisionswelt (z. B. `Collider` einer Karte mit Raster und Rampen). */
+export type RayCaster = { castRay(origin: Vec3, dir: Vec3, maxT: number): { t: number; normal: Vec3 } | null };
+
+/** Hindernisse für Strahlen: schlichte Quaderliste (Tests, Requisiten) oder eine Kollisionswelt. */
+export type Blockers = readonly Aabb[] | RayCaster;
+
+export function isRayCaster(b: Blockers): b is RayCaster {
+  return typeof (b as RayCaster).castRay === 'function';
+}
+
+/**
+ * Nächster Treffer eines Strahls mit den Hindernissen (Distanz > 0.02 m, ≤ maxT) samt
+ * Außennormale der getroffenen Fläche, oder null.
+ */
+export function castBlockers(blockers: Blockers, origin: Vec3, dir: Vec3, maxT = Infinity): { t: number; normal: Vec3 } | null {
+  if (isRayCaster(blockers)) {
+    const h = blockers.castRay(origin, dir, maxT);
+    return h && h.t > 0.02 ? h : h ? blockers.castRay({ x: origin.x + dir.x * 0.03, y: origin.y + dir.y * 0.03, z: origin.z + dir.z * 0.03 }, dir, maxT - 0.03) : null;
+  }
+  let best: { t: number; box: Aabb } | null = null;
+  for (const box of blockers) {
+    const t = rayIntersectAabb(origin, dir, box);
+    if (t !== null && t > 0.02 && t <= maxT && (!best || t < best.t)) best = { t, box };
+  }
+  if (!best) return null;
+  return { t: best.t, normal: rayEntryNormal(best.box, origin, dir) ?? { x: -dir.x, y: -dir.y, z: -dir.z } };
+}
+
 /** Entfernung zum nächsten getroffenen AABB entlang des Strahls (oder max). */
 export function nearestAabbDistance(origin: Vec3, dir: Vec3, boxes: Aabb[], max = Infinity): number {
   let best = max;

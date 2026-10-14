@@ -1,4 +1,4 @@
-import { castParts, rayIntersectAabb, type Aabb, type BodyPart, type PartBox, type Vec3 } from './hitbox';
+import { castBlockers, castParts, type Blockers, type BodyPart, type PartBox, type Vec3 } from './hitbox';
 import type { WeaponDef } from './weapons';
 
 /**
@@ -10,7 +10,7 @@ export type ShotTarget = { id: string; parts: PartBox[] };
 
 export type ShotHit =
   | { kind: 'target'; id: string; part: BodyPart; dist: number; point: Vec3 }
-  | { kind: 'wall'; dist: number; point: Vec3 }
+  | { kind: 'wall'; dist: number; point: Vec3; normal: Vec3 }
   | { kind: 'none'; dist: number; point: Vec3 };
 
 function normalize(v: Vec3): Vec3 {
@@ -49,12 +49,9 @@ export function shotDirs(def: WeaponDef, aim: Vec3, spread: number, rnd: () => n
  * Ein Strahl gegen Level + Ziele. Ziele hinter der nächsten Wand zählen nicht;
  * `ignoreId` = Schütze selbst.
  */
-export function resolveRay(origin: Vec3, dir: Vec3, range: number, solids: Aabb[], targets: ShotTarget[], ignoreId?: string): ShotHit {
-  let wallDist = Infinity;
-  for (const box of solids) {
-    const t = rayIntersectAabb(origin, dir, box);
-    if (t !== null && t > 0.02 && t < wallDist) wallDist = t;
-  }
+export function resolveRay(origin: Vec3, dir: Vec3, range: number, solids: Blockers, targets: ShotTarget[], ignoreId?: string): ShotHit {
+  const wall = castBlockers(solids, origin, dir, range);
+  const wallDist = wall ? wall.t : Infinity;
   let best: { id: string; part: BodyPart; dist: number } | null = null;
   for (const tg of targets) {
     if (tg.id === ignoreId) continue;
@@ -64,12 +61,12 @@ export function resolveRay(origin: Vec3, dir: Vec3, range: number, solids: Aabb[
   }
   const point = (d: number): Vec3 => ({ x: origin.x + dir.x * d, y: origin.y + dir.y * d, z: origin.z + dir.z * d });
   if (best && best.dist <= range && best.dist < wallDist) return { kind: 'target', id: best.id, part: best.part, dist: best.dist, point: point(best.dist) };
-  if (wallDist <= range) return { kind: 'wall', dist: wallDist, point: point(wallDist) };
+  if (wall && wallDist <= range) return { kind: 'wall', dist: wallDist, point: point(wallDist), normal: wall.normal };
   return { kind: 'none', dist: range, point: point(range) };
 }
 
 /** Nahkampf: trifft das nächste Ziel innerhalb der Messer-Reichweite (Strahl aus Augenhöhe). */
-export function resolveMelee(origin: Vec3, dir: Vec3, def: WeaponDef, solids: Aabb[], targets: ShotTarget[], ignoreId?: string): ShotHit {
+export function resolveMelee(origin: Vec3, dir: Vec3, def: WeaponDef, solids: Blockers, targets: ShotTarget[], ignoreId?: string): ShotHit {
   return resolveRay(origin, dir, def.range, solids, targets, ignoreId);
 }
 

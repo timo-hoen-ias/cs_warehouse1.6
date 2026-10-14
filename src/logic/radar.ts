@@ -1,4 +1,5 @@
-import type { Bounds2D } from '../shared/level';
+/** Rechteck in der XZ-Ebene (Weltmeter). */
+export type Bounds2D = { minX: number; maxX: number; minZ: number; maxZ: number };
 
 /**
  * Radar/Minimap-Mathematik (pure): Welt-XZ → Radar-Pixel, zentriert auf den

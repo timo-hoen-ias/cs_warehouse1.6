@@ -1,4 +1,5 @@
 import type { SolidBox } from './level';
+import { Collider, colliderFor } from './collision';
 
 /** Bewegungsparameter (CS-angelehnt, justierbar). */
 export const PLAYER = {
@@ -23,26 +24,20 @@ export type PlayerMotion = {
   grounded: boolean;
 };
 
-/** Überlappt der Kreis (x,z,radius) die XZ-Fläche der Box? */
-function overlapsXz(b: SolidBox, x: number, z: number, radius: number): boolean {
-  return x > b.minX - radius && x < b.maxX + radius && z > b.minZ - radius && z < b.maxZ + radius;
+/** Kollisionswelt: Collider (Karten mit Rampen/Raster) oder schlichte Quaderliste (Tests, Altformat). */
+export type MoveWorld = Collider | readonly SolidBox[];
+
+export function asCollider(world: MoveWorld): Collider {
+  return world instanceof Collider ? world : colliderFor(world);
 }
 
 /**
- * Bodenhöhe unter dem Spieler: höchste Oberkante einer Box im Fußabdruck, die
- * noch als Stufe erreichbar ist (≤ Fußhöhe + step). Sonst Hallenboden (0).
- * So werden Paletten, Kisten, Treppenstufen, Laufstege und Regaldächer begehbar.
+ * Bodenhöhe unter dem Spieler: höchste Oberkante (Quader oder Rampe) im Fußabdruck, die
+ * noch als Stufe erreichbar ist (≤ Fußhöhe + step). Sonst der implizite Boden des Colliders.
+ * So werden Paletten, Kisten, Treppen, Rampen, Laufstege und Plattformen begehbar.
  */
-export function groundHeight(x: number, z: number, feetY: number, solids: SolidBox[], radius: number = PLAYER.radius, step: number = PLAYER.step): number {
-  let ground = 0;
-  for (const b of solids) {
-    if (b.maxY <= ground) continue;
-    if (b.maxY > feetY + step) continue;
-    // Fußabdruck leicht enger als der Kollisionsradius, damit man an Kanten nicht „in der Luft“ steht
-    if (!overlapsXz(b, x, z, radius * 0.6)) continue;
-    ground = b.maxY;
-  }
-  return ground;
+export function groundHeight(x: number, z: number, feetY: number, world: MoveWorld, radius: number = PLAYER.radius, step: number = PLAYER.step): number {
+  return asCollider(world).groundHeight(x, z, feetY, radius, step);
 }
 
 /**
@@ -54,36 +49,20 @@ export function blocksAt(b: SolidBox, feetY: number, height: number = PLAYER.hei
 }
 
 /**
- * Löst die horizontale Position gegen alle soliden Boxen auf (XZ, Radius).
+ * Löst die horizontale Position gegen alle blockierenden Elemente auf (XZ, Radius).
  * Wird je Achse getrennt aufgerufen (x vor z), damit man an Kanten entlanggleitet.
- * Port von resolveCollisions aus ias.warehouse-map (WalkControls), erweitert um
- * die Fußhöhe (Stufen/Unterquerungen blockieren nicht).
+ * Rampen blockieren nur mit dem Teil, der höher als Fuß + Stufe liegt.
  */
-export function resolveAxis(pos: { x: number; z: number }, solids: SolidBox[], radius: number, feetY = 0): void {
-  for (const b of solids) {
-    if (!blocksAt(b, feetY)) continue;
-    const minX = b.minX - radius;
-    const maxX = b.maxX + radius;
-    const minZ = b.minZ - radius;
-    const maxZ = b.maxZ + radius;
-    if (pos.x > minX && pos.x < maxX && pos.z > minZ && pos.z < maxZ) {
-      const dl = pos.x - minX;
-      const dr = maxX - pos.x;
-      const dt = pos.z - minZ;
-      const db = maxZ - pos.z;
-      const min = Math.min(dl, dr, dt, db);
-      if (min === dl) pos.x = minX;
-      else if (min === dr) pos.x = maxX;
-      else if (min === dt) pos.z = minZ;
-      else pos.z = maxZ;
-    }
-  }
+export function resolveAxis(pos: { x: number; z: number }, world: MoveWorld, radius: number, feetY = 0, height: number = PLAYER.height): void {
+  asCollider(world).resolve(pos, radius, feetY, height, PLAYER.step);
 }
 
 /**
  * Ein Bewegungs-Schritt (reine Logik, kein three).
- * Wendet Vertikalgeschwindigkeit + Boden-/Stufenlogik und horizontale Verschiebung an.
- * Returns neuen Zustand; verändert nichts extern.
+ * Wendet Vertikalgeschwindigkeit, Kopf-Kollision, Boden-/Stufen-/Rampenlogik und
+ * horizontale Verschiebung an. Liefert den neuen Zustand; verändert nichts extern.
+ * Rampen: Bodenhöhe folgt der Schräge (bergab „klebt“ man am Boden, kein Hüpfen),
+ * Rampen steiler als 40° wirken wie Wände; von Kanten fällt man herunter.
  */
 export function stepPlayer(
   m: PlayerMotion,
@@ -91,47 +70,56 @@ export function stepPlayer(
   moveZ: number,
   jump: boolean,
   dt: number,
-  solids: SolidBox[],
-  opts: { eye?: number; radius?: number; gravity?: number; jumpSpeed?: number } = {},
+  world: MoveWorld,
+  opts: { eye?: number; radius?: number; gravity?: number; jumpSpeed?: number; height?: number } = {},
 ): PlayerMotion {
+  const col = asCollider(world);
   const eye = opts.eye ?? PLAYER.eye;
   const radius = opts.radius ?? PLAYER.radius;
   const gravity = opts.gravity ?? PLAYER.gravity;
   const jumpSpeed = opts.jumpSpeed ?? PLAYER.jumpSpeed;
+  const height = opts.height ?? PLAYER.height;
+  const step = PLAYER.step;
   dt = Math.min(dt, 0.05);
 
   const feet0 = m.y - eye;
 
   // --- Horizontal (achsengetrennt kollidieren, auf aktueller Fußhöhe) ---
-  let x = m.x + moveX * dt;
-  const px = { x, z: m.z };
-  resolveAxis(px, solids, radius, feet0);
-  x = px.x;
-  const pz = { x, z: m.z + moveZ * dt };
-  resolveAxis(pz, solids, radius, feet0);
+  const px = { x: m.x + moveX * dt, z: m.z };
+  col.resolve(px, radius, feet0, height, step);
+  const pz = { x: px.x, z: m.z + moveZ * dt };
+  col.resolve(pz, radius, feet0, height, step);
   // Erneut kollidieren, falls beide Achsen sich gegenseitig beeinflussen
-  resolveAxis(pz, solids, radius, feet0);
-  x = pz.x;
+  col.resolve(pz, radius, feet0, height, step);
+  const x = pz.x;
   const z = pz.z;
 
   // --- Vertikal ---
   let vy = m.grounded && jump ? jumpSpeed : m.vy - gravity * dt;
   let feet = feet0 + vy * dt;
   let grounded = false;
+  // Kopf: beim Aufsteigen unter Decken/Laufstegen stoppen
+  if (vy > 0) {
+    const ceil = col.ceilingAbove(x, z, feet0, radius);
+    if (feet + height > ceil) {
+      feet = Math.max(feet0, ceil - height);
+      vy = 0;
+    }
+  }
   // Boden unter der neuen Position (Stufen: nur aufwärts bis step, sonst fallen)
-  const ground = groundHeight(x, z, Math.max(feet0, feet), solids, radius);
+  const ground = col.groundHeight(x, z, Math.max(feet0, feet), radius, step);
   if (feet <= ground && vy <= 0) {
     feet = ground;
     vy = 0;
     grounded = true;
-  } else if (m.grounded && !jump && feet0 >= ground - 1e-6 && ground >= feet0 - PLAYER.step && feet < ground) {
-    // Sanft auf die Stufe/den Boden setzen (kein Fallen beim Gehen über kleine Höhenunterschiede)
+  } else if (m.grounded && !jump && vy <= 0 && ground >= feet0 - step && ground <= feet0 + 1e-6) {
+    // Am Boden bleiben: kleine Absätze und Rampen bergab ohne Fallen/Hüpfen
     feet = ground;
     vy = 0;
     grounded = true;
   }
   // Nur beim Gehen am Boden Stufen hochziehen; in der Luft zählt die echte Bahn
-  if (m.grounded && !jump && ground > feet && ground <= feet0 + PLAYER.step) {
+  if (m.grounded && !jump && ground > feet && ground <= feet0 + step) {
     feet = ground;
     vy = 0;
     grounded = true;
