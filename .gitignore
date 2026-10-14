@@ -29,3 +29,6 @@ smoke.png
 
 # Vom Needle-Tooling angelegter Symlink auf .agents/skills
 .github/skills/
+
+# Arbeitskopien der Hilfs-Agenten
+.claude/worktrees/
