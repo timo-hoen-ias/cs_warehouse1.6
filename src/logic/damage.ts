@@ -24,9 +24,35 @@ export function heal(h: Health, amount: number): void {
   h.hp = Math.min(h.max, h.hp + amount);
 }
 
-/** Berechnet Schaden auf Teil 'head'|'body' und wendet ihn an. */
+/** Berechnet Schaden auf Teil 'head'|'body' und wendet ihn an (ohne Rüstung). */
 export function hitEntity(h: Health, def: WeaponDef, part: 'head' | 'body'): { dmg: number; killed: boolean } {
   const dmg = hitDamage(def, part);
   const killed = applyDamage(h, dmg);
   return { dmg, killed };
+}
+
+/** Rüstungszustand eines Spielers (CS: Kevlar 0..100, Helm schützt den Kopf). */
+export type Armor = { armor: number; helmet: boolean };
+
+export function noArmor(): Armor {
+  return { armor: 0, helmet: false };
+}
+
+/**
+ * CS-Rüstungsformel: trifft der Schuss eine gepanzerte Stelle (Körper mit Weste,
+ * Kopf nur mit Helm), geht nur armorPen × Schaden durch; die Weste nimmt die
+ * Hälfte des absorbierten Schadens als Verschleiß. Reicht die Weste nicht,
+ * geht der Rest ungebremst durch.
+ */
+export function armoredDamage(raw: number, armorPen: number, part: 'head' | 'body', armor: Armor): { dmg: number; armorLeft: number } {
+  const protectedPart = armor.armor > 0 && (part === 'body' || armor.helmet);
+  if (!protectedPart) return { dmg: Math.round(raw), armorLeft: armor.armor };
+  let dmg = raw * armorPen;
+  let wear = (raw - dmg) * 0.5;
+  if (wear > armor.armor) {
+    // Weste durchgeschlagen: nicht absorbierter Rest geht durch
+    dmg += (wear - armor.armor) * 2;
+    wear = armor.armor;
+  }
+  return { dmg: Math.round(dmg), armorLeft: Math.max(0, Math.round(armor.armor - wear)) };
 }

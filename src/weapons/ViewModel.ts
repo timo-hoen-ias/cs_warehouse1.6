@@ -20,6 +20,9 @@ const TYPE_LEN: Record<WeaponType, number> = {
   rifle: 0.55,
   sniper: 0.75,
   shotgun: 0.5,
+  mg: 0.6,
+  grenade: 0.12,
+  bomb: 0.25,
 };
 
 /**

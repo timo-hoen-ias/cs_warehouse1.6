@@ -1,4 +1,5 @@
-/** Economy-Regeln (CS-angelehnt, de_-Modus). Preise/Boni als justierbare Daten. */
+/** Economy-Regeln (CS-angelehnt, de_-Modus). Preise liegen bei den Waffen (weapons.json). */
+import { EQUIPMENT, WEAPONS } from './weapons';
 
 export type Team = 'T' | 'CT';
 export type EconomyEvent =
@@ -8,11 +9,6 @@ export type EconomyEvent =
   | { kind: 'plant' }
   | { kind: 'defuse' }
   | { kind: 'roundStart'; team: Team };
-
-export const PRICES = {
-  glock: 400, usp: 500, mp5: 1500, ak47: 2700, m4a1: 3100, awp: 4750,
-  armor: 650, defuseKit: 200,
-} as const;
 
 export const ECONOMY = {
   startMoney: 800,
@@ -52,8 +48,7 @@ export function endRound(m: Money, won: boolean): void {
     m.amount += ECONOMY.winReward;
     m.lossStreak = 0;
   } else {
-    const bonus = Math.min(ECONOMY.lossBonusCap, ECONOMY.lossBonusStart + m.lossStreak * ECONOMY.lossBonusStep);
-    m.amount += bonus;
+    m.amount += lossBonus(m.lossStreak);
     m.lossStreak += 1;
   }
   clampMoney(m);
@@ -64,6 +59,12 @@ export function addMoney(m: Money, amount: number): void {
   clampMoney(m);
 }
 
-export function priceOf(weaponId: keyof typeof PRICES): number {
-  return PRICES[weaponId];
+/** Preis einer Waffe oder Ausrüstung (0 = unbekannt/nicht kaufbar). */
+export function priceOf(itemId: string): number {
+  return WEAPONS[itemId]?.price ?? (EQUIPMENT as Record<string, { price: number }>)[itemId]?.price ?? 0;
+}
+
+/** Team-weiter Verlust-Bonus (CS: steigt je Niederlagenserie, Cap 3400). */
+export function lossBonus(lossStreak: number): number {
+  return Math.min(ECONOMY.lossBonusCap, ECONOMY.lossBonusStart + lossStreak * ECONOMY.lossBonusStep);
 }

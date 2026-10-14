@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WEAPONS, currentSpread, hitDamage, reloadAmount, reloadDuration, shotInterval } from './weapons';
+import { BUY_CATEGORIES, EQUIPMENT, WEAPONS, currentSpread, hitDamage, rangeFalloff, reloadAmount, reloadDuration, shotInterval, teamCanUse, weaponsInCategory } from './weapons';
 
 const ak = WEAPONS['ak47']!;
 const awp = WEAPONS['awp']!;
@@ -56,12 +56,17 @@ describe('reload', () => {
 describe('Datenkonsistenz', () => {
   it('alle Waffen haben gültige Felder', () => {
     for (const w of Object.values(WEAPONS)) {
-      expect(w.damage).toBeGreaterThan(0);
+      if (w.mode === 'hit' || w.mode === 'melee') expect(w.damage).toBeGreaterThan(0);
       expect(w.headFactor).toBeGreaterThanOrEqual(1);
       expect(w.reloadTime).toBeGreaterThanOrEqual(0);
       expect(w.spreadBase).toBeGreaterThanOrEqual(0);
       expect(w.range).toBeGreaterThan(0);
-      expect(['hit', 'melee']).toContain(w.mode);
+      expect(['hit', 'melee', 'throw', 'plant']).toContain(w.mode);
+      expect([1, 2, 3, 4, 5]).toContain(w.slot);
+      expect(['T', 'CT', 'both']).toContain(w.team);
+      expect(w.armorPen).toBeGreaterThanOrEqual(0);
+      expect(w.armorPen).toBeLessThanOrEqual(1);
+      expect(w.pellets).toBeGreaterThanOrEqual(1);
       expect(w.recoil.recovery).toBeGreaterThan(0);
       expect(w.recoil.cap).toBeGreaterThanOrEqual(0);
     }
@@ -70,7 +75,7 @@ describe('Datenkonsistenz', () => {
   it('Messer hat keinen Recoil; Schusswaffen haben Recoil-Parameter', () => {
     expect(WEAPONS['knife']!.recoil.up).toBe(0);
     for (const w of Object.values(WEAPONS)) {
-      if (w.mode === 'melee') continue;
+      if (w.mode !== 'hit') continue;
       expect(w.recoil.up).toBeGreaterThan(0);
       expect(w.recoil.cap).toBeGreaterThanOrEqual(w.recoil.up);
     }
@@ -78,19 +83,37 @@ describe('Datenkonsistenz', () => {
 
   it('Magazin- und Reserve sind konsistent (full mag ≤ reserve falls endlich)', () => {
     for (const w of Object.values(WEAPONS)) {
-      if (!Number.isFinite(w.magSize)) continue;
+      if (!Number.isFinite(w.magSize) || w.mode !== 'hit') continue;
       expect(w.reserve).toBeGreaterThanOrEqual(w.magSize);
     }
   });
 
-  it('Schusswaffen haben ein Modell; Messer keins (prozedural)', () => {
+  it('Schusswaffen haben ein Modell; Messer/Granaten/C4 keins (prozedural)', () => {
     for (const w of Object.values(WEAPONS)) {
-      if (w.mode === 'melee') {
+      if (w.mode !== 'hit') {
         expect(w.visual.model).toBe('');
         continue;
       }
       expect(w.visual.model.length).toBeGreaterThan(0);
     }
+  });
+
+  it('CS-1.6-Arsenal vollständig: Slots, Teams, Granaten, C4', () => {
+    const ids = Object.keys(WEAPONS);
+    for (const id of ['glock', 'usp', 'deagle', 'm3', 'mp5', 'p90', 'ak47', 'm4a1', 'awp', 'scout', 'm249', 'hegrenade', 'flashbang', 'smokegrenade', 'c4']) {
+      expect(ids).toContain(id);
+    }
+    expect(WEAPONS['ak47']!.team).toBe('T');
+    expect(WEAPONS['m4a1']!.team).toBe('CT');
+    expect(WEAPONS['ak47']!.slot).toBe(1);
+    expect(WEAPONS['glock']!.slot).toBe(2);
+    expect(WEAPONS['knife']!.slot).toBe(3);
+    expect(WEAPONS['hegrenade']!.slot).toBe(4);
+    expect(WEAPONS['hegrenade']!.grenadeKind).toBe('he');
+    expect(WEAPONS['c4']!.slot).toBe(5);
+    expect(WEAPONS['m3']!.pellets).toBeGreaterThan(1);
+    expect(WEAPONS['knife']!.price).toBe(0);
+    expect(WEAPONS['awp']!.price).toBe(4750);
   });
 
   it('Viewmodel-Offsets zeigen vor die Kamera (z negativ) und Mündung davor', () => {
@@ -99,5 +122,48 @@ describe('Datenkonsistenz', () => {
       expect(w.visual.pos.z).toBeLessThan(0);
       expect(w.visual.muzzle.z).toBeLessThan(w.visual.pos.z);
     }
+  });
+
+  it('Viewmodel-Defaults je Typ werden gefüllt', () => {
+    expect(WEAPONS['p90']!.visual.scale).toBeGreaterThan(0);
+    expect(WEAPONS['p90']!.visual.pos.z).toBeLessThan(0);
+  });
+});
+
+describe('Kauf-Kategorien', () => {
+  it('Team-Filter: T sieht AK, CT sieht M4; beide sehen AWP', () => {
+    const t = weaponsInCategory('rifle', 'T').map((w) => w.id);
+    const ct = weaponsInCategory('rifle', 'CT').map((w) => w.id);
+    expect(t).toContain('ak47');
+    expect(t).not.toContain('m4a1');
+    expect(ct).toContain('m4a1');
+    expect(ct).not.toContain('ak47');
+    expect(t).toContain('awp');
+    expect(ct).toContain('awp');
+  });
+
+  it('Kategorien sind nach Preis sortiert und enthalten keine Gratis-Items', () => {
+    for (const cat of BUY_CATEGORIES) {
+      const list = weaponsInCategory(cat.id, 'T');
+      for (let i = 1; i < list.length; i++) expect(list[i]!.price).toBeGreaterThanOrEqual(list[i - 1]!.price);
+      for (const w of list) expect(w.price).toBeGreaterThan(0);
+    }
+    expect(weaponsInCategory('equipment', 'CT').map((w) => w.id)).toEqual(['flashbang', 'hegrenade', 'smokegrenade']);
+  });
+
+  it('teamCanUse: Kit nur CT, Kevlar beide', () => {
+    expect(teamCanUse(EQUIPMENT.defusekit, 'CT')).toBe(true);
+    expect(teamCanUse(EQUIPMENT.defusekit, 'T')).toBe(false);
+    expect(teamCanUse(EQUIPMENT.kevlar, 'T')).toBe(true);
+  });
+});
+
+describe('rangeFalloff', () => {
+  it('Nahdistanz = voller Schaden, Ferne weniger; Sniper ohne Abfall', () => {
+    expect(rangeFalloff(ak, 0)).toBe(1);
+    expect(rangeFalloff(ak, 50)).toBeLessThan(1);
+    expect(rangeFalloff(ak, 50)).toBeGreaterThan(rangeFalloff(usp, 50));
+    expect(rangeFalloff(awp, 200)).toBe(1);
+    expect(rangeFalloff(WEAPONS['m3']!, 20)).toBeLessThan(0.6);
   });
 });
