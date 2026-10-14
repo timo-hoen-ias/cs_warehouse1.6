@@ -1,7 +1,7 @@
 import type { LagerDaten } from '../shared/types';
 import type { Vec3 } from '../shared/level';
 import { layoutRacks, rackBounds } from './layout';
-import { computeSolids, innerBounds } from './level';
+import { computeSolids, innerBounds, type SolidBox } from './level';
 import { PLAYER, pointFree } from './move';
 
 /**
@@ -25,12 +25,12 @@ export type WaypointGraph = {
 const GRID = 2; // Rasterabstand in Metern — klein genug für Gänge
 
 /** Erzeugt Wegpunkt-Raster aus freien Punkten. */
-export function buildWaypoints(lager: LagerDaten, clearance: number = PLAYER.radius + 0.2): WaypointGraph {
+export function buildWaypoints(lager: LagerDaten, clearance: number = PLAYER.radius + 0.2, extraSolids: SolidBox[] = []): WaypointGraph {
   const racks = layoutRacks(lager.lagerorte);
   const bounds = rackBounds(racks);
-  const solids = computeSolids(lager);
-  // Nur Regale blockieren Bots (Wände sind Grenzen des Innenraums)
-  const rackSolids = solids.filter((s) => s.kind === 'rack');
+  const solids = [...computeSolids(lager), ...extraSolids];
+  // Regale + Requisiten blockieren Bots (Wände sind Grenzen des Innenraums)
+  const rackSolids = solids.filter((s) => s.kind !== 'wall');
   if (!bounds) return { points: [], bounds: null };
 
   const inner = innerBounds(bounds);

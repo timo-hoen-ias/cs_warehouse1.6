@@ -2,22 +2,38 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import type { LagerDaten } from '../src/shared/types';
-import type { LevelFile } from '../src/shared/level';
-import { computeSolids, suggestZones } from '../src/logic/level';
+import type { LevelFile, LevelMeta } from '../src/shared/level';
+import { computeSolids, innerBounds, suggestZones } from '../src/logic/level';
+import { layoutRacks, rackBounds } from '../src/logic/layout';
 import { generateLagerDaten } from '../src/logic/demo';
+import { generateProps, solidsWithProps } from '../src/logic/props';
+import { spawnPoints } from '../src/logic/spawns';
+import { MAPS, mapById, type MapDef } from '../src/logic/maps';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = resolve(__dirname, '../levels');
 
-/**
- * Baue eine Karte (LevelFile) aus einem Lager und schreibe sie als JSON.
- * Wird per `bun run bake` ausgeführt. Ohne erreichbare MSSQL-DB wird das Demo-Lager gebacken.
- */
+/** Spawnpunkte je Team (CS: 10 je Seite reichen für 5v5 + Bots). */
+const SPAWNS_PER_TEAM = 10;
 
-function toLevel(name: string, lager: LagerDaten): LevelFile {
-  const solids = computeSolids(lager);
-  if (solids.length === 0) throw new Error(`Level '${name}': keine soliden Objekte (leeres Lager?)`);
-  return { format: 1, name, lager, zones: suggestZones(lager) };
+/**
+ * Baut Karten (LevelFile, format 2) aus einem Lager und schreibt sie als JSON.
+ *   bun run bake            → alle Karten der Registry (Demo-Generator)
+ *   bun run bake de_rampe   → eine Karte der Registry
+ *   bun run bake <kennung>  → echte DB (Env MSSQL_*) als de_<kennung>; ohne DB → Demo
+ */
+export function toLevel(meta: LevelMeta, lager: LagerDaten, propCount: number, seed: number): LevelFile {
+  const base = computeSolids(lager);
+  if (base.length === 0) throw new Error(`Level '${meta.id}': keine soliden Objekte (leeres Lager?)`);
+  const zones = suggestZones(lager);
+  const props = generateProps(lager, zones, propCount, seed + 100);
+  const solids = solidsWithProps(lager, props);
+  const inner = innerBounds(rackBounds(layoutRacks(lager.lagerorte))!);
+  const spawns = {
+    t: spawnPoints(zones.t, SPAWNS_PER_TEAM, solids, inner),
+    ct: spawnPoints(zones.ct, SPAWNS_PER_TEAM, solids, inner),
+  };
+  return { format: 2, name: meta.name, meta, lager, zones, props, spawns };
 }
 
 async function loadFromDb(): Promise<LagerDaten | null> {
@@ -58,37 +74,47 @@ function fmt(v: [number, number, number]): string {
   return `(${Math.round(v[0])},${Math.round(v[1])},${Math.round(v[2])})`;
 }
 
-async function main(): Promise<void> {
-  const nameArg = process.argv[2] ?? 'demo';
-  const lagerArg = process.argv[3]; // optional: Anzahl Demo-Orte (nur Demo-Modus)
-
-  let lager: LagerDaten | null = null;
-  let fromDb = false;
-
-  if (nameArg !== 'demo') {
-    // Explizite Karte verlangt DB (per Env konfiguriert)
-    try {
-      lager = await loadFromDb();
-      fromDb = !!lager;
-    } catch {
-      lager = null;
-    }
-  }
-  if (!lager) {
-    const orte = lagerArg ? Number(lagerArg) || 16 : 16;
-    lager = generateLagerDaten(orte, 1);
-  }
-
-  const name = fromDb ? `de-${nameArg}` : 'de-demo';
-  const level = toLevel(name, lager);
+function write(level: LevelFile): void {
   mkdirSync(OUT_DIR, { recursive: true });
-  const file = resolve(OUT_DIR, `${name}.json`);
+  const file = resolve(OUT_DIR, `${level.meta!.id}.json`);
   writeFileSync(file, JSON.stringify(level, null, 2));
   const count = level.lager.lagerorte.length;
   const cells = level.lager.lagerorte.reduce((s, o) => s + o.plaetze.length, 0);
-  console.log(`[bake] ${name} geschrieben → ${file}`);
-  console.log(`[bake] ${count} Lagerorte, ${cells} Plätze; Quelle: ${fromDb ? 'MSSQL' : 'Demo-Generator'}`);
-  console.log(`[bake] Zonen: T=${fmt(level.zones.t)} CT=${fmt(level.zones.ct)} A=${fmt(level.zones.a)} B=${fmt(level.zones.b)}`);
+  console.log(`[bake] ${level.meta!.id} → ${file}`);
+  console.log(`[bake]   ${count} Lagerorte, ${cells} Plätze, ${level.props!.length} Requisiten, Spawns T/CT ${level.spawns!.t.length}/${level.spawns!.ct.length}`);
+  console.log(`[bake]   Zonen: T=${fmt(level.zones.t)} CT=${fmt(level.zones.ct)} A=${fmt(level.zones.a)} B=${fmt(level.zones.b)}`);
+}
+
+function bakeDemo(def: MapDef): void {
+  const lager = generateLagerDaten(def.orte, def.seed, def.layout);
+  write(toLevel({ id: def.id, name: def.name, description: def.description }, lager, def.props, def.seed));
+}
+
+async function main(): Promise<void> {
+  const arg = process.argv[2];
+  if (!arg || arg === 'all') {
+    for (const def of MAPS) bakeDemo(def);
+    return;
+  }
+  const known = MAPS.find((m) => m.id === arg);
+  if (known) {
+    bakeDemo(known);
+    return;
+  }
+  // Echte DB-Karte
+  let lager: LagerDaten | null = null;
+  try {
+    lager = await loadFromDb();
+  } catch {
+    lager = null;
+  }
+  if (!lager) {
+    console.warn(`[bake] Keine DB für '${arg}' — backe Demo-Karte ${mapById(arg).id}`);
+    bakeDemo(mapById(arg));
+    return;
+  }
+  const id = `de_${arg.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+  write(toLevel({ id, name: `Lager ${arg}`, description: 'Aus der Lager-Datenbank gebacken.' }, lager, 20, 1));
 }
 
 await main();

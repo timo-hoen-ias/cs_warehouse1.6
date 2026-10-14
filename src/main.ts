@@ -1,7 +1,7 @@
 import { onStart } from '@needle-tools/engine';
 import * as THREE from 'three';
 import type { LevelFile } from './shared/level';
-import levelData from '../levels/de-demo.json';
+import levelData from '../levels/de_kommission.json';
 import { buildLevelView } from './level/LevelView';
 import { FpsPlayer } from './player/FpsPlayer';
 import { Shooter } from './weapons/Shooter';
@@ -107,7 +107,7 @@ onStart((context) => {
   const botBrain = playerRoot.addComponent(BotBrain);
   botBrain.solids = solids;
   botBrain.player = player;
-  botBrain.waypoints = buildWaypoints(level.lager);
+  botBrain.waypoints = buildWaypoints(level.lager, undefined, solids.filter((s) => s.kind === 'prop'));
   const guardSpots: [number, number][] = [
     [level.zones.a[0] + 3, level.zones.a[2] + 3],
     [level.zones.b[0] - 3, level.zones.b[2] + 3],

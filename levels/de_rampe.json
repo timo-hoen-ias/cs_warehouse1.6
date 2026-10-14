@@ -1,0 +1,7075 @@
+{
+  "format": 2,
+  "name": "Verladerampe",
+  "meta": {
+    "id": "de_rampe",
+    "name": "Verladerampe",
+    "description": "Kompakte Halle: kurze Wege, viele Kisten — Nahkampf."
+  },
+  "lager": {
+    "mandant": 1,
+    "lagerorte": [
+      {
+        "lagerkennung": "DEMO-001",
+        "bezeichnung": "Demo-Lager 1",
+        "lagertechnik": "LTD1UF",
+        "dims": {
+          "d1": 10,
+          "d2": 0,
+          "d3": 0
+        },
+        "plaetze": [
+          {
+            "platzId": 1,
+            "dim": {
+              "d1": 0,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;0;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "722186",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 203,
+                "verfuegbarkeit": 0,
+                "gewicht": 23
+              },
+              {
+                "artikelnummer": "175205",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 130,
+                "verfuegbarkeit": 0,
+                "gewicht": 50
+              }
+            ]
+          },
+          {
+            "platzId": 2,
+            "dim": {
+              "d1": 1,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;1;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "499883",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 936,
+                "verfuegbarkeit": 0,
+                "gewicht": 15
+              }
+            ]
+          },
+          {
+            "platzId": 3,
+            "dim": {
+              "d1": 2,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;2;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 4,
+            "dim": {
+              "d1": 3,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;3;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "568520",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 384,
+                "verfuegbarkeit": 0,
+                "gewicht": 15
+              },
+              {
+                "artikelnummer": "565503",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 75,
+                "verfuegbarkeit": 0,
+                "gewicht": 26
+              }
+            ]
+          },
+          {
+            "platzId": 5,
+            "dim": {
+              "d1": 4,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;4;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 6,
+            "dim": {
+              "d1": 5,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;5;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 7,
+            "dim": {
+              "d1": 6,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;6;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 8,
+            "dim": {
+              "d1": 7,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;7;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 9,
+            "dim": {
+              "d1": 8,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;8;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "476165",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 445,
+                "verfuegbarkeit": 0,
+                "gewicht": 40
+              }
+            ]
+          },
+          {
+            "platzId": 10,
+            "dim": {
+              "d1": 9,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;9;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "810728",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 879,
+                "verfuegbarkeit": 0,
+                "gewicht": 7
+              }
+            ]
+          },
+          {
+            "platzId": 11,
+            "dim": {
+              "d1": 10,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-001;10;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "767541",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 556,
+                "verfuegbarkeit": 0,
+                "gewicht": 31
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "lagerkennung": "DEMO-002",
+        "bezeichnung": "Demo-Lager 2",
+        "lagertechnik": "LTD3HR",
+        "dims": {
+          "d1": 2,
+          "d2": 4,
+          "d3": 6
+        },
+        "plaetze": [
+          {
+            "platzId": 12,
+            "dim": {
+              "d1": 0,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;0;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "777250",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 58,
+                "verfuegbarkeit": 0,
+                "gewicht": 20
+              }
+            ]
+          },
+          {
+            "platzId": 13,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;1;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "499621",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 867,
+                "verfuegbarkeit": 0,
+                "gewicht": 44
+              }
+            ]
+          },
+          {
+            "platzId": 14,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;1;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "246980",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 555,
+                "verfuegbarkeit": 0,
+                "gewicht": 50
+              }
+            ]
+          },
+          {
+            "platzId": 15,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;1;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 16,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;1;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 17,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;1;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "889841",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 204,
+                "verfuegbarkeit": 0,
+                "gewicht": 43
+              },
+              {
+                "artikelnummer": "363618",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 774,
+                "verfuegbarkeit": 0,
+                "gewicht": 46
+              }
+            ]
+          },
+          {
+            "platzId": 18,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;1;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "310088",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 776,
+                "verfuegbarkeit": 0,
+                "gewicht": 31
+              }
+            ]
+          },
+          {
+            "platzId": 19,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;2;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 20,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;2;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "820567",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 895,
+                "verfuegbarkeit": 0,
+                "gewicht": 22
+              },
+              {
+                "artikelnummer": "533008",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 893,
+                "verfuegbarkeit": 0,
+                "gewicht": 13
+              }
+            ]
+          },
+          {
+            "platzId": 21,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;2;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "696505",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 301,
+                "verfuegbarkeit": 0,
+                "gewicht": 15
+              },
+              {
+                "artikelnummer": "623272",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 736,
+                "verfuegbarkeit": 0,
+                "gewicht": 35
+              }
+            ]
+          },
+          {
+            "platzId": 22,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;2;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "216071",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 478,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              },
+              {
+                "artikelnummer": "709405",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 520,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              }
+            ]
+          },
+          {
+            "platzId": 23,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;2;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 24,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;2;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "327422",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 851,
+                "verfuegbarkeit": 0,
+                "gewicht": 46
+              }
+            ]
+          },
+          {
+            "platzId": 25,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;3;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "430819",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 243,
+                "verfuegbarkeit": 0,
+                "gewicht": 47
+              }
+            ]
+          },
+          {
+            "platzId": 26,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;3;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "754524",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 159,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              }
+            ]
+          },
+          {
+            "platzId": 27,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;3;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "773813",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 826,
+                "verfuegbarkeit": 0,
+                "gewicht": 20
+              },
+              {
+                "artikelnummer": "877993",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 525,
+                "verfuegbarkeit": 0,
+                "gewicht": 16
+              }
+            ]
+          },
+          {
+            "platzId": 28,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;3;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 29,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;3;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "578698",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 538,
+                "verfuegbarkeit": 0,
+                "gewicht": 3
+              }
+            ]
+          },
+          {
+            "platzId": 30,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;3;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "450427",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 553,
+                "verfuegbarkeit": 0,
+                "gewicht": 42
+              }
+            ]
+          },
+          {
+            "platzId": 31,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;4;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "947152",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 346,
+                "verfuegbarkeit": 0,
+                "gewicht": 3
+              }
+            ]
+          },
+          {
+            "platzId": 32,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;4;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "816853",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 849,
+                "verfuegbarkeit": 0,
+                "gewicht": 35
+              },
+              {
+                "artikelnummer": "392348",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 600,
+                "verfuegbarkeit": 0,
+                "gewicht": 19
+              }
+            ]
+          },
+          {
+            "platzId": 33,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;4;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "527032",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 618,
+                "verfuegbarkeit": 0,
+                "gewicht": 35
+              },
+              {
+                "artikelnummer": "470084",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 765,
+                "verfuegbarkeit": 0,
+                "gewicht": 38
+              }
+            ]
+          },
+          {
+            "platzId": 34,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;4;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "791021",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 395,
+                "verfuegbarkeit": 0,
+                "gewicht": 34
+              },
+              {
+                "artikelnummer": "755735",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 430,
+                "verfuegbarkeit": 0,
+                "gewicht": 6
+              }
+            ]
+          },
+          {
+            "platzId": 35,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;4;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 36,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;1;4;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "189879",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 996,
+                "verfuegbarkeit": 0,
+                "gewicht": 24
+              }
+            ]
+          },
+          {
+            "platzId": 37,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;1;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 38,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;1;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "685712",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 135,
+                "verfuegbarkeit": 0,
+                "gewicht": 30
+              }
+            ]
+          },
+          {
+            "platzId": 39,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;1;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "915006",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 198,
+                "verfuegbarkeit": 0,
+                "gewicht": 18
+              },
+              {
+                "artikelnummer": "924177",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 249,
+                "verfuegbarkeit": 0,
+                "gewicht": 7
+              }
+            ]
+          },
+          {
+            "platzId": 40,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;1;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 41,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;1;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "896754",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 965,
+                "verfuegbarkeit": 0,
+                "gewicht": 6
+              }
+            ]
+          },
+          {
+            "platzId": 42,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;1;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "529826",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 608,
+                "verfuegbarkeit": 0,
+                "gewicht": 43
+              }
+            ]
+          },
+          {
+            "platzId": 43,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;2;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "783328",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 701,
+                "verfuegbarkeit": 0,
+                "gewicht": 17
+              },
+              {
+                "artikelnummer": "902477",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 576,
+                "verfuegbarkeit": 0,
+                "gewicht": 37
+              }
+            ]
+          },
+          {
+            "platzId": 44,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;2;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "900779",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 375,
+                "verfuegbarkeit": 0,
+                "gewicht": 25
+              },
+              {
+                "artikelnummer": "812422",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 327,
+                "verfuegbarkeit": 0,
+                "gewicht": 26
+              }
+            ]
+          },
+          {
+            "platzId": 45,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;2;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "525028",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 585,
+                "verfuegbarkeit": 0,
+                "gewicht": 4
+              },
+              {
+                "artikelnummer": "278439",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 23,
+                "verfuegbarkeit": 0,
+                "gewicht": 24
+              }
+            ]
+          },
+          {
+            "platzId": 46,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;2;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 47,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;2;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "142795",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 340,
+                "verfuegbarkeit": 0,
+                "gewicht": 35
+              },
+              {
+                "artikelnummer": "114726",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 326,
+                "verfuegbarkeit": 0,
+                "gewicht": 1
+              }
+            ]
+          },
+          {
+            "platzId": 48,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;2;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "718768",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 2,
+                "verfuegbarkeit": 0,
+                "gewicht": 28
+              }
+            ]
+          },
+          {
+            "platzId": 49,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;3;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 50,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;3;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "452502",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 82,
+                "verfuegbarkeit": 0,
+                "gewicht": 19
+              }
+            ]
+          },
+          {
+            "platzId": 51,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;3;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "160396",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 840,
+                "verfuegbarkeit": 0,
+                "gewicht": 30
+              }
+            ]
+          },
+          {
+            "platzId": 52,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;3;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "552166",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 591,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              },
+              {
+                "artikelnummer": "681734",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 771,
+                "verfuegbarkeit": 0,
+                "gewicht": 48
+              }
+            ]
+          },
+          {
+            "platzId": 53,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;3;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "135687",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 907,
+                "verfuegbarkeit": 0,
+                "gewicht": 12
+              }
+            ]
+          },
+          {
+            "platzId": 54,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;3;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 55,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;4;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "108666",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 262,
+                "verfuegbarkeit": 0,
+                "gewicht": 37
+              },
+              {
+                "artikelnummer": "134223",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 139,
+                "verfuegbarkeit": 0,
+                "gewicht": 30
+              }
+            ]
+          },
+          {
+            "platzId": 56,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;4;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 57,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;4;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 58,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;4;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 59,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;4;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "112800",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 221,
+                "verfuegbarkeit": 0,
+                "gewicht": 22
+              },
+              {
+                "artikelnummer": "937879",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 729,
+                "verfuegbarkeit": 0,
+                "gewicht": 39
+              }
+            ]
+          },
+          {
+            "platzId": 60,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-002;2;4;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "518686",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 863,
+                "verfuegbarkeit": 0,
+                "gewicht": 47
+              },
+              {
+                "artikelnummer": "656556",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 601,
+                "verfuegbarkeit": 0,
+                "gewicht": 42
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "lagerkennung": "DEMO-003",
+        "bezeichnung": "Demo-Lager 3",
+        "lagertechnik": "LTD1UF",
+        "dims": {
+          "d1": 10,
+          "d2": 0,
+          "d3": 0
+        },
+        "plaetze": [
+          {
+            "platzId": 61,
+            "dim": {
+              "d1": 0,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;0;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "125031",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 991,
+                "verfuegbarkeit": 0,
+                "gewicht": 31
+              },
+              {
+                "artikelnummer": "169985",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 683,
+                "verfuegbarkeit": 0,
+                "gewicht": 15
+              }
+            ]
+          },
+          {
+            "platzId": 62,
+            "dim": {
+              "d1": 1,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;1;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "671670",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 290,
+                "verfuegbarkeit": 0,
+                "gewicht": 18
+              }
+            ]
+          },
+          {
+            "platzId": 63,
+            "dim": {
+              "d1": 2,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;2;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "635705",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 653,
+                "verfuegbarkeit": 0,
+                "gewicht": 19
+              }
+            ]
+          },
+          {
+            "platzId": 64,
+            "dim": {
+              "d1": 3,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;3;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "453655",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 234,
+                "verfuegbarkeit": 0,
+                "gewicht": 39
+              }
+            ]
+          },
+          {
+            "platzId": 65,
+            "dim": {
+              "d1": 4,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;4;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "860337",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 415,
+                "verfuegbarkeit": 0,
+                "gewicht": 16
+              },
+              {
+                "artikelnummer": "963142",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 711,
+                "verfuegbarkeit": 0,
+                "gewicht": 29
+              }
+            ]
+          },
+          {
+            "platzId": 66,
+            "dim": {
+              "d1": 5,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;5;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "886107",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 67,
+                "verfuegbarkeit": 0,
+                "gewicht": 10
+              },
+              {
+                "artikelnummer": "991815",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 463,
+                "verfuegbarkeit": 0,
+                "gewicht": 45
+              }
+            ]
+          },
+          {
+            "platzId": 67,
+            "dim": {
+              "d1": 6,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;6;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "776837",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 427,
+                "verfuegbarkeit": 0,
+                "gewicht": 23
+              },
+              {
+                "artikelnummer": "484518",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 69,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              }
+            ]
+          },
+          {
+            "platzId": 68,
+            "dim": {
+              "d1": 7,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;7;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "464463",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 571,
+                "verfuegbarkeit": 0,
+                "gewicht": 11
+              }
+            ]
+          },
+          {
+            "platzId": 69,
+            "dim": {
+              "d1": 8,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;8;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "965223",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 53,
+                "verfuegbarkeit": 0,
+                "gewicht": 33
+              }
+            ]
+          },
+          {
+            "platzId": 70,
+            "dim": {
+              "d1": 9,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;9;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "547300",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 631,
+                "verfuegbarkeit": 0,
+                "gewicht": 45
+              }
+            ]
+          },
+          {
+            "platzId": 71,
+            "dim": {
+              "d1": 10,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-003;10;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "466977",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 395,
+                "verfuegbarkeit": 0,
+                "gewicht": 2
+              },
+              {
+                "artikelnummer": "590057",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 791,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "lagerkennung": "DEMO-004",
+        "bezeichnung": "Demo-Lager 4",
+        "lagertechnik": "LTD3HR",
+        "dims": {
+          "d1": 2,
+          "d2": 4,
+          "d3": 6
+        },
+        "plaetze": [
+          {
+            "platzId": 72,
+            "dim": {
+              "d1": 0,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;0;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "516480",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 161,
+                "verfuegbarkeit": 0,
+                "gewicht": 8
+              },
+              {
+                "artikelnummer": "761046",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 259,
+                "verfuegbarkeit": 0,
+                "gewicht": 23
+              }
+            ]
+          },
+          {
+            "platzId": 73,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;1;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 74,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;1;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "253684",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 694,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              }
+            ]
+          },
+          {
+            "platzId": 75,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;1;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "441977",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 282,
+                "verfuegbarkeit": 0,
+                "gewicht": 32
+              }
+            ]
+          },
+          {
+            "platzId": 76,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;1;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "951813",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 169,
+                "verfuegbarkeit": 0,
+                "gewicht": 11
+              }
+            ]
+          },
+          {
+            "platzId": 77,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;1;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 78,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;1;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 79,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;2;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "813568",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 989,
+                "verfuegbarkeit": 0,
+                "gewicht": 5
+              }
+            ]
+          },
+          {
+            "platzId": 80,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;2;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 81,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;2;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "460067",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 558,
+                "verfuegbarkeit": 0,
+                "gewicht": 47
+              },
+              {
+                "artikelnummer": "693401",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 454,
+                "verfuegbarkeit": 0,
+                "gewicht": 49
+              }
+            ]
+          },
+          {
+            "platzId": 82,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;2;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 83,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;2;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "572850",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 176,
+                "verfuegbarkeit": 0,
+                "gewicht": 20
+              }
+            ]
+          },
+          {
+            "platzId": 84,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;2;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "755696",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 602,
+                "verfuegbarkeit": 0,
+                "gewicht": 37
+              },
+              {
+                "artikelnummer": "843351",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 442,
+                "verfuegbarkeit": 0,
+                "gewicht": 16
+              }
+            ]
+          },
+          {
+            "platzId": 85,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;3;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "233072",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 578,
+                "verfuegbarkeit": 0,
+                "gewicht": 48
+              },
+              {
+                "artikelnummer": "967742",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 724,
+                "verfuegbarkeit": 0,
+                "gewicht": 11
+              }
+            ]
+          },
+          {
+            "platzId": 86,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;3;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "457286",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 274,
+                "verfuegbarkeit": 0,
+                "gewicht": 49
+              },
+              {
+                "artikelnummer": "290258",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 16,
+                "verfuegbarkeit": 0,
+                "gewicht": 16
+              }
+            ]
+          },
+          {
+            "platzId": 87,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;3;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "581683",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 720,
+                "verfuegbarkeit": 0,
+                "gewicht": 48
+              }
+            ]
+          },
+          {
+            "platzId": 88,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;3;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "922589",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 202,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              }
+            ]
+          },
+          {
+            "platzId": 89,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;3;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "825054",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 762,
+                "verfuegbarkeit": 0,
+                "gewicht": 50
+              }
+            ]
+          },
+          {
+            "platzId": 90,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;3;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "456654",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 410,
+                "verfuegbarkeit": 0,
+                "gewicht": 13
+              },
+              {
+                "artikelnummer": "943404",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 891,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              }
+            ]
+          },
+          {
+            "platzId": 91,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;4;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "202381",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 294,
+                "verfuegbarkeit": 0,
+                "gewicht": 43
+              },
+              {
+                "artikelnummer": "399576",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 63,
+                "verfuegbarkeit": 0,
+                "gewicht": 42
+              }
+            ]
+          },
+          {
+            "platzId": 92,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;4;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 93,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;4;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "794328",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 80,
+                "verfuegbarkeit": 0,
+                "gewicht": 44
+              }
+            ]
+          },
+          {
+            "platzId": 94,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;4;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 95,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;4;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "167714",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 747,
+                "verfuegbarkeit": 0,
+                "gewicht": 26
+              },
+              {
+                "artikelnummer": "780068",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 507,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              }
+            ]
+          },
+          {
+            "platzId": 96,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;1;4;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "498018",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 844,
+                "verfuegbarkeit": 0,
+                "gewicht": 12
+              }
+            ]
+          },
+          {
+            "platzId": 97,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;1;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 98,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;1;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "414254",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 430,
+                "verfuegbarkeit": 0,
+                "gewicht": 2
+              }
+            ]
+          },
+          {
+            "platzId": 99,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;1;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "309071",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 115,
+                "verfuegbarkeit": 0,
+                "gewicht": 33
+              },
+              {
+                "artikelnummer": "308552",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 252,
+                "verfuegbarkeit": 0,
+                "gewicht": 16
+              }
+            ]
+          },
+          {
+            "platzId": 100,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;1;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "442859",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 385,
+                "verfuegbarkeit": 0,
+                "gewicht": 1
+              },
+              {
+                "artikelnummer": "185237",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 719,
+                "verfuegbarkeit": 0,
+                "gewicht": 47
+              }
+            ]
+          },
+          {
+            "platzId": 101,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;1;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "956474",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 60,
+                "verfuegbarkeit": 0,
+                "gewicht": 23
+              }
+            ]
+          },
+          {
+            "platzId": 102,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;1;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "733047",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 547,
+                "verfuegbarkeit": 0,
+                "gewicht": 38
+              },
+              {
+                "artikelnummer": "114364",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 90,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              }
+            ]
+          },
+          {
+            "platzId": 103,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;2;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "942614",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 91,
+                "verfuegbarkeit": 0,
+                "gewicht": 33
+              },
+              {
+                "artikelnummer": "236128",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 545,
+                "verfuegbarkeit": 0,
+                "gewicht": 36
+              }
+            ]
+          },
+          {
+            "platzId": 104,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;2;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "525139",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 485,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              },
+              {
+                "artikelnummer": "518595",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 792,
+                "verfuegbarkeit": 0,
+                "gewicht": 1
+              }
+            ]
+          },
+          {
+            "platzId": 105,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;2;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "303408",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 405,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              },
+              {
+                "artikelnummer": "898143",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 373,
+                "verfuegbarkeit": 0,
+                "gewicht": 32
+              }
+            ]
+          },
+          {
+            "platzId": 106,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;2;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "673924",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 624,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              },
+              {
+                "artikelnummer": "145919",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 160,
+                "verfuegbarkeit": 0,
+                "gewicht": 44
+              }
+            ]
+          },
+          {
+            "platzId": 107,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;2;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 108,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;2;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 109,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;3;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "843376",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 881,
+                "verfuegbarkeit": 0,
+                "gewicht": 17
+              },
+              {
+                "artikelnummer": "576269",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 571,
+                "verfuegbarkeit": 0,
+                "gewicht": 13
+              }
+            ]
+          },
+          {
+            "platzId": 110,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;3;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 111,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;3;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 112,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;3;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "587053",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 831,
+                "verfuegbarkeit": 0,
+                "gewicht": 15
+              },
+              {
+                "artikelnummer": "150440",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 903,
+                "verfuegbarkeit": 0,
+                "gewicht": 10
+              }
+            ]
+          },
+          {
+            "platzId": 113,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;3;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "814859",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 257,
+                "verfuegbarkeit": 0,
+                "gewicht": 26
+              }
+            ]
+          },
+          {
+            "platzId": 114,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;3;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "970114",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 735,
+                "verfuegbarkeit": 0,
+                "gewicht": 30
+              },
+              {
+                "artikelnummer": "976618",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 431,
+                "verfuegbarkeit": 0,
+                "gewicht": 6
+              }
+            ]
+          },
+          {
+            "platzId": 115,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;4;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 116,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;4;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 117,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;4;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "227965",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 128,
+                "verfuegbarkeit": 0,
+                "gewicht": 21
+              },
+              {
+                "artikelnummer": "778617",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 363,
+                "verfuegbarkeit": 0,
+                "gewicht": 13
+              }
+            ]
+          },
+          {
+            "platzId": 118,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;4;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 119,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;4;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 120,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-004;2;4;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "500084",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 775,
+                "verfuegbarkeit": 0,
+                "gewicht": 26
+              },
+              {
+                "artikelnummer": "802316",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 557,
+                "verfuegbarkeit": 0,
+                "gewicht": 24
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "lagerkennung": "DEMO-005",
+        "bezeichnung": "Demo-Lager 5",
+        "lagertechnik": "LTD1UF",
+        "dims": {
+          "d1": 10,
+          "d2": 0,
+          "d3": 0
+        },
+        "plaetze": [
+          {
+            "platzId": 121,
+            "dim": {
+              "d1": 0,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;0;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 122,
+            "dim": {
+              "d1": 1,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;1;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "600930",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 223,
+                "verfuegbarkeit": 0,
+                "gewicht": 31
+              },
+              {
+                "artikelnummer": "954576",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 9,
+                "verfuegbarkeit": 0,
+                "gewicht": 3
+              }
+            ]
+          },
+          {
+            "platzId": 123,
+            "dim": {
+              "d1": 2,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;2;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "221047",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 63,
+                "verfuegbarkeit": 0,
+                "gewicht": 50
+              }
+            ]
+          },
+          {
+            "platzId": 124,
+            "dim": {
+              "d1": 3,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;3;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "672649",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 555,
+                "verfuegbarkeit": 0,
+                "gewicht": 46
+              },
+              {
+                "artikelnummer": "409338",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 763,
+                "verfuegbarkeit": 0,
+                "gewicht": 29
+              }
+            ]
+          },
+          {
+            "platzId": 125,
+            "dim": {
+              "d1": 4,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;4;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "457305",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 305,
+                "verfuegbarkeit": 0,
+                "gewicht": 20
+              },
+              {
+                "artikelnummer": "725865",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 40,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              }
+            ]
+          },
+          {
+            "platzId": 126,
+            "dim": {
+              "d1": 5,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;5;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "860260",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 502,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              },
+              {
+                "artikelnummer": "719093",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 151,
+                "verfuegbarkeit": 0,
+                "gewicht": 36
+              }
+            ]
+          },
+          {
+            "platzId": 127,
+            "dim": {
+              "d1": 6,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;6;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 128,
+            "dim": {
+              "d1": 7,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;7;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "480514",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 879,
+                "verfuegbarkeit": 0,
+                "gewicht": 42
+              }
+            ]
+          },
+          {
+            "platzId": 129,
+            "dim": {
+              "d1": 8,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;8;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "664115",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 225,
+                "verfuegbarkeit": 0,
+                "gewicht": 44
+              },
+              {
+                "artikelnummer": "167647",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 492,
+                "verfuegbarkeit": 0,
+                "gewicht": 21
+              }
+            ]
+          },
+          {
+            "platzId": 130,
+            "dim": {
+              "d1": 9,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;9;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "853118",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 3,
+                "verfuegbarkeit": 0,
+                "gewicht": 1
+              },
+              {
+                "artikelnummer": "155194",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 871,
+                "verfuegbarkeit": 0,
+                "gewicht": 2
+              }
+            ]
+          },
+          {
+            "platzId": 131,
+            "dim": {
+              "d1": 10,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-005;10;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "338027",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 542,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              },
+              {
+                "artikelnummer": "896909",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 976,
+                "verfuegbarkeit": 0,
+                "gewicht": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "lagerkennung": "DEMO-006",
+        "bezeichnung": "Demo-Lager 6",
+        "lagertechnik": "LTD3HR",
+        "dims": {
+          "d1": 2,
+          "d2": 4,
+          "d3": 6
+        },
+        "plaetze": [
+          {
+            "platzId": 132,
+            "dim": {
+              "d1": 0,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;0;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 133,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;1;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "210795",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 306,
+                "verfuegbarkeit": 0,
+                "gewicht": 29
+              }
+            ]
+          },
+          {
+            "platzId": 134,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;1;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "933345",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 653,
+                "verfuegbarkeit": 0,
+                "gewicht": 3
+              }
+            ]
+          },
+          {
+            "platzId": 135,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;1;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "535576",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 965,
+                "verfuegbarkeit": 0,
+                "gewicht": 35
+              },
+              {
+                "artikelnummer": "737573",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 521,
+                "verfuegbarkeit": 0,
+                "gewicht": 43
+              }
+            ]
+          },
+          {
+            "platzId": 136,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;1;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "246846",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 196,
+                "verfuegbarkeit": 0,
+                "gewicht": 42
+              }
+            ]
+          },
+          {
+            "platzId": 137,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;1;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "521653",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 360,
+                "verfuegbarkeit": 0,
+                "gewicht": 1
+              },
+              {
+                "artikelnummer": "236232",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 383,
+                "verfuegbarkeit": 0,
+                "gewicht": 4
+              }
+            ]
+          },
+          {
+            "platzId": 138,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;1;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "580058",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 611,
+                "verfuegbarkeit": 0,
+                "gewicht": 39
+              }
+            ]
+          },
+          {
+            "platzId": 139,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;2;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "424809",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 169,
+                "verfuegbarkeit": 0,
+                "gewicht": 37
+              }
+            ]
+          },
+          {
+            "platzId": 140,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;2;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 141,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;2;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "920286",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 349,
+                "verfuegbarkeit": 0,
+                "gewicht": 20
+              }
+            ]
+          },
+          {
+            "platzId": 142,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;2;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "908275",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 104,
+                "verfuegbarkeit": 0,
+                "gewicht": 21
+              },
+              {
+                "artikelnummer": "186796",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 805,
+                "verfuegbarkeit": 0,
+                "gewicht": 4
+              }
+            ]
+          },
+          {
+            "platzId": 143,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;2;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "943678",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 53,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              },
+              {
+                "artikelnummer": "594344",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 305,
+                "verfuegbarkeit": 0,
+                "gewicht": 33
+              }
+            ]
+          },
+          {
+            "platzId": 144,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;2;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "358598",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 9,
+                "verfuegbarkeit": 0,
+                "gewicht": 17
+              }
+            ]
+          },
+          {
+            "platzId": 145,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;3;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "147843",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 161,
+                "verfuegbarkeit": 0,
+                "gewicht": 16
+              },
+              {
+                "artikelnummer": "945915",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 446,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              }
+            ]
+          },
+          {
+            "platzId": 146,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;3;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 147,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;3;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "408288",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 97,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              }
+            ]
+          },
+          {
+            "platzId": 148,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;3;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "125010",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 38,
+                "verfuegbarkeit": 0,
+                "gewicht": 22
+              },
+              {
+                "artikelnummer": "506874",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 681,
+                "verfuegbarkeit": 0,
+                "gewicht": 50
+              }
+            ]
+          },
+          {
+            "platzId": 149,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;3;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 150,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;3;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 151,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;4;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "689382",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 317,
+                "verfuegbarkeit": 0,
+                "gewicht": 30
+              },
+              {
+                "artikelnummer": "502907",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 475,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              }
+            ]
+          },
+          {
+            "platzId": 152,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;4;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "537309",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 913,
+                "verfuegbarkeit": 0,
+                "gewicht": 11
+              }
+            ]
+          },
+          {
+            "platzId": 153,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;4;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "862065",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 100,
+                "verfuegbarkeit": 0,
+                "gewicht": 29
+              },
+              {
+                "artikelnummer": "811345",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 500,
+                "verfuegbarkeit": 0,
+                "gewicht": 26
+              }
+            ]
+          },
+          {
+            "platzId": 154,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;4;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "300863",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 198,
+                "verfuegbarkeit": 0,
+                "gewicht": 40
+              }
+            ]
+          },
+          {
+            "platzId": 155,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;4;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 156,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;1;4;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 157,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;1;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 158,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;1;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "319124",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 844,
+                "verfuegbarkeit": 0,
+                "gewicht": 42
+              },
+              {
+                "artikelnummer": "578566",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 36,
+                "verfuegbarkeit": 0,
+                "gewicht": 5
+              }
+            ]
+          },
+          {
+            "platzId": 159,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;1;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 160,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;1;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "335687",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 531,
+                "verfuegbarkeit": 0,
+                "gewicht": 17
+              }
+            ]
+          },
+          {
+            "platzId": 161,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;1;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "612266",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 827,
+                "verfuegbarkeit": 0,
+                "gewicht": 48
+              }
+            ]
+          },
+          {
+            "platzId": 162,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;1;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "403381",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 955,
+                "verfuegbarkeit": 0,
+                "gewicht": 24
+              }
+            ]
+          },
+          {
+            "platzId": 163,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;2;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "861642",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 743,
+                "verfuegbarkeit": 0,
+                "gewicht": 20
+              },
+              {
+                "artikelnummer": "406865",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 171,
+                "verfuegbarkeit": 0,
+                "gewicht": 47
+              }
+            ]
+          },
+          {
+            "platzId": 164,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;2;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "644507",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 145,
+                "verfuegbarkeit": 0,
+                "gewicht": 17
+              },
+              {
+                "artikelnummer": "305175",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 917,
+                "verfuegbarkeit": 0,
+                "gewicht": 33
+              }
+            ]
+          },
+          {
+            "platzId": 165,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;2;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 166,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;2;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 167,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;2;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "715668",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 211,
+                "verfuegbarkeit": 0,
+                "gewicht": 37
+              },
+              {
+                "artikelnummer": "904602",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 745,
+                "verfuegbarkeit": 0,
+                "gewicht": 40
+              }
+            ]
+          },
+          {
+            "platzId": 168,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;2;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 169,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;3;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "465970",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 476,
+                "verfuegbarkeit": 0,
+                "gewicht": 22
+              }
+            ]
+          },
+          {
+            "platzId": 170,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;3;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "450359",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 285,
+                "verfuegbarkeit": 0,
+                "gewicht": 7
+              },
+              {
+                "artikelnummer": "302218",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 704,
+                "verfuegbarkeit": 0,
+                "gewicht": 1
+              }
+            ]
+          },
+          {
+            "platzId": 171,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;3;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "958732",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 26,
+                "verfuegbarkeit": 0,
+                "gewicht": 32
+              },
+              {
+                "artikelnummer": "708645",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 46,
+                "verfuegbarkeit": 0,
+                "gewicht": 42
+              }
+            ]
+          },
+          {
+            "platzId": 172,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;3;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 173,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;3;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 174,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;3;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "353734",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 853,
+                "verfuegbarkeit": 0,
+                "gewicht": 47
+              },
+              {
+                "artikelnummer": "600000",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 485,
+                "verfuegbarkeit": 0,
+                "gewicht": 49
+              }
+            ]
+          },
+          {
+            "platzId": 175,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;4;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 176,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;4;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "351667",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 594,
+                "verfuegbarkeit": 0,
+                "gewicht": 7
+              },
+              {
+                "artikelnummer": "726865",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 148,
+                "verfuegbarkeit": 0,
+                "gewicht": 15
+              }
+            ]
+          },
+          {
+            "platzId": 177,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;4;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 178,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;4;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "596598",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 979,
+                "verfuegbarkeit": 0,
+                "gewicht": 31
+              },
+              {
+                "artikelnummer": "230382",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 934,
+                "verfuegbarkeit": 0,
+                "gewicht": 12
+              }
+            ]
+          },
+          {
+            "platzId": 179,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;4;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "640776",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 523,
+                "verfuegbarkeit": 0,
+                "gewicht": 37
+              }
+            ]
+          },
+          {
+            "platzId": 180,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-006;2;4;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "527123",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 408,
+                "verfuegbarkeit": 0,
+                "gewicht": 26
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "lagerkennung": "DEMO-007",
+        "bezeichnung": "Demo-Lager 7",
+        "lagertechnik": "LTD1UF",
+        "dims": {
+          "d1": 10,
+          "d2": 0,
+          "d3": 0
+        },
+        "plaetze": [
+          {
+            "platzId": 181,
+            "dim": {
+              "d1": 0,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;0;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "234963",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 936,
+                "verfuegbarkeit": 0,
+                "gewicht": 20
+              }
+            ]
+          },
+          {
+            "platzId": 182,
+            "dim": {
+              "d1": 1,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;1;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "810102",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 930,
+                "verfuegbarkeit": 0,
+                "gewicht": 11
+              }
+            ]
+          },
+          {
+            "platzId": 183,
+            "dim": {
+              "d1": 2,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;2;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "792784",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 659,
+                "verfuegbarkeit": 0,
+                "gewicht": 22
+              }
+            ]
+          },
+          {
+            "platzId": 184,
+            "dim": {
+              "d1": 3,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;3;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "428380",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 471,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              },
+              {
+                "artikelnummer": "410917",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 114,
+                "verfuegbarkeit": 0,
+                "gewicht": 46
+              }
+            ]
+          },
+          {
+            "platzId": 185,
+            "dim": {
+              "d1": 4,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;4;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 186,
+            "dim": {
+              "d1": 5,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;5;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "785310",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 253,
+                "verfuegbarkeit": 0,
+                "gewicht": 12
+              }
+            ]
+          },
+          {
+            "platzId": 187,
+            "dim": {
+              "d1": 6,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;6;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 188,
+            "dim": {
+              "d1": 7,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;7;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "902961",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 674,
+                "verfuegbarkeit": 0,
+                "gewicht": 5
+              },
+              {
+                "artikelnummer": "367983",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 356,
+                "verfuegbarkeit": 0,
+                "gewicht": 2
+              }
+            ]
+          },
+          {
+            "platzId": 189,
+            "dim": {
+              "d1": 8,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;8;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "897024",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 707,
+                "verfuegbarkeit": 0,
+                "gewicht": 39
+              },
+              {
+                "artikelnummer": "723302",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 530,
+                "verfuegbarkeit": 0,
+                "gewicht": 19
+              }
+            ]
+          },
+          {
+            "platzId": 190,
+            "dim": {
+              "d1": 9,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;9;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "159414",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 20,
+                "verfuegbarkeit": 0,
+                "gewicht": 30
+              },
+              {
+                "artikelnummer": "412677",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 735,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              }
+            ]
+          },
+          {
+            "platzId": 191,
+            "dim": {
+              "d1": 10,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-007;10;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 30,
+              "breite": 100,
+              "laenge": 200
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "475320",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 586,
+                "verfuegbarkeit": 0,
+                "gewicht": 34
+              },
+              {
+                "artikelnummer": "589189",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 195,
+                "verfuegbarkeit": 0,
+                "gewicht": 48
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "lagerkennung": "DEMO-008",
+        "bezeichnung": "Demo-Lager 8",
+        "lagertechnik": "LTD3HR",
+        "dims": {
+          "d1": 2,
+          "d2": 4,
+          "d3": 6
+        },
+        "plaetze": [
+          {
+            "platzId": 192,
+            "dim": {
+              "d1": 0,
+              "d2": 0,
+              "d3": 0
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;0;0;0",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "956611",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 799,
+                "verfuegbarkeit": 0,
+                "gewicht": 28
+              },
+              {
+                "artikelnummer": "144096",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 109,
+                "verfuegbarkeit": 0,
+                "gewicht": 25
+              }
+            ]
+          },
+          {
+            "platzId": 193,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;1;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 194,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;1;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "808288",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 349,
+                "verfuegbarkeit": 0,
+                "gewicht": 28
+              },
+              {
+                "artikelnummer": "669774",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 804,
+                "verfuegbarkeit": 0,
+                "gewicht": 18
+              }
+            ]
+          },
+          {
+            "platzId": 195,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;1;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "936669",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 571,
+                "verfuegbarkeit": 0,
+                "gewicht": 19
+              }
+            ]
+          },
+          {
+            "platzId": 196,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;1;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 197,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;1;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "781013",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 515,
+                "verfuegbarkeit": 0,
+                "gewicht": 41
+              },
+              {
+                "artikelnummer": "118491",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 769,
+                "verfuegbarkeit": 0,
+                "gewicht": 15
+              }
+            ]
+          },
+          {
+            "platzId": 198,
+            "dim": {
+              "d1": 1,
+              "d2": 1,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;1;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "990959",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 872,
+                "verfuegbarkeit": 0,
+                "gewicht": 34
+              }
+            ]
+          },
+          {
+            "platzId": 199,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;2;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "391492",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 744,
+                "verfuegbarkeit": 0,
+                "gewicht": 2
+              },
+              {
+                "artikelnummer": "997064",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 873,
+                "verfuegbarkeit": 0,
+                "gewicht": 49
+              }
+            ]
+          },
+          {
+            "platzId": 200,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;2;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "851787",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 893,
+                "verfuegbarkeit": 0,
+                "gewicht": 7
+              },
+              {
+                "artikelnummer": "858260",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 600,
+                "verfuegbarkeit": 0,
+                "gewicht": 48
+              }
+            ]
+          },
+          {
+            "platzId": 201,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;2;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "936861",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 180,
+                "verfuegbarkeit": 0,
+                "gewicht": 43
+              }
+            ]
+          },
+          {
+            "platzId": 202,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;2;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 203,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;2;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "846934",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 629,
+                "verfuegbarkeit": 0,
+                "gewicht": 34
+              }
+            ]
+          },
+          {
+            "platzId": 204,
+            "dim": {
+              "d1": 1,
+              "d2": 2,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;2;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "991326",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 926,
+                "verfuegbarkeit": 0,
+                "gewicht": 31
+              }
+            ]
+          },
+          {
+            "platzId": 205,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;3;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 206,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;3;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 207,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;3;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "117781",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 193,
+                "verfuegbarkeit": 0,
+                "gewicht": 3
+              }
+            ]
+          },
+          {
+            "platzId": 208,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;3;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 209,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;3;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "125823",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 238,
+                "verfuegbarkeit": 0,
+                "gewicht": 4
+              },
+              {
+                "artikelnummer": "334980",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 166,
+                "verfuegbarkeit": 0,
+                "gewicht": 43
+              }
+            ]
+          },
+          {
+            "platzId": 210,
+            "dim": {
+              "d1": 1,
+              "d2": 3,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;3;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "412902",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 232,
+                "verfuegbarkeit": 0,
+                "gewicht": 34
+              },
+              {
+                "artikelnummer": "382651",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 600,
+                "verfuegbarkeit": 0,
+                "gewicht": 7
+              }
+            ]
+          },
+          {
+            "platzId": 211,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;4;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 212,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;4;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "989648",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 975,
+                "verfuegbarkeit": 0,
+                "gewicht": 43
+              }
+            ]
+          },
+          {
+            "platzId": 213,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;4;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "324925",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 706,
+                "verfuegbarkeit": 0,
+                "gewicht": 38
+              },
+              {
+                "artikelnummer": "461249",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 732,
+                "verfuegbarkeit": 0,
+                "gewicht": 19
+              }
+            ]
+          },
+          {
+            "platzId": 214,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;4;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "678359",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 845,
+                "verfuegbarkeit": 0,
+                "gewicht": 45
+              }
+            ]
+          },
+          {
+            "platzId": 215,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;4;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "480287",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 129,
+                "verfuegbarkeit": 0,
+                "gewicht": 46
+              }
+            ]
+          },
+          {
+            "platzId": 216,
+            "dim": {
+              "d1": 1,
+              "d2": 4,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;1;4;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 217,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;1;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "575368",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 234,
+                "verfuegbarkeit": 0,
+                "gewicht": 4
+              },
+              {
+                "artikelnummer": "247712",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 950,
+                "verfuegbarkeit": 0,
+                "gewicht": 46
+              }
+            ]
+          },
+          {
+            "platzId": 218,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;1;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 219,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;1;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "203915",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 243,
+                "verfuegbarkeit": 0,
+                "gewicht": 46
+              },
+              {
+                "artikelnummer": "465402",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 593,
+                "verfuegbarkeit": 0,
+                "gewicht": 7
+              }
+            ]
+          },
+          {
+            "platzId": 220,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;1;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 221,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;1;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 222,
+            "dim": {
+              "d1": 2,
+              "d2": 1,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;1;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "368761",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 882,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              }
+            ]
+          },
+          {
+            "platzId": 223,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;2;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 224,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;2;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "154246",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 969,
+                "verfuegbarkeit": 0,
+                "gewicht": 37
+              },
+              {
+                "artikelnummer": "252458",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 985,
+                "verfuegbarkeit": 0,
+                "gewicht": 25
+              }
+            ]
+          },
+          {
+            "platzId": 225,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;2;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 226,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;2;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 227,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;2;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 228,
+            "dim": {
+              "d1": 2,
+              "d2": 2,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;2;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "519756",
+                "bezeichnung1": "Fachboden",
+                "matchcode": "",
+                "bestand": 803,
+                "verfuegbarkeit": 0,
+                "gewicht": 14
+              },
+              {
+                "artikelnummer": "572119",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 139,
+                "verfuegbarkeit": 0,
+                "gewicht": 1
+              }
+            ]
+          },
+          {
+            "platzId": 229,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;3;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "813815",
+                "bezeichnung1": "Seitenwand",
+                "matchcode": "",
+                "bestand": 205,
+                "verfuegbarkeit": 0,
+                "gewicht": 28
+              },
+              {
+                "artikelnummer": "528237",
+                "bezeichnung1": "Rückwand",
+                "matchcode": "",
+                "bestand": 963,
+                "verfuegbarkeit": 0,
+                "gewicht": 5
+              }
+            ]
+          },
+          {
+            "platzId": 230,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;3;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 231,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;3;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "717277",
+                "bezeichnung1": "Gleitbrett",
+                "matchcode": "",
+                "bestand": 694,
+                "verfuegbarkeit": 0,
+                "gewicht": 31
+              },
+              {
+                "artikelnummer": "804739",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 304,
+                "verfuegbarkeit": 0,
+                "gewicht": 8
+              }
+            ]
+          },
+          {
+            "platzId": 232,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;3;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 233,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;3;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "236211",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 781,
+                "verfuegbarkeit": 0,
+                "gewicht": 38
+              }
+            ]
+          },
+          {
+            "platzId": 234,
+            "dim": {
+              "d1": 2,
+              "d2": 3,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;3;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "741960",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 790,
+                "verfuegbarkeit": 0,
+                "gewicht": 24
+              }
+            ]
+          },
+          {
+            "platzId": 235,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 1
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;4;1",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "743548",
+                "bezeichnung1": "Griff",
+                "matchcode": "",
+                "bestand": 407,
+                "verfuegbarkeit": 0,
+                "gewicht": 5
+              }
+            ]
+          },
+          {
+            "platzId": 236,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 2
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;4;2",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "398982",
+                "bezeichnung1": "Regalboden",
+                "matchcode": "",
+                "bestand": 841,
+                "verfuegbarkeit": 0,
+                "gewicht": 9
+              },
+              {
+                "artikelnummer": "218654",
+                "bezeichnung1": "Tischplatte",
+                "matchcode": "",
+                "bestand": 499,
+                "verfuegbarkeit": 0,
+                "gewicht": 26
+              }
+            ]
+          },
+          {
+            "platzId": 237,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 3
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;4;3",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "864568",
+                "bezeichnung1": "Schublade",
+                "matchcode": "",
+                "bestand": 360,
+                "verfuegbarkeit": 0,
+                "gewicht": 27
+              }
+            ]
+          },
+          {
+            "platzId": 238,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 4
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;4;4",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": []
+          },
+          {
+            "platzId": 239,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 5
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;4;5",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "589402",
+                "bezeichnung1": "Sockel",
+                "matchcode": "",
+                "bestand": 246,
+                "verfuegbarkeit": 0,
+                "gewicht": 47
+              }
+            ]
+          },
+          {
+            "platzId": 240,
+            "dim": {
+              "d1": 2,
+              "d2": 4,
+              "d3": 6
+            },
+            "ebene": 0,
+            "kurz": "DEMO-008;2;4;6",
+            "platzbezeichnung": "",
+            "masse": {
+              "hoehe": 60,
+              "breite": 110,
+              "laenge": 160
+            },
+            "maxGewicht": 500,
+            "bestaende": [
+              {
+                "artikelnummer": "665613",
+                "bezeichnung1": "Scharnier",
+                "matchcode": "",
+                "bestand": 686,
+                "verfuegbarkeit": 0,
+                "gewicht": 21
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "zones": {
+    "t": [
+      -0.1,
+      0,
+      -11.8
+    ],
+    "ct": [
+      -0.1,
+      0,
+      11.2
+    ],
+    "a": [
+      -23,
+      0,
+      1.2
+    ],
+    "b": [
+      22,
+      0,
+      -3.8
+    ]
+  },
+  "props": [
+    {
+      "kind": "container",
+      "pos": [
+        18.8,
+        0,
+        9
+      ],
+      "size": [
+        2.4,
+        2.6,
+        6
+      ],
+      "rot": 2
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -7.1,
+        0,
+        8.1
+      ],
+      "size": [
+        1.2,
+        1.1,
+        0.8
+      ],
+      "rot": 2
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -2.6,
+        0,
+        2.1
+      ],
+      "size": [
+        1.2,
+        1.1,
+        0.8
+      ],
+      "rot": 3
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -13.1,
+        0,
+        11.1
+      ],
+      "size": [
+        1.2,
+        0.55,
+        0.8
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "cage",
+      "pos": [
+        27.4,
+        0,
+        3.6
+      ],
+      "size": [
+        1.2,
+        1,
+        0.8
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "container",
+      "pos": [
+        12.8,
+        0,
+        5
+      ],
+      "size": [
+        2.4,
+        2.6,
+        6
+      ],
+      "rot": 3
+    },
+    {
+      "kind": "crate",
+      "pos": [
+        16.9,
+        0,
+        -0.9
+      ],
+      "size": [
+        1,
+        1,
+        1
+      ],
+      "rot": 2
+    },
+    {
+      "kind": "crate",
+      "pos": [
+        25.9,
+        0,
+        11.1
+      ],
+      "size": [
+        1,
+        1,
+        1
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -19.1,
+        0,
+        9.6
+      ],
+      "size": [
+        1.2,
+        0.55,
+        0.8
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "cage",
+      "pos": [
+        7.9,
+        0,
+        -0.9
+      ],
+      "size": [
+        1.2,
+        1,
+        0.8
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        9.4,
+        0,
+        -11.4
+      ],
+      "size": [
+        1.2,
+        0.55,
+        0.8
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "container",
+      "pos": [
+        2.8,
+        0,
+        1
+      ],
+      "size": [
+        2.4,
+        2.6,
+        6
+      ],
+      "rot": 3
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -8.6,
+        0,
+        -11.4
+      ],
+      "size": [
+        1.2,
+        1.6500000000000001,
+        0.8
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "crate",
+      "pos": [
+        -29.6,
+        0,
+        -8.4
+      ],
+      "size": [
+        1,
+        1,
+        1
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -2.6,
+        0,
+        6.6
+      ],
+      "size": [
+        1.2,
+        1.6500000000000001,
+        0.8
+      ],
+      "rot": 2
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -28.1,
+        0,
+        6.6
+      ],
+      "size": [
+        1.2,
+        0.55,
+        0.8
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -10.1,
+        0,
+        -0.9
+      ],
+      "size": [
+        1.2,
+        1.6500000000000001,
+        0.8
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "container",
+      "pos": [
+        -23.2,
+        0,
+        -3
+      ],
+      "size": [
+        2.4,
+        2.6,
+        6
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "container",
+      "pos": [
+        -3.2,
+        0,
+        -3
+      ],
+      "size": [
+        2.4,
+        2.6,
+        6
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "container",
+      "pos": [
+        22.8,
+        0,
+        3
+      ],
+      "size": [
+        2.4,
+        2.6,
+        6
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -17.6,
+        0,
+        0.6
+      ],
+      "size": [
+        1.2,
+        0.55,
+        0.8
+      ],
+      "rot": 3
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        7.9,
+        0,
+        11.1
+      ],
+      "size": [
+        1.2,
+        1.1,
+        0.8
+      ],
+      "rot": 0
+    }
+  ],
+  "spawns": {
+    "t": [
+      [
+        0.6,
+        0,
+        -10.59
+      ],
+      [
+        -0.8,
+        0,
+        -10.59
+      ],
+      [
+        2.32,
+        0,
+        -10.4
+      ],
+      [
+        -2.52,
+        0,
+        -10.4
+      ],
+      [
+        3.85,
+        0,
+        -10.36
+      ],
+      [
+        3.12,
+        0,
+        -9.1
+      ],
+      [
+        -4.05,
+        0,
+        -10.36
+      ],
+      [
+        5.31,
+        0,
+        -10.35
+      ],
+      [
+        2.7,
+        0,
+        -6.95
+      ],
+      [
+        1.35,
+        0,
+        -6.39
+      ]
+    ],
+    "ct": [
+      [
+        -0.1,
+        0,
+        11.2
+      ],
+      [
+        1.3,
+        0,
+        11.2
+      ],
+      [
+        -1.5,
+        0,
+        11.2
+      ],
+      [
+        -0.8,
+        0,
+        9.99
+      ],
+      [
+        0.6,
+        0,
+        9.99
+      ],
+      [
+        2.7,
+        0,
+        11.2
+      ],
+      [
+        -2.9,
+        0,
+        11.2
+      ],
+      [
+        -2.52,
+        0,
+        9.8
+      ],
+      [
+        -1.5,
+        0,
+        8.78
+      ],
+      [
+        -0.1,
+        0,
+        8.4
+      ]
+    ]
+  }
+}

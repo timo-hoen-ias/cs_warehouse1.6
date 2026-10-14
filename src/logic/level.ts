@@ -4,7 +4,7 @@ import { layoutRacks, rackBounds, type RackPlacement } from './layout';
 
 /** Solider, achsenparalleler Quader in Weltmetern (für Kollision + Rendering). */
 export type SolidBox = {
-  kind: 'rack' | 'wall';
+  kind: 'rack' | 'wall' | 'prop';
   minX: number;
   minY: number;
   minZ: number;
@@ -86,39 +86,33 @@ export function freeSpots(lager: LagerDaten, clearance = 1.0, stride = 1.0): Vec
   return out;
 }
 
-/** Wählt aus freien Punkten die an den vier Seitenflanken liegenden als Zonen-Vorschlag. */
+/**
+ * Zonen-Vorschlag (CS-Dramaturgie): T-Spawn an der Nordwand, CT-Spawn an der Südwand,
+ * Bombenspots A (West) und B (Ost) auf halber Tiefe zwischen den Spawns — beide
+ * Teams haben ähnlich lange Wege, die Spots liegen an den Flanken.
+ */
 export function suggestZones(lager: LagerDaten): LevelZones {
-  const spots = freeSpots(lager);
+  const spots = freeSpots(lager, 1.2, 1.0);
   const fallback: LevelZones = { t: [0, 0, 0], ct: [0, 0, 0], a: [0, 0, 0], b: [0, 0, 0] };
   if (spots.length === 0) return fallback;
-
-  // Terroristen nahe der Nordwand, CT nahe der Südwand
-  const t = pickExtreme(spots, (p) => p[2]); // min z
-  const ct = pickExtreme(spots, (p) => -p[2]); // max z
-
-  // Bombenspots: weit auseinanderliegend, möglichst in anderer Raumecke
-  const rest = spots.filter((p) => p !== t && p !== ct);
-  const a = pickFarthest(rest, [t, ct], (p) => p[0]); // westlich
-  const b = pickFarthest(rest, [t, ct], (p) => -p[0]); // östlich
+  const minZ = Math.min(...spots.map((p) => p[2]));
+  const maxZ = Math.max(...spots.map((p) => p[2]));
+  const minX = Math.min(...spots.map((p) => p[0]));
+  const maxX = Math.max(...spots.map((p) => p[0]));
+  const midZ = (minZ + maxZ) / 2;
+  const midX = (minX + maxX) / 2;
+  // Spawns: mittig an der jeweiligen Stirnseite
+  const t = nearestSpot(spots, midX, minZ);
+  const ct = nearestSpot(spots, midX, maxZ);
+  // Spots: Flanken, leicht Richtung CT (A) bzw. T (B) versetzt → asymmetrische Wege wie in CS
+  const a = nearestSpot(spots, minX + (maxX - minX) * 0.12, midZ + (maxZ - minZ) * 0.15);
+  const b = nearestSpot(spots, maxX - (maxX - minX) * 0.12, midZ - (maxZ - minZ) * 0.15);
   return { t, ct, a, b };
 }
 
-function pickExtreme(spots: Vec3[], key: (p: Vec3) => number): Vec3 {
-  return spots.reduce((best, p) => (key(p) < key(best) ? p : best), spots[0]!);
+function nearestSpot(spots: Vec3[], x: number, z: number): Vec3 {
+  return spots.reduce((best, p) => (Math.hypot(p[0] - x, p[2] - z) < Math.hypot(best[0] - x, best[2] - z) ? p : best), spots[0]!);
 }
-
-function pickFarthest(spots: Vec3[], from: Vec3[], key: (p: Vec3) => number): Vec3 {
-  if (spots.length === 0) return from[0] ?? [0, 0, 0];
-  return spots.reduce((best, p) => {
-    const dist = from.reduce((s, f) => s + dist2(p, f), 0);
-    const bestDist = from.reduce((s, f) => s + dist2(best, f), 0);
-    // bevorzuge zusätzlich extreme x-Seite, wenn Distanz fast gleich
-    const score = dist - bestDist + key(p) * 0.001;
-    return score > 0 ? p : best;
-  }, spots[0]!);
-}
-
-const dist2 = (a: Vec3, b: Vec3): number => Math.hypot(b[0] - a[0], b[2] - a[2]);
 
 /** Kürzeste Distanz (XZ) von (x,z) zu einer Solid-Box (0 = innerhalb). */
 export function nearestSolidXz(x: number, z: number, solids: SolidBox[]): number {

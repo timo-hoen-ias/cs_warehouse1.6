@@ -21,8 +21,26 @@ export type OrtMeta = { mandant: number; kennung: string; technik: string; dims:
 
 type Spec = { technik: string; d1: number; d2: number; d3: number; masse: { hoehe: number; breite: number; laenge: number } };
 
+export type LayoutProfile = 'mix' | 'hochregal' | 'block' | 'kommission' | 'rampe';
+
 // Kleinere Spielkarte: Mischung aus Hochregal-Gängen, Flächenlager und Freilager.
-function specFor(i: number): Spec {
+// Das Profil bestimmt den Mix (jede Karte ein anderes Lager-Thema).
+export function specFor(i: number, layout: LayoutProfile = 'mix'): Spec {
+  const hoch = (gaenge: number, ebenen: number, faecher: number): Spec => ({ technik: 'LTD3HR', d1: gaenge, d2: ebenen, d3: faecher, masse: { hoehe: 60, breite: 110, laenge: 160 } });
+  const flaeche = (reihen: number, plaetze: number): Spec => ({ technik: 'LTD2SF', d1: reihen, d2: plaetze, d3: 0, masse: { hoehe: 40, breite: 110, laenge: 110 } });
+  const block = (bloecke: number): Spec => ({ technik: 'LTD1UF', d1: bloecke, d2: 0, d3: 0, masse: { hoehe: 30, breite: 100, laenge: 200 } });
+  switch (layout) {
+    case 'hochregal':
+      return i % 3 === 2 ? hoch(2, 6, 12) : hoch(3, 5, 10);
+    case 'block':
+      return i % 3 === 0 ? block(14) : i % 3 === 1 ? flaeche(2, 10) : hoch(1, 3, 6);
+    case 'rampe':
+      return i % 2 === 0 ? block(10) : hoch(2, 4, 6);
+    case 'kommission':
+      return i % 2 === 0 ? hoch(2, 4, 8) : flaeche(2, 12);
+    default:
+      break;
+  }
   switch (i % 4) {
     case 1:
       return { technik: 'LTD2SF', d1: 2, d2: 16, d3: 0, masse: { hoehe: 40, breite: 110, laenge: 110 } };
@@ -36,12 +54,12 @@ function specFor(i: number): Spec {
 }
 
 /** Erzeugt Platz-Inventar-Zeilen (Shape von PLAETZE_SQL) inkl. Catch-all je Ort. */
-export function generatePlatzRows(orte: number): { rows: Record<string, unknown>[]; orte: OrtMeta[] } {
+export function generatePlatzRows(orte: number, layout: LayoutProfile = 'mix'): { rows: Record<string, unknown>[]; orte: OrtMeta[] } {
   const rows: Record<string, unknown>[] = [];
   const metas: OrtMeta[] = [];
   let platzId = 1;
   for (let i = 0; i < orte; i++) {
-    const { technik, d1, d2, d3, masse } = specFor(i);
+    const { technik, d1, d2, d3, masse } = specFor(i, layout);
     const kennung = `DEMO-${String(i + 1).padStart(3, '0')}`;
     const dims = { d1, d2, d3 };
     const platzIds: number[] = [];
@@ -113,8 +131,8 @@ export function generateBestandRows(orte: OrtMeta[], seed = 2): Record<string, u
 }
 
 /** LagerDaten über denselben Pfad wie die DB-Queries (groupLagerorte + attachBestaende). */
-export function generateLagerDaten(orte = 16, seed = 1): LagerDaten {
-  const { rows: platzRows, orte: metas } = generatePlatzRows(orte);
+export function generateLagerDaten(orte = 16, seed = 1, layout: LayoutProfile = 'mix'): LagerDaten {
+  const { rows: platzRows, orte: metas } = generatePlatzRows(orte, layout);
   const daten = groupLagerorte(platzRows, 1);
   attachBestaende(daten, generateBestandRows(metas, seed + 1), 1);
   return daten;
