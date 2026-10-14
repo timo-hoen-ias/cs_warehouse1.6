@@ -110,6 +110,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   shooter.onEmptyClick = () => sfx.dryFire();
   shooter.onDraw = (w) => sfx.draw(w);
   shooter.onWallHit = (p) => sfx.wallHit(p);
+  shooter.onMeleeWall = (p) => sfx.knifeHit('wall', p);
   // Einstellungen (O): live auf Spieler, Shooter, HUD und Sound anwenden
   const settingsMenu = new SettingsMenu(safeStorage());
   settingsMenu.mount();

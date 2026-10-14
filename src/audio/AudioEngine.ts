@@ -44,6 +44,8 @@ export type Voice = {
   started: number;
   level: number;
   ended: boolean;
+  /** Ausblenden läuft (zählt nicht mehr fürs Stimmen-Limit). */
+  stopping: boolean;
 };
 
 export type AudioStats = {
@@ -377,7 +379,7 @@ export class AudioEngine {
       send.gain.value = wet;
       (panner ?? gain).connect(send).connect(this.reverbIn!);
     }
-    const voice: Voice = { key, src, gain, filter, panner, send, started: t, level, ended: false };
+    const voice: Voice = { key, src, gain, filter, panner, send, started: t, level, ended: false, stopping: false };
     src.onended = () => this.release(voice);
     src.start(t);
     this.voices.add(voice);
@@ -403,7 +405,8 @@ export class AudioEngine {
 
   /** Stimme ausblenden und stoppen. */
   stop(v: Voice, fade = 0.05): void {
-    if (v.ended || !this.ctx) return;
+    if (v.ended || v.stopping || !this.ctx) return;
+    v.stopping = true;
     const t = this.ctx.currentTime;
     v.gain.gain.cancelScheduledValues(t);
     v.gain.gain.setTargetAtTime(0, t, Math.max(0.005, fade / 3));
@@ -427,12 +430,13 @@ export class AudioEngine {
 
   private limitVoices(key: string, def: SampleDef): void {
     if (def.maxVoices) {
-      const same = [...this.voices].filter((v) => v.key === key && !v.ended && !SAMPLES[v.key]?.loop);
+      const same = [...this.voices].filter((v) => v.key === key && !v.ended && !v.stopping && !SAMPLES[v.key]?.loop);
       if (same.length >= def.maxVoices) this.stop(same.sort((a, b) => a.started - b.started)[0]!, 0.02);
     }
-    if (this.voices.size >= MAX_VOICES) {
+    const live = [...this.voices].filter((v) => !v.stopping);
+    if (live.length >= MAX_VOICES) {
       // Leiseste Einmal-Stimme opfern (Schleifen bleiben)
-      const victims = [...this.voices].filter((v) => !SAMPLES[v.key]?.loop && !v.ended).sort((a, b) => a.level - b.level);
+      const victims = live.filter((v) => !SAMPLES[v.key]?.loop && !v.ended).sort((a, b) => a.level - b.level);
       if (victims[0]) this.stop(victims[0], 0.02);
     }
   }
@@ -459,7 +463,7 @@ export class AudioEngine {
 
   /** Aktive Stimmen eines Schlüssels (Debug/Tests). */
   activeKeys(): string[] {
-    return [...this.voices].map((v) => v.key);
+    return [...this.voices].filter((v) => !v.stopping).map((v) => v.key);
   }
 }
 

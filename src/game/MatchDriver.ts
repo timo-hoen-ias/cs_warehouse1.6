@@ -1228,8 +1228,10 @@ export class MatchDriver extends Behaviour {
     }
     const b = this.match.round.bomb;
     const actorId = b.phase === 'planting' ? this.planterId : b.phase === 'defusing' ? this.defuserId : null;
-    const actor = actorId && actorId !== this.localId ? this.match.players[actorId]?.pose : null;
-    this.audio.update(dt, movers, b, this.bombPos, actor ? { x: actor.x, y: actor.y + 0.8, z: actor.z } : null);
+    // Akteur: eigener Spieler → nicht positioniert; bekannt (Host) → seine Pose; unbekannt (Client) → Bombenplatz
+    const pose = actorId && actorId !== this.localId ? this.match.players[actorId]?.pose : undefined;
+    const actor = actorId === this.localId ? null : pose ? { x: pose.x, y: pose.y + 0.8, z: pose.z } : undefined;
+    this.audio.update(dt, movers, b, this.bombPos, actor);
   }
 
   private renderSoldiers(dt: number): void {

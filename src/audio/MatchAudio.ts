@@ -48,9 +48,9 @@ export class MatchAudio {
 
   /**
    * Pro Frame: Schritte/Sprünge aller Spieler, Bomben-Piepen, Tastenfeld, Entschärfen.
-   * `actor` = Position dessen, der legt/entschärft (null = eigener Spieler/unbekannt).
+   * `actor` = Position dessen, der legt/entschärft (null = eigener Spieler, undefined = unbekannt → Bombenplatz).
    */
-  update(dt: number, movers: readonly AudioMover[], bomb: BombAudioState, bombPos: V3 | null, actor: V3 | null): void {
+  update(dt: number, movers: readonly AudioMover[], bomb: BombAudioState, bombPos: V3 | null, actor?: V3 | null): void {
     const sfx = this.sfx();
     if (!sfx || dt <= 0) return;
     const seen = new Set<string>();
@@ -84,13 +84,14 @@ export class MatchAudio {
 
     // Bombe: Tastenfeld beim Legen, Entschärf-Geräusch, Piepen
     const at = this.bombAt(bomb.spot, bombPos);
+    const who = actor === undefined ? at : actor;
     if (bomb.phase === 'planting') {
       if (this.lastPhase !== 'planting') this.plantProgress = -1;
       const n = keypadPresses(this.plantProgress, bomb.progress);
-      for (let i = 0; i < n; i++) sfx.c4('press', actor);
+      for (let i = 0; i < n; i++) sfx.c4('press', who);
       this.plantProgress = bomb.progress;
     }
-    if (bomb.phase === 'defusing' && this.lastPhase !== 'defusing') sfx.c4('defuse', actor ?? at);
+    if (bomb.phase === 'defusing' && this.lastPhase !== 'defusing') sfx.c4('defuse', who);
     this.lastPhase = bomb.phase;
     if ((bomb.phase === 'planted' || bomb.phase === 'defusing') && bombPos) {
       this.beepTimer -= dt;

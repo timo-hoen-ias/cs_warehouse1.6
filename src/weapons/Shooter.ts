@@ -51,6 +51,8 @@ export class Shooter extends Behaviour {
   /** Audio: Waffe gezogen / eigener Schuss schlägt in eine Wand ein. */
   onDraw?: (weaponId: string) => void;
   onWallHit?: (point: Vec3) => void;
+  /** Audio: Messer trifft eine Wand/ein Regal in Reichweite. */
+  onMeleeWall?: (point: Vec3) => void;
 
   /** Solide Level-Boxen (Wände/Regale) für die lokale Strahl-Vorschau. */
   solids: SolidBox[] = [];
@@ -302,6 +304,10 @@ export class Shooter extends Behaviour {
       this.viewModel?.slash(alt);
       this.onShotSfx?.(used.id);
       this.onFire?.(used.id, ray.origin, [ray.dir]);
+      if (this.onMeleeWall) {
+        const wall = resolveRay(ray.origin, ray.dir, used.range, this.aabbs, []);
+        if (wall.kind === 'wall') this.onMeleeWall(wall.point);
+      }
       return;
     }
     const state = this.gunState();
