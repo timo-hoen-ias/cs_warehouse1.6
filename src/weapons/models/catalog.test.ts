@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
+import { VIEW_SCALE } from '../../logic/viewAnim';
+import { viewPoint } from '../../logic/viewPlace';
 import { WEAPONS } from '../../logic/weapons';
+import { WEAPON_GEOM, weaponGeom } from '../../logic/weaponGeom';
+import { TORSO_PIVOT_Y, holdPlan, holdPoint } from '../../entities/soldierHold';
 import { forearmGeometry, handGeometry } from './arms';
 import { frameQuat } from './builder';
-import { MODEL_IDS, acquireView, buildViewWeapon, buildWorldGeometry, hasWeaponModel, worldGeometry } from './index';
+import { MODEL_IDS, acquireView, buildViewWeapon, buildWorldGeometry, hasWeaponModel, worldGeometry, worldGeometryParts } from './index';
+import { dropRest, restedBounds, DROP_CLEARANCE, type Lay } from '../../logic/dropRest';
 
 /** Budgets aus der Aufgabe: Viewmodel inkl. Arme ≤ 12 Draw-Calls / ~8k Dreiecke, Welt ≤ 2 / 600. */
 const ARM_MESHES = 4;
@@ -165,5 +170,264 @@ describe('Hand-Rahmen und Arme', () => {
     g.computeBoundingBox();
     expect(g.boundingBox!.min.z).toBeGreaterThan(-0.02);
     expect(g.boundingBox!.max.z).toBeGreaterThan(0.4);
+  });
+});
+
+/** Alle Eckpunkte des Viewmodels im Modellraum als [x, y, f] (Teile in Ruhelage). */
+function viewVerts(id: string): [number, number, number][] {
+  const v = buildViewWeapon(id)!;
+  v.root.updateMatrixWorld(true);
+  const out: [number, number, number][] = [];
+  const p = new THREE.Vector3();
+  v.root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const pos = m.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      p.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+      out.push([p.x, p.y, -p.z]);
+    }
+  });
+  return out;
+}
+
+/** Kleinster Abstand eines Modellpunkts [x, y, f] zur Oberfläche des Viewmodels (Dreiecke, Teile in Ruhelage). */
+function surfaceDistance(id: string, q: readonly [number, number, number]): number {
+  const v = buildViewWeapon(id)!;
+  v.root.updateMatrixWorld(true);
+  const target = new THREE.Vector3(q[0], q[1], -q[2]);
+  const tri = new THREE.Triangle();
+  const c = new THREE.Vector3();
+  let best = Infinity;
+  v.root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const pos = m.geometry.getAttribute('position');
+    for (let i = 0; i < pos.count; i += 3) {
+      tri.a.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+      tri.b.fromBufferAttribute(pos, i + 1).applyMatrix4(m.matrixWorld);
+      tri.c.fromBufferAttribute(pos, i + 2).applyMatrix4(m.matrixWorld);
+      best = Math.min(best, tri.closestPointToPoint(target, c).distanceTo(target));
+    }
+  });
+  return best;
+}
+
+function anchorPos(v: ReturnType<typeof buildViewWeapon>, name: 'muzzle' | 'muzzle2' | 'gripR' | 'gripL' | 'eject' | 'eject2'): [number, number, number] | undefined {
+  const o = v!.anchors[name];
+  if (!o) return undefined;
+  const p = o.getWorldPosition(new THREE.Vector3());
+  return [p.x, p.y, -p.z];
+}
+
+describe('Modelle passen zur Geometrie-Tabelle (logic/weaponGeom.ts)', () => {
+  it('jedes Modell hat Tabellen-Daten und umgekehrt', () => {
+    for (const id of MODEL_IDS) expect(weaponGeom(id), id).toBeDefined();
+    for (const id of Object.keys(WEAPON_GEOM)) expect(hasWeaponModel(id), id).toBe(true);
+  });
+
+  it('Anker (Mündung, Schusshand, Stützhand, Auswurf) sitzen exakt auf den Tabellenpunkten', () => {
+    for (const id of MODEL_IDS) {
+      const g = WEAPON_GEOM[id]!;
+      const v = buildViewWeapon(id)!;
+      v.root.updateMatrixWorld(true);
+      const check = (name: 'muzzle' | 'muzzle2' | 'gripR' | 'gripL' | 'eject' | 'eject2'): void => {
+        const want = g[name];
+        const got = anchorPos(v, name);
+        if (!want) {
+          expect(got, `${id}.${name} unerwartet`).toBeUndefined();
+          return;
+        }
+        expect(got, `${id}.${name} fehlt`).toBeDefined();
+        for (let k = 0; k < 3; k++) expect(got![k]!, `${id}.${name}[${k}]`).toBeCloseTo(want[k]!, 6);
+      };
+      for (const n of ['muzzle', 'muzzle2', 'gripR', 'gripL', 'eject', 'eject2'] as const) check(n);
+    }
+  });
+
+  it('echte Länge: gebautes Viewmodel und Welt-Modell stimmen (±4 % bzw. ±8 %)', () => {
+    for (const id of MODEL_IDS) {
+      const g = WEAPON_GEOM[id]!;
+      const f = viewVerts(id).map((p) => p[2]);
+      const lenView = Math.max(...f) - Math.min(...f);
+      expect(Math.abs(lenView - g.length) / g.length, `${id} Ansicht ${lenView.toFixed(3)} vs ${g.length}`).toBeLessThan(0.04);
+      const wb = worldGeometry(id)!.boundingBox!;
+      const lenWorld = wb.max.z - wb.min.z;
+      expect(Math.abs(lenWorld - g.length) / g.length, `${id} Welt ${lenWorld.toFixed(3)} vs ${g.length}`).toBeLessThan(0.08);
+    }
+  });
+
+  it('Mündung ist der vorderste Punkt (±2 cm), Schaftkappe der hinterste (±2 cm)', () => {
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      if (g.hold === 'grenade' || g.hold === 'bomb') continue;
+      const f = viewVerts(id).map((p) => p[2]);
+      expect(Math.abs(Math.max(...f) - g.muzzle[2]), `${id} Mündung`).toBeLessThan(0.02);
+      if (g.butt) expect(Math.abs(Math.min(...f) - g.butt[2]), `${id} Schaftkappe`).toBeLessThan(0.02);
+    }
+  });
+
+  it('Laufachse: an der Mündung hat das Modell Material auf Höhe der Seelenachse', () => {
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      if (g.hold === 'grenade' || g.hold === 'bomb' || g.hold === 'knife') continue;
+      const near = viewVerts(id).filter((p) => Math.abs(p[2] - g.muzzle[2]) < 0.02 && Math.abs(p[0] - g.muzzle[0]) < 0.03);
+      expect(near.length, id).toBeGreaterThan(0);
+      expect(Math.min(...near.map((p) => p[1])), id).toBeLessThan(g.muzzle[1] + 0.003);
+      expect(Math.max(...near.map((p) => p[1])), id).toBeGreaterThan(g.muzzle[1] - 0.003);
+    }
+  });
+
+  it('Kimme und Korn liegen an der Oberkante der Geometrie (±8 mm)', () => {
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      const verts = viewVerts(id);
+      for (const s of [g.sightRear, g.sightFront]) {
+        if (!s) continue;
+        const near = verts.filter((p) => Math.abs(p[2] - s[2]) < 0.015 && Math.abs(p[0] - s[0]) < 0.04);
+        expect(near.length, `${id} @${s[2]}`).toBeGreaterThan(0);
+        expect(Math.abs(Math.max(...near.map((p) => p[1])) - s[1]), `${id} Sichthöhe`).toBeLessThan(0.008);
+      }
+    }
+  });
+
+  it('Hand-Punkte liegen am Modell: Schuss- und Stützhand höchstens 3,5 cm von der Oberfläche', () => {
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      if (g.hold === 'grenade' || g.hold === 'bomb' || g.hold === 'knife') continue;
+      for (const [name, grip] of [['gripR', g.gripR], ['gripL', g.gripL]] as const) {
+        expect(surfaceDistance(id, grip), `${id}.${name}`).toBeLessThan(0.035);
+      }
+    }
+  });
+
+  it('Halter-Transform (three, Euler YXZ, Skalierung) stimmt mit der reinen Ruhelage-Rechnung überein', () => {
+    for (const id of ['glock', 'ak47', 'awp', 'm249', 'p90']) {
+      const def = WEAPONS[id]!;
+      const g = WEAPON_GEOM[def.visual.model]!;
+      const v = buildViewWeapon(id)!;
+      const holder = new THREE.Group();
+      holder.rotation.order = 'YXZ';
+      holder.position.set(def.visual.pos.x, def.visual.pos.y, def.visual.pos.z);
+      holder.rotation.set(def.visual.rot.x, def.visual.rot.y, def.visual.rot.z);
+      holder.scale.setScalar(VIEW_SCALE);
+      holder.add(v.root);
+      holder.updateMatrixWorld(true);
+      const place = { pos: def.visual.pos, rot: def.visual.rot, scale: VIEW_SCALE };
+      for (const name of ['muzzle', 'gripR', 'gripL', 'eject'] as const) {
+        const want = viewPoint(place, g[name]!);
+        const got = v.anchors[name]!.getWorldPosition(new THREE.Vector3());
+        expect(got.x, `${id}.${name}.x`).toBeCloseTo(want.x, 6);
+        expect(got.y, `${id}.${name}.y`).toBeCloseTo(want.y, 6);
+        expect(got.z, `${id}.${name}.z`).toBeCloseTo(want.z, 6);
+      }
+    }
+  });
+
+  it('Hand-Ziele: Schusshand = Halter-Ursprung, Stützhand ≤ 0,5 m davon entfernt (Armlänge im Bild)', () => {
+    for (const w of Object.values(WEAPONS)) {
+      const g = WEAPON_GEOM[w.visual.model]!;
+      const place = { pos: w.visual.pos, rot: w.visual.rot, scale: VIEW_SCALE };
+      const r = viewPoint(place, g.gripR);
+      const l = viewPoint(place, g.gripL);
+      expect(Math.hypot(l.x - r.x, l.y - r.y, l.z - r.z), w.id).toBeLessThan(0.5);
+    }
+  });
+});
+
+describe('Dritte Person: Knotenkette des Soldaten entspricht der reinen Haltungsrechnung', () => {
+  /** Baut dieselbe Kette wie Soldier.ts: Oberkörper → Waffenknoten → Waffen-Mesh (um 180° um y). */
+  function chain(id: string): THREE.Object3D {
+    const plan = holdPlan(WEAPON_GEOM[id]!);
+    const torso = new THREE.Group();
+    torso.position.y = TORSO_PIVOT_Y;
+    const node = new THREE.Group();
+    node.position.set(plan.origin.x, plan.origin.y - TORSO_PIVOT_Y, plan.origin.z);
+    node.rotation.x = -plan.pitch;
+    const gun = new THREE.Object3D();
+    gun.rotation.y = Math.PI;
+    node.add(gun);
+    torso.add(node);
+    torso.updateMatrixWorld(true);
+    return gun;
+  }
+
+  it('Modellpunkte (Mündung, Hände, Schaftkappe) landen dort, wo holdPoint sie erwartet', () => {
+    for (const id of ['knife', 'glock', 'elite', 'ak47', 'awp', 'm249', 'p90', 'c4', 'hegrenade']) {
+      const g = WEAPON_GEOM[id]!;
+      const plan = holdPlan(g);
+      const gun = chain(id);
+      for (const p of [g.muzzle, g.gripR, g.gripL, ...(g.butt ? [g.butt] : [])]) {
+        const want = holdPoint(plan, p);
+        const got = gun.localToWorld(new THREE.Vector3(p[0], p[1], -p[2]));
+        expect(got.x, `${id} x`).toBeCloseTo(want.x, 6);
+        expect(got.y, `${id} y`).toBeCloseTo(want.y, 6);
+        expect(got.z, `${id} z`).toBeCloseTo(want.z, 6);
+      }
+    }
+  });
+
+  it('Welt-Modell: Mündung liegt am vordersten Punkt der Geometrie (±2 cm), Länge stimmt', () => {
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      if (g.hold === 'grenade' || g.hold === 'bomb') continue;
+      const bb = worldGeometry(id)!.boundingBox!;
+      expect(Math.abs(-bb.min.z - g.muzzle[2]), `${id} Mündung`).toBeLessThan(0.02);
+    }
+  });
+
+  it('Schusshand und Stützhand liegen an der Welt-Geometrie (≤ 3,5 cm von der Oberfläche)', () => {
+    const tri = new THREE.Triangle();
+    const c = new THREE.Vector3();
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      if (g.hold === 'grenade' || g.hold === 'bomb' || g.hold === 'knife') continue;
+      const pos = worldGeometry(id)!.getAttribute('position');
+      for (const [name, grip] of [['gripR', g.gripR], ['gripL', g.gripL]] as const) {
+        const target = new THREE.Vector3(grip[0], grip[1], -grip[2]);
+        let d = Infinity;
+        for (let i = 0; i < pos.count; i += 3) {
+          tri.a.fromBufferAttribute(pos, i);
+          tri.b.fromBufferAttribute(pos, i + 1);
+          tri.c.fromBufferAttribute(pos, i + 2);
+          d = Math.min(d, tri.closestPointToPoint(target, c).distanceTo(target));
+        }
+        expect(d, `${id}.${name}`).toBeLessThan(0.035);
+      }
+    }
+  });
+});
+
+describe('Liegende Waffen (Welt-LOD)', () => {
+  const triCount = (g: THREE.BufferGeometry): number => g.getAttribute('position').count / 3;
+
+  it('Doppelwaffen werden in zwei vollständige Pistolen geteilt, alle anderen bleiben ganz', () => {
+    for (const id of MODEL_IDS) {
+      const parts = worldGeometryParts(id);
+      const whole = worldGeometry(id)!;
+      expect(parts.length, id).toBe(WEAPON_GEOM[id]!.muzzle2 ? 2 : 1);
+      expect(parts.reduce((n, g) => n + triCount(g), 0), id).toBe(triCount(whole));
+    }
+    const [a, b] = worldGeometryParts('elite') as [THREE.BufferGeometry, THREE.BufferGeometry];
+    for (const g of [a, b]) {
+      expect(g.boundingBox!.min.x).toBeGreaterThan(-0.03);
+      expect(g.boundingBox!.max.x).toBeLessThan(0.03);
+      expect(g.boundingBox!.max.z - g.boundingBox!.min.z).toBeGreaterThan(0.19); // Länge einer Pistole
+    }
+    expect(triCount(a)).toBeGreaterThan(40);
+    expect(Math.abs(triCount(a) - triCount(b))).toBeLessThan(triCount(a) * 0.2);
+    expect(worldGeometryParts('elite')).toBe(worldGeometryParts('elite')); // gecacht
+    expect(worldGeometryParts('gibtsnicht')).toEqual([]);
+  });
+
+  it('jede Waffe liegt mit der Unterkante auf dem Boden und flach (stehende Granaten ≤ 13 cm, liegende Waffen ≤ 10 cm hoch)', () => {
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      const lay: Lay = g.hold === 'grenade' ? 'upright' : g.hold === 'bomb' ? 'flat' : 'side';
+      for (const geo of worldGeometryParts(id)) {
+        const bb = geo.boundingBox!;
+        const bounds = { min: [bb.min.x, bb.min.y, bb.min.z] as const, max: [bb.max.x, bb.max.y, bb.max.z] as const };
+        const r = restedBounds(bounds, dropRest(bounds, lay));
+        expect(r.min[1], id).toBeCloseTo(DROP_CLEARANCE, 9);
+        const h = r.max[1] - r.min[1];
+        expect(h, id).toBeLessThan(0.13);
+        if (lay === 'side') expect(h, `${id} liegt nicht flach`).toBeLessThan(0.1);
+        // Mitte der Grundfläche auf dem Haltepunkt
+        expect((r.min[0] + r.max[0]) / 2, id).toBeCloseTo(0, 9);
+      }
+    }
   });
 });

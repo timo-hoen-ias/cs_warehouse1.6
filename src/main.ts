@@ -189,12 +189,17 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     g.__playerPose = (id: string) => { const p = driver.match.players[id]; return p ? { x: +p.pose.x.toFixed(2), z: +p.pose.z.toFixed(2) } : null; };
     g.__netId = () => ({ id: net.id, host: net.hostId, peers: [...net.peers], online: net.online });
     g.__bots = () => driver.debugBotPos();
+    g.__soldierMuzzle = (id: string) => driver.debugSoldierMuzzle(id);
     g.__pos = () => ({ x: +player.motionX().toFixed(2), z: +player.motionZ().toFixed(2), yaw: +player.yawNow().toFixed(2), hp: player.hp, dead: player.isDead() });
     g.__killTeam = (team: 'T' | 'CT') => { driver.debugKillTeam(team); return driver.debugState(); };
     g.__buy = (item: string) => { driver.requestBuy(item); return driver.local?.loadout; };
     g.__switch = (slot: number) => { shooter.selectSlot(slot); return { weapon: shooter.weaponId }; };
     g.__weapon = (id: string) => { shooter.setWeapon(id); return { weapon: shooter.weaponId }; };
-    g.__vm = () => ({ loaded: viewModel.hasModel(), meshes: viewModel.meshCount(), verts: viewModel.vertexCount() });
+    // Waffen-Labor: beliebiges Modell ins Viewmodel (ohne Inventar), Welt ausblenden (neutraler Hintergrund)
+    g.__vmShow = async (id: string, team: 'T' | 'CT' = 'T') => { viewModel.setTeam(team); await viewModel.show(id); viewModel.settle(); return viewModel.hasModel(); };
+    g.__vmPreview = (kind: 'reload' | 'reloadEmpty' | 'draw' | 'inspect' | 'cycle', frac: number) => { viewModel.preview(kind, frac); return viewModel.animName(); };
+    g.__lab = (on: boolean) => { world.group.visible = !on; (scene.background as THREE.Color).setHex(on ? 0x7d858d : 0x0e1014); return on; };
+    g.__vm = () => ({ loaded: viewModel.hasModel(), model: viewModel.modelId(), meshes: viewModel.meshCount(), verts: viewModel.vertexCount() });
     g.__vmAim = () => {
       const c = context.mainCamera as THREE.PerspectiveCamera;
       const w = viewModel.muzzleWorld(new THREE.Vector3());

@@ -1,16 +1,16 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Team } from '../logic/economy';
-import type { WeaponType } from '../logic/weapons';
-import { LEG, solveTwoBone, type V3 } from './soldierAnim';
+import { LEG, type V3 } from './soldierAnim';
+import { SHOULDER_X, SHOULDER_Y, TORSO_PIVOT_Y, armJoints, elbowPole, leftShoulder, rightShoulder } from './soldierHold';
+
+export { SHOULDER_X, SHOULDER_Y, TORSO_PIVOT_Y };
 
 /**
  * Prozedurale Low-Poly-Geometrie für den Soldaten (CS-1.6-Look).
  * Alles wird pro Körperteil zu EINER Geometrie mit Vertex-Farben verschmolzen
  * (ein Mesh/Draw-Call je Teil). Koordinaten: Füße bei y=0, Modell blickt +Z.
  */
-
-export type ArmStance = 'long' | 'short';
 
 type Palette = {
   cloth: number; clothAlt: number[]; pants: number; pantsAlt: number[];
@@ -122,13 +122,6 @@ class GeoBuilder {
 
 // ------------------------------------------------------------------ Oberkörper
 
-export const TORSO_PIVOT_Y = LEG.hipY;
-/** Schulterpunkte (absolut, Standhaltung). */
-export const SHOULDER_X = 0.25;
-export const SHOULDER_Y = 1.37;
-/** Waffenknoten (absolut): rechte Hand hält die Waffe hier. */
-export const WEAPON_POS: V3 = { x: 0.12, y: 1.12, z: 0.17 };
-
 /** Torso + Kopf + Rucksack + Weste (alles statisch → ein Mesh). Ursprung = Hüftdrehpunkt. */
 export function buildTorsoGeometry(team: Team): THREE.BufferGeometry {
   const p = PAL[team];
@@ -137,8 +130,8 @@ export function buildTorsoGeometry(team: Team): THREE.BufferGeometry {
   // Becken, Gürtel, Holster
   b.box(0.4, 0.16, 0.25, 0, 0.9, 0, p.pants);
   b.box(0.42, 0.05, 0.27, 0, 0.98, 0, p.gear);
-  b.box(0.07, 0.16, 0.1, 0.24, 0.86, 0.02, p.gear);
-  b.box(0.03, 0.05, 0.05, 0.24, 0.96, 0.0, p.gear);
+  b.box(0.07, 0.16, 0.1, -0.24, 0.86, 0.02, p.gear);
+  b.box(0.03, 0.05, 0.05, -0.24, 0.96, 0.0, p.gear);
   b.box(0.08, 0.08, 0.06, -0.14, 0.98, 0.15, p.pouch);
   b.box(0.08, 0.08, 0.06, -0.05, 0.98, 0.15, p.pouch);
   b.box(0.1, 0.08, 0.06, 0.12, 0.98, 0.15, p.pouch);
@@ -212,34 +205,25 @@ export function buildTorsoGeometry(team: Team): THREE.BufferGeometry {
 
 // ------------------------------------------------------------------ Arme
 
-/** Zielpunkte der Hände (absolut) je Haltung. */
-export function handTargets(stance: ArmStance): { right: V3; left: V3 } {
-  const w = WEAPON_POS;
-  const right = { x: w.x, y: w.y, z: w.z };
-  const left = stance === 'long' ? { x: w.x - 0.02, y: w.y - 0.01, z: w.z + 0.3 } : { x: w.x - 0.07, y: w.y - 0.015, z: w.z + 0.05 };
-  return { right, left };
-}
-
-/** Ein Arm (Schulter → Ellbogen → Hand), Ursprung der Geometrie = Schulterpunkt. */
-export function buildArmGeometry(team: Team, side: 'L' | 'R', stance: ArmStance): THREE.BufferGeometry {
+/**
+ * Ein Arm (Schulter → Ellbogen → Handgelenk → Hand), Ursprung der Geometrie = Schulterpunkt.
+ * `side` = Körperseite des Soldaten (R bei −x, L bei +x; der Soldat blickt nach +z). `hand` = Handflächenmitte
+ * (absolut, Soldatenhaltung aus soldierHold.ts); Segmentlängen sind fest.
+ */
+export function buildArmGeometry(team: Team, side: 'L' | 'R', hand: V3): THREE.BufferGeometry {
   const p = PAL[team];
-  const sx = side === 'L' ? -SHOULDER_X : SHOULDER_X;
-  const sgn = side === 'L' ? -1 : 1;
-  const S: V3 = { x: sx, y: SHOULDER_Y, z: 0 };
-  const targets = handTargets(stance);
-  const H = side === 'L' ? targets.left : targets.right;
-  const len = Math.max(0.29, Math.hypot(H.x - S.x, H.y - S.y, H.z - S.z) * 0.56);
-  const E = solveTwoBone(S, H, len, len, { x: sgn * 0.6, y: -1, z: -0.25 });
-  // Handgelenk kurz vor der Hand
-  const fx = H.x - E.x, fy = H.y - E.y, fz = H.z - E.z;
+  const sgn = side === 'L' ? 1 : -1; // nach außen
+  const S: V3 = side === 'L' ? leftShoulder() : rightShoulder();
+  const H = hand;
+  const { elbow: E, wrist: W } = armJoints(S, H, elbowPole(side));
+  const fx = H.x - W.x, fy = H.y - W.y, fz = H.z - W.z;
   const fl = Math.hypot(fx, fy, fz) || 1;
-  const W: V3 = { x: H.x - (fx / fl) * 0.07, y: H.y - (fy / fl) * 0.07, z: H.z - (fz / fl) * 0.07 };
   const T = team === 'T';
   const b = new GeoBuilder();
   b.ellipsoid(0.075, 0.07, 0.07, S.x + sgn * 0.01, S.y - 0.01, S.z, p.cloth);
   b.seg(S, E, 0.06, 0.052, p.cloth, 6);
   b.seg(E, W, 0.052, 0.042, p.cloth, 6);
-  // Ellbogenschützer und Handschuh
+  // Ellbogenschützer und Handschuh (Handschuh reicht vom Handgelenk über die Handflächenmitte hinaus)
   b.box(0.08, 0.07, 0.08, E.x, E.y, E.z, p.gear);
   b.seg(W, { x: H.x + (fx / fl) * 0.05, y: H.y + (fy / fl) * 0.05, z: H.z + (fz / fl) * 0.05 }, 0.047, 0.043, p.glove, 6, 0.08);
   b.box(0.034, 0.034, 0.07, H.x - sgn * 0.045, H.y + 0.01, H.z + 0.03, p.glove, 0, 0, 0, 0.05);
@@ -288,79 +272,3 @@ export function buildShinGeometry(team: Team, side: 'L' | 'R'): THREE.BufferGeom
   return b.build();
 }
 
-// ------------------------------------------------------------------ Waffe
-
-export type WeaponKind = WeaponType | 'unknown';
-
-/** Waffe: Ursprung = Griffpunkt der rechten Hand, Lauf zeigt nach +Z. Eine Geometrie, Vertex-Farben. */
-export function buildWeaponGeometry(type: WeaponKind): THREE.BufferGeometry {
-  const metal = 0x2a2d31;
-  const dark = 0x15171a;
-  const wood = 0x6b4a2a;
-  const steel = 0xcfd6dc;
-  const b = new GeoBuilder();
-  switch (type) {
-    case 'knife':
-      b.box(0.03, 0.035, 0.11, 0, 0, 0.03, 0x241a14);
-      b.box(0.012, 0.045, 0.2, 0, 0.005, 0.18, steel, 0, 0, 0, 0.05);
-      b.box(0.045, 0.02, 0.02, 0, 0.005, 0.09, dark);
-      break;
-    case 'pistol':
-      b.box(0.045, 0.06, 0.2, 0, 0.05, 0.07, metal);
-      b.box(0.04, 0.12, 0.06, 0, -0.03, 0.0, dark, -0.2);
-      b.cyl(0.012, 0.012, 0.06, 6, 0, 0.055, 0.2, dark, Math.PI / 2);
-      break;
-    case 'grenade':
-      b.ellipsoid(0.045, 0.06, 0.045, 0, 0.03, 0.06, 0x4a6a3a);
-      b.cyl(0.015, 0.015, 0.03, 6, 0, 0.1, 0.06, steel);
-      b.box(0.012, 0.012, 0.07, 0.025, 0.095, 0.06, steel, 0, 0, 0, 0);
-      break;
-    case 'bomb':
-      b.box(0.14, 0.07, 0.2, 0, 0.0, 0.1, 0xa83232);
-      b.box(0.12, 0.012, 0.09, 0, 0.04, 0.14, 0x1a1a1a, 0, 0, 0, 0);
-      b.box(0.02, 0.02, 0.02, 0.04, 0.05, 0.14, 0x8aff6a, 0, 0, 0, 0);
-      b.cyl(0.008, 0.008, 0.12, 4, -0.05, 0.05, 0.04, 0x1a1a1a, 0, 0, Math.PI / 2, 0);
-      break;
-    case 'shotgun':
-      b.box(0.05, 0.075, 0.3, 0, 0.055, 0.15, metal);
-      b.cyl(0.018, 0.018, 0.5, 6, 0, 0.075, 0.48, dark, Math.PI / 2);
-      b.cyl(0.024, 0.024, 0.26, 6, 0, 0.032, 0.42, wood, Math.PI / 2);
-      b.box(0.05, 0.11, 0.2, 0, 0.0, -0.12, wood, 0.12);
-      b.box(0.04, 0.1, 0.05, 0, -0.04, 0.0, dark, -0.25);
-      break;
-    case 'sniper':
-      b.box(0.05, 0.08, 0.42, 0, 0.05, 0.12, metal);
-      b.cyl(0.015, 0.015, 0.55, 6, 0, 0.065, 0.62, dark, Math.PI / 2);
-      b.cyl(0.026, 0.026, 0.3, 8, 0, 0.14, 0.2, dark, Math.PI / 2);
-      b.cyl(0.034, 0.034, 0.05, 8, 0, 0.14, 0.38, 0x111214, Math.PI / 2);
-      b.box(0.05, 0.12, 0.26, 0, 0.0, -0.18, 0x3a3f33, 0.06);
-      b.box(0.04, 0.1, 0.05, 0, -0.04, 0.0, dark, -0.25);
-      b.box(0.04, 0.09, 0.06, 0, -0.02, 0.15, dark);
-      break;
-    case 'mg':
-      b.box(0.06, 0.09, 0.4, 0, 0.05, 0.12, metal);
-      b.cyl(0.018, 0.018, 0.38, 6, 0, 0.07, 0.52, dark, Math.PI / 2);
-      b.box(0.13, 0.13, 0.12, 0, -0.06, 0.14, 0x3a3f33);
-      b.box(0.05, 0.1, 0.22, 0, 0.0, -0.14, dark, 0.1);
-      b.box(0.04, 0.1, 0.05, 0, -0.04, 0.0, dark, -0.25);
-      break;
-    case 'smg':
-      b.box(0.05, 0.08, 0.3, 0, 0.05, 0.1, metal);
-      b.cyl(0.014, 0.014, 0.16, 6, 0, 0.06, 0.37, dark, Math.PI / 2);
-      b.box(0.035, 0.14, 0.05, 0, -0.07, 0.12, dark);
-      b.box(0.04, 0.1, 0.05, 0, -0.04, 0.0, dark, -0.25);
-      b.box(0.03, 0.04, 0.16, 0, 0.06, -0.14, dark);
-      break;
-    case 'rifle':
-    default:
-      b.box(0.055, 0.09, 0.36, 0, 0.05, 0.1, metal);
-      b.cyl(0.016, 0.016, 0.34, 6, 0, 0.07, 0.45, dark, Math.PI / 2);
-      b.box(0.058, 0.055, 0.22, 0, 0.035, 0.27, 0x3a3f33);
-      b.box(0.04, 0.15, 0.06, 0, -0.07, 0.13, dark, 0.35);
-      b.box(0.04, 0.1, 0.05, 0, -0.04, 0.0, dark, -0.25);
-      b.box(0.05, 0.1, 0.2, 0, 0.02, -0.16, 0x3a3f33, 0.08);
-      b.box(0.02, 0.025, 0.03, 0, 0.115, 0.4, dark, 0, 0, 0, 0);
-      break;
-  }
-  return b.build();
-}

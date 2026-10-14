@@ -351,7 +351,8 @@ export class Shooter extends Behaviour {
     // Lokale Effekte: Mündung, Tracer bis Wand/Reichweite, Wand-Decal (Ziel-Treffer kommen vom Host)
     const muzzle = this.muzzlePoint(ray.dir);
     this.fx?.muzzleFlash(muzzle, ray.dir, def.type === 'sniper' ? 1.6 : def.type === 'shotgun' ? 1.4 : 1.1);
-    this.fx?.shell(muzzle, ray.dir);
+    const eject = this.viewModel?.ejectWorld();
+    if (eject) this.fx?.shell(eject.pos, eject.dir);
     for (const d of dirs) {
       const hit = resolveRay(ray.origin, d, def.range, this.aabbs, []);
       this.fx?.tracer(scoped ? ray.origin : muzzle, hit.point);

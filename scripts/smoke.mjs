@@ -134,6 +134,12 @@ async function run() {
     if (b1?.length >= 2 && moved) ok(`Bots: ${b1.length}, bewegen sich`);
     else fail(`Bots bewegen sich nicht: ${JSON.stringify(b1)} → ${JSON.stringify(b2)}`);
 
+    // 6b) Mündung der Spielfigur: vor dem Körper, auf Brust-/Kopfhöhe (Mündungsfeuer/Leuchtspur fremder Spieler)
+    const bm = b2?.length ? await evJson(`globalThis.__soldierMuzzle?.(${JSON.stringify(b2[0].id)})`) : null;
+    const bmd = bm ? Math.hypot(bm.x - bm.rx, bm.z - bm.rz) : 0;
+    if (bm && bm.y > 1.0 && bm.y < 1.75 && bmd > 0.3 && bmd < 1.2) ok(`Mündung des Bots: ${bmd.toFixed(2)} m vor dem Körper, Höhe ${bm.y}`);
+    else fail(`Mündung des Bots unplausibel: ${JSON.stringify(bm)}`);
+
     // 7) Schuss auf Gegner-Bot (AWP, Körpermitte, 4 m)
     const before = await evJson('globalThis.__enemyHp?.()');
     const aimRes = await evJson('globalThis.__aimAtBot?.()');

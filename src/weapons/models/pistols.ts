@@ -1,4 +1,4 @@
-import { makeRig, type Builder, type P2, type Rig } from './builder';
+import { TBL, makeRig, type Builder, type P2, type Rig } from './builder';
 import { C, gripAxis, rect, triggerGroup } from './common';
 
 /**
@@ -66,7 +66,7 @@ function pistolBase(b: Builder, s: PistolSpec, extraSlide?: () => void, dx = 0, 
     b.box([0.012, 0.004, 0.012], [at(0), top + 0.002, -0.006], C.brass, { d: true });
   });
   b.anchor(suffix ? 'magHold2' : 'magHold', [at(-0.002), s.magBase[0]![1] - 0.005, -0.018], { axis: gripAxis(s.rake), back: [-1, 0, 0.3], r: 0.014, part: magName });
-  b.anchor(suffix ? 'muzzle2' : 'muzzle', [at(0), bore, s.muzzleF]);
+  b.anchor(suffix ? 'muzzle2' : 'muzzle', TBL);
 }
 
 const GRIP_STD: P2[] = [[-0.024, 0.034], [-0.027, 0.012], [-0.031, -0.02], [-0.04, -0.064], [-0.036, -0.074], [0.005, -0.074], [0.011, -0.066], [0.017, -0.03], [0.022, 0.0], [0.026, 0.022]];
@@ -81,9 +81,9 @@ function rigPistol(travel: number): Rig {
 }
 
 function twoHand(b: Builder, rake: number): void {
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(rake), back: [1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripR', TBL, { axis: gripAxis(rake), back: [1, 0, 0], r: 0.017, trigger: true });
   // Stützhand umfasst die Schusshand (Teetassengriff), Daumen links nach vorn
-  b.anchor('gripL', [-0.016, -0.018, 0.004], { axis: gripAxis(rake + 0.1), back: [-1, -0.1, 0.35], r: 0.028 });
+  b.anchor('gripL', TBL, { axis: gripAxis(rake + 0.1), back: [-1, -0.1, 0.35], r: 0.028 });
 }
 
 export function glock(b: Builder): Rig {
@@ -193,9 +193,9 @@ export function deagle(b: Builder): Rig {
     b.box([0.014, 0.006, 0.016], [0, 0.034, -0.008], C.brass, { d: true });
   });
   b.anchor('magHold', [0, -0.098, -0.02], { axis: gripAxis(rake), back: [-1, 0, 0.3], r: 0.015, part: 'mag' });
-  b.anchor('muzzle', [0, bore, 0.21]);
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(rake), back: [1, 0, 0], r: 0.019, trigger: true });
-  b.anchor('gripL', [-0.018, -0.02, 0.004], { axis: gripAxis(rake + 0.1), back: [-1, -0.1, 0.35], r: 0.031 });
+  b.anchor('muzzle', TBL);
+  b.anchor('gripR', TBL, { axis: gripAxis(rake), back: [1, 0, 0], r: 0.019, trigger: true });
+  b.anchor('gripL', TBL, { axis: gripAxis(rake + 0.1), back: [-1, -0.1, 0.35], r: 0.031 });
   return rigPistol(0.034);
 }
 
@@ -252,8 +252,8 @@ export function elite(b: Builder): Rig {
   b.cyl(0.0065, 0.0065, 0.08, [0, 0.062, 0.09], C.gun, { sides: 8 });
   pistolBase(b, spec(), openTop(LEFT_X), LEFT_X, '2');
   b.cyl(0.0065, 0.0065, 0.08, [LEFT_X, 0.062, 0.09], C.gun, { sides: 8 });
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(0.3), back: [1, 0, 0], r: 0.017, trigger: true });
-  b.anchor('gripL', [LEFT_X, 0, 0], { axis: gripAxis(0.3), back: [-1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripR', TBL, { axis: gripAxis(0.3), back: [1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripL', TBL, { axis: gripAxis(0.3), back: [-1, 0, 0], r: 0.017, trigger: true });
   return makeRig('pistol', {
     reload: 'dual', charge: 'slide', cycle: 'slide', slideLock: true, dual: true,
     travel: { slide: 0.03, charge: 0.03, bolt: 0, boltLift: 0, pump: 0, mag: 0.11, cover: 0, pin: 0 },
