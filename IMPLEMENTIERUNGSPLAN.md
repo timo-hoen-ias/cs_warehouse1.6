@@ -40,10 +40,13 @@ scripts/relay-server.ts      # Bun-WebSocket-Relay (Needle-Raum-Protokoll), Dock
 scripts/smoke.mjs            # E2E im headless Chromium/Edge (CDP)
 scripts/net-test.mjs         # Zwei-Client-Netztest inkl. Host-Migration
 scripts/screenshot.mjs       # Screenshot + JS-Auswertung (Sichtprüfung)
+scripts/weapon-sheet.mjs     # First-Person-Bild je Waffe (Dev-Hooks __vmShow/__vmPreview) → weapon-contact.py = Kontaktbogen
+scripts/weapon-lab.mjs       # weapon-lab.html (src/dev/weaponLab.ts): Raster aller Waffen als Soldat / liegend / Seitenansicht mit Markern
 src/logic/                   # PURE + getestet: weapons, fire, recoil (Spray), combat, damage, loadout,
                              # economy, round, bombs, match, net, drops, grenade, botDecide, waypoints,
                              # move (Stufen), level, structures, props, spawns, maps, demo, zones, radar,
-                             # settings, ceiling, viewAnim, layout/query/transform (Port aus ias.warehouse-map)
+                             # settings, ceiling, viewAnim, weaponGeom (Mündung/Griffe/Auswurf/Sicht/Länge je Modell), viewPlace,
+                             # stretch, dropRest, layout/query/transform (Port aus ias.warehouse-map)
 src/game/World.ts            # Level → Sicht + Kollision + Wegpunkte + Spawns
 src/game/MatchDriver.ts      # Host-Simulation + Client-Spiegel + Ereignisse + Bots + Zuschauer + Audio
 src/multi/Transport.ts       # LocalTransport (offline) / NeedleTransport (Raum)
@@ -51,7 +54,7 @@ src/player/FpsPlayer.ts      # Bewegung, Blick, Ducken, Shake, Todes-/Zuschauerk
 src/weapons/                 # Shooter (Slots, Zoom, Spray, Messer, G), ViewModel, Fx, Grenades, DroppedView
 src/weapons/models/          # Prozedurale Waffenmodelle (Builder, Materialien, Pistolen/Gewehre/MG/Schrot/SMG,
                              # Messer/Granaten/C4) + First-Person-Arme mit Handschuhen je Team
-src/entities/Soldier.ts      # Spielfiguren (Bots + entfernte Spieler)
+src/entities/Soldier.ts      # Spielfiguren (Bots + entfernte Spieler); soldierHold.ts = Waffenhaltung/Arm-IK (pure, getestet)
 src/level/                   # LevelView (Regale instanziert, Strukturen, Schilder), Canvas-Texturen
 src/ui/                      # Lobby, Hud (Kaufmenü, Scoreboard, Radar, Feed, Chat, Scope), SettingsMenu
 src/audio/Sfx.ts             # WebAudio-Synthese (Schüsse, Schritte, Piepen, Treffer …)
@@ -101,6 +104,18 @@ Runden-/Bomben-/Economy-Logik, erste Bots, HUD.
 - Die Dachplatte steckt nur in `World.aabbs` (Schüsse, Sicht, Granaten), nicht in `World.solids` — sonst blockierte sie Radar, Wegpunkte und den Waffen-Wandabstand (XZ-Tests).
 - `lightMap` addiert Licht (physikalisch skaliert): nur die Lichtflecken backen, Intensität klein halten, sonst bleicht der Boden aus.
 - Waffen sind prozedural (`weapons/models/`): kein Asset-Laden, bewegliche Teile als benannte Knoten, Animationszeiten aus `reload`/`cycle` der Waffendaten. Die Quaternius-OBJs unter `assets/weapons/` werden nicht mehr geladen.
+
+### M3.1 — Waffen passen (Okt 2026) ✅
+Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenmaß:
+- **Werkzeug:** `weapon-lab.html` (Soldat von der Seite/vorn, liegend, Seitenansicht mit Ankern/Sichtlinie/Lineal) und `weapon-sheet.mjs` (First Person aller Waffen, auch eingefrorene Nachlade-/Zieh-Clips) erzeugen Kontaktbögen.
+- **Befunde vorher:** Gewehre ~30 % zu lang (AK 1,19 m statt 0,88; AWP 1,43 statt 1,18), Pistolen zielten mit 3° Eindrehung nur auf einen Punkt in 2 m, P90 klobig, **Soldaten hielten die Waffe auf der linken Körperseite** (gespiegelte Hände, Arm über die Brust), Mündungsfeuer/Leuchtspur fremder Spieler an der Augenhöhe, Hülsen 35 cm hinter der Mündung, Elites lagen übereinander (eine Pistole schwebte 24 cm hoch).
+- **Geometrie-Tabelle** `logic/weaponGeom.ts` (pure): echte Länge, Mündung, Auswurf (+Richtung), Schuss-/Stützhand, Kimme/Korn, Schaftkappe, Haltung, Längsstauchung (`fit`) je Modell — einzige Quelle für Viewmodel-Anker (`Builder.anchor` nimmt Tabellenpunkte), Soldat, Drops, Mündungsfeuer, Hülsen. `catalog.test.ts` prüft die gebauten Modelle gegen die Tabelle (Anker, Länge ±4 %, Mündung/Schaftkappe als äußerste Punkte, Kimme/Korn an der Oberkante, Hände ≤ 3,5 cm von der Oberfläche).
+- **Längen:** `logic/stretch.ts` staucht nur in f (Griff/Magazin/Querschnitte bleiben); Datenblattwerte stehen unabhängig im Test (Glock 0,19 … AWP 1,18 m).
+- **Viewmodel:** Drehung x/y des Halters wird aus Position + Mündung berechnet (`viewPlace.aimRotation`), Laufachse trifft das Fadenkreuz bei 10 m (Test ≤ 0,5° für alle Schusswaffen); Positionen etwas weiter vorn/rechts.
+- **Soldat:** `entities/soldierHold.ts` — Gewehre mit Schaftkappe an der rechten Schulter, Pistolen beidhändig auf Augenhöhe, Messer/Granate rechts, C4 beidhändig; feste Armlängen, Hand-Ziele = Griffpunkte der Tabelle (Test: Reichweite, Schaftkappe, Visierhöhe). Mündung für Feuer/Leuchtspur aus `Soldier.muzzleWorld`.
+- **Drops:** `logic/dropRest.ts` — tiefster Punkt genau am Boden (Granaten stehen, C4 flach, Elites als zwei Pistolen nebeneinander).
+- **P90** neu (Bullpup, gerundetes Gehäuse mit Daumen-/Griffloch, Magazin oben, Visier auf Stützen); Hilfsfunktion `roundPoly` für organische Profile.
+- **Erkenntnisse:** Der Soldat blickt nach +z, seine Rechte liegt bei **−x** (Modell-x der Waffe wird gespiegelt). Auf dem Bildschirm wirkt eine zum Fadenkreuz zeigende Waffe unten rechts immer „steil“ (Perspektive: parallele Linien laufen auf die Bildmitte zu) — das ist der CS-Look, kein Fehler. `net-test.mjs`-Schritt „Client-Schuss“ schlägt in dieser Umgebung schon auf dem Stand vor M3.1 fehl (Host-HP bleibt 100), unabhängig von den Waffen; Relay-Port/Raum/CDP-Ports sind jetzt per Umgebung einstellbar (`RELAY_PORT`, `ROOM`, `CDP_A`, `CDP_B`), damit parallele Sitzungen sich nicht stören.
 
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON

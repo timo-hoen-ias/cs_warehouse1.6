@@ -1416,6 +1416,14 @@ export class MatchDriver extends Behaviour {
   debugBotPos(): { id: string; x: number; z: number; alive: boolean }[] {
     return [...this.bots.values()].map((b) => ({ id: b.id, x: +b.pose.x.toFixed(2), z: +b.pose.z.toFixed(2), alive: !!this.match.players[b.id]?.alive }));
   }
+
+  /** Debug/Smoke: Mündung (Weltraum) der sichtbaren Spielfigur und ihr Fußpunkt. */
+  debugSoldierMuzzle(id: string): { x: number; y: number; z: number; rx: number; rz: number } | null {
+    const s = this.soldiers.get(id);
+    if (!s) return null;
+    const m = s.muzzleWorld(new THREE.Vector3());
+    return { x: +m.x.toFixed(2), y: +m.y.toFixed(2), z: +m.z.toFixed(2), rx: +s.root.position.x.toFixed(2), rz: +s.root.position.z.toFixed(2) };
+  }
 }
 
 function buyReason(r: string): string {

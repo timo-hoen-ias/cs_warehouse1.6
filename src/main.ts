@@ -189,6 +189,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     g.__playerPose = (id: string) => { const p = driver.match.players[id]; return p ? { x: +p.pose.x.toFixed(2), z: +p.pose.z.toFixed(2) } : null; };
     g.__netId = () => ({ id: net.id, host: net.hostId, peers: [...net.peers], online: net.online });
     g.__bots = () => driver.debugBotPos();
+    g.__soldierMuzzle = (id: string) => driver.debugSoldierMuzzle(id);
     g.__pos = () => ({ x: +player.motionX().toFixed(2), z: +player.motionZ().toFixed(2), yaw: +player.yawNow().toFixed(2), hp: player.hp, dead: player.isDead() });
     g.__killTeam = (team: 'T' | 'CT') => { driver.debugKillTeam(team); return driver.debugState(); };
     g.__buy = (item: string) => { driver.requestBuy(item); return driver.local?.loadout; };
