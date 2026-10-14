@@ -8,6 +8,7 @@ import { scoreboard } from '../logic/match';
 import { worldToRadar } from '../logic/radar';
 import { BUY_CATEGORIES, EQUIPMENT, WEAPONS, weaponsInCategory, type BuyCategory } from '../logic/weapons';
 import { AMMO_PRICE } from '../logic/loadout';
+import { radioMenuFor, radioPick, type RadioMenu } from '../logic/radio';
 
 export type RoundInfo = {
   phase: string;
@@ -47,7 +48,9 @@ const PANEL = 'rgba(10,13,18,.62)';
 export class Hud {
   onBuy?: (item: string) => void;
   onBuyAmmo?: (slot: 1 | 2) => void;
-  onChat?: (text: string) => void;
+  onChat?: (text: string, teamOnly: boolean) => void;
+  /** Funkspruch (Team) gewählt. */
+  onRadio?: (text: string) => void;
   onTeam?: (team: Team) => void;
   onMenuChange?: (open: boolean) => void;
 
@@ -55,6 +58,9 @@ export class Hud {
   private buyOpen = false;
   private buyCategory: BuyCategory | null = null;
   private chatOpen = false;
+  private chatTeam = false;
+  private radio: RadioMenu | null = null;
+  private radioEl?: HTMLDivElement;
   private teamOpen = false;
 
   private root?: HTMLDivElement;
@@ -137,6 +143,7 @@ export class Hud {
     this.chatInput = mk({ left: '18px', bottom: '78px', width: '380px', display: 'none', pointerEvents: 'auto', background: 'rgba(10,13,18,.85)', border: '1px solid #3a4652', color: '#fff', padding: '4px 8px', borderRadius: '4px', zIndex: '21' }, 'input') as HTMLInputElement;
     this.chatInput.maxLength = 120;
     this.teamBox = mk({ left: '50%', top: '50%', transform: 'translate(-50%,-50%)', background: 'rgba(10,13,18,.92)', padding: '16px 22px', borderRadius: '10px', border: '1px solid #2a333d', display: 'none', pointerEvents: 'auto', lineHeight: '2', zIndex: '20', textAlign: 'center' }) as HTMLDivElement;
+    this.radioEl = mk({ left: '18px', top: '40%', background: 'rgba(10,13,18,.85)', padding: '10px 14px', borderRadius: '8px', display: 'none', lineHeight: '1.7', zIndex: '20' }) as HTMLDivElement;
     this.spectator = mk({ top: '42%', left: '50%', transform: 'translateX(-50%)', background: PANEL, padding: '6px 14px', borderRadius: '6px', display: 'none', color: '#ff9d8a', fontSize: '14px' }) as HTMLDivElement;
     this.noticeEl = mk({ top: '60px', left: '50%', transform: 'translateX(-50%)', fontSize: '13px', color: '#ffd98a', textShadow: '0 1px 3px #000', display: 'none' }) as HTMLDivElement;
     this.hintEl = mk({ top: '58%', left: '50%', transform: 'translateX(-50%)', background: PANEL, padding: '5px 12px', borderRadius: '6px', display: 'none', color: '#9ff09f' }) as HTMLDivElement;
@@ -150,7 +157,7 @@ export class Hud {
     this.fpsEl = mk({ top: '10px', right: '220px', fontSize: '11px', opacity: '0.7', display: 'none' }) as HTMLDivElement;
 
     this.root = document.createElement('div');
-    this.root.append(this.flashEl, this.dmgEl, this.scopeEl!, this.fpsEl!, this.cross, this.statusL, this.statusR, this.slotsEl, this.roundBar, this.banner, this.feed, this.radar, this.radarLabel, this.netEl, this.buy, this.score, this.chatBox, this.chatInput, this.teamBox, this.spectator, this.noticeEl, this.hintEl);
+    this.root.append(this.flashEl, this.dmgEl, this.scopeEl!, this.fpsEl!, this.cross, this.statusL, this.statusR, this.slotsEl, this.roundBar, this.banner, this.feed, this.radar, this.radarLabel, this.netEl, this.buy, this.score, this.chatBox, this.chatInput, this.teamBox, this.spectator, this.noticeEl, this.hintEl, this.radioEl!);
     host.appendChild(this.root);
 
     document.addEventListener('keydown', this.onKeyDown);
@@ -161,7 +168,7 @@ export class Hud {
         const t = this.chatInput!.value;
         this.chatInput!.value = '';
         this.closeChat();
-        if (t.trim()) this.onChat?.(t);
+        if (t.trim()) this.onChat?.(t, this.chatTeam);
       } else if (e.key === 'Escape') {
         this.chatInput!.value = '';
         this.closeChat();
@@ -179,6 +186,17 @@ export class Hud {
   /** Irgendein Menü offen (Shooter/Player ignorieren Eingaben). */
   menuOpen(): boolean {
     return this.buyOpen || this.chatOpen || this.teamOpen;
+  }
+
+  private openRadio(menu: RadioMenu): void {
+    this.radio = menu;
+    this.radioEl!.innerHTML = `<div style="color:#ffd98a;font-weight:bold">${menu.title}</div>` + menu.items.map((t, i) => `<div><span style="color:#ffd98a">${i + 1}</span> ${esc(t)}</div>`).join('') + '<div style="opacity:.6;font-size:11px">0/Esc schließen</div>';
+    this.radioEl!.style.display = 'block';
+  }
+
+  private closeRadio(): void {
+    this.radio = null;
+    if (this.radioEl) this.radioEl.style.display = 'none';
   }
 
   /** Zielfernrohr-Overlay an/aus (Fadenkreuz aus, wenn gezoomt). */
@@ -529,7 +547,9 @@ export class Hud {
     return true;
   }
 
-  private openChat(): void {
+  private openChat(team = false): void {
+    this.chatTeam = team;
+    this.chatInput!.placeholder = team ? 'Teamchat …' : 'Chat an alle …';
     this.chatOpen = true;
     this.chatInput!.style.display = 'block';
     this.chatInput!.focus();
@@ -574,7 +594,19 @@ export class Hud {
       return;
     }
     if (e.code === 'KeyB') this.openBuy();
-    else if (e.code === 'KeyY' || e.code === 'Enter') { this.openChat(); e.preventDefault(); }
+    else if (this.radio) {
+      const d = /^Digit(\d)$/.exec(e.code)?.[1];
+      if (d !== undefined) {
+        const text = radioPick(this.radio, Number(d));
+        if (text) this.onRadio?.(text);
+        this.closeRadio();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      } else if (e.code === 'Escape' || radioMenuFor(e.code)) this.closeRadio();
+    }
+    else if (radioMenuFor(e.code)) this.openRadio(radioMenuFor(e.code)!);
+    else if (e.code === 'KeyY' || e.code === 'Enter') { this.openChat(false); e.preventDefault(); }
+    else if (e.code === 'KeyU') { this.openChat(true); e.preventDefault(); }
     else if (e.code === 'KeyM') this.openTeam();
     else if (e.code === 'Tab') {
       this.scoreboardVisible = true;

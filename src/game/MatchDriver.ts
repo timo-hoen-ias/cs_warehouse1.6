@@ -139,7 +139,11 @@ export class MatchDriver extends Behaviour {
     this.shooter.onReload = () => undefined;
     this.hud.onBuy = (item) => this.requestBuy(item);
     this.hud.onBuyAmmo = (slot) => this.requestAmmo(slot);
-    this.hud.onChat = (text) => this.sendChat(text);
+    this.hud.onChat = (text, teamOnly) => this.sendChat(text, teamOnly);
+    this.hud.onRadio = (text) => {
+      this.sendChat(`[Funk] ${text}`, true);
+      this.sfx?.play('beep');
+    };
     this.hud.onTeam = (team) => this.requestTeam(team);
     this.shooter.onDrop = (w) => this.requestDrop(w);
     this.context.scene.add(this.dropView.root);
@@ -258,7 +262,10 @@ export class MatchDriver extends Behaviour {
         if (this.isHost) this.hostTeam(msg.id, msg.team);
         break;
       case 'chat':
-        this.pushChat(msg.name, msg.text, msg.team);
+        // Teamchat/Funk nur für das eigene Team
+        if (msg.teamOnly && msg.team !== this.local?.team) break;
+        if (msg.text.startsWith('[Funk]')) this.sfx?.play('beep');
+        this.pushChat((msg.teamOnly ? '(Team) ' : '') + msg.name, msg.text, msg.team);
         break;
       case 'reload':
         break;
@@ -569,12 +576,12 @@ export class MatchDriver extends Behaviour {
     else this.net.send({ t: 'ammo', id: this.localId, slot });
   }
 
-  sendChat(text: string): void {
+  sendChat(text: string, teamOnly = false): void {
     const t = text.trim().slice(0, 120);
     if (!t) return;
     const team = this.local?.team ?? null;
-    this.net.send({ t: 'chat', id: this.localId, name: this.options.localName, text: t, team });
-    this.pushChat(this.options.localName, t, team);
+    this.net.send({ t: 'chat', id: this.localId, name: this.options.localName, text: t, team, teamOnly });
+    this.pushChat((teamOnly ? '(Team) ' : '') + this.options.localName, t, team);
   }
 
   private pushChat(who: string, text: string, team: Team | null): void {
@@ -1348,6 +1355,7 @@ export class MatchDriver extends Behaviour {
       nades: this.nades.length,
       smokes: this.smokes.length,
       drops: this.drops.length,
+      chat: this.chatLines.at(-1)?.text ?? null,
       dropViews: this.dropView.count(),
       weapon: this.shooter.weaponId,
       secondary: this.local?.loadout.secondary ?? null,

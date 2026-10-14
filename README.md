@@ -45,7 +45,8 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 | B | Kaufmenü |
 | E | Bombe legen / entschärfen |
 | Tab | Punktetafel |
-| Y | Chat |
+| Y / U | Chat an alle / Teamchat |
+| Z / X / C | Funkbefehle (Ziffer wählt) |
 | M | Team-Menü |
 | O | Einstellungen |
 

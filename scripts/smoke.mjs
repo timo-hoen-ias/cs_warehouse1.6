@@ -182,6 +182,12 @@ async function run() {
     if (picked?.secondary === before9.secondary) ok(`Aufheben: ${picked.secondary} wieder im Inventar`);
     else fail('Aufheben fehlgeschlagen: ' + JSON.stringify(picked));
 
+    // 9c) Funkbefehl: Z öffnet Menü, 2 wählt „Nimm den Punkt ein!“ → Team-Funkspruch im Chat
+    await ev(`(() => { for (const code of ['KeyZ', 'Digit2']) { document.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true })); document.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true })); } return 1; })()`);
+    const radio = await waitFor('globalThis.__state?.()', (v) => typeof v.chat === 'string' && v.chat.startsWith('[Funk]'), 3000, 200);
+    if (radio?.chat?.startsWith('[Funk]')) ok(`Funkbefehl: ${radio.chat}`);
+    else fail('Funkbefehl fehlt: ' + JSON.stringify(radio?.chat));
+
     // 10) Alle CT eliminieren → Runde endet 1:0
     await evJson('globalThis.__killTeam?.("CT")');
     const st2 = await waitFor('globalThis.__state?.()', (v) => v.score === '1:0', 10000, 300);
