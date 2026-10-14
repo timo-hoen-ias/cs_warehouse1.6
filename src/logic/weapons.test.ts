@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUY_CATEGORIES, EQUIPMENT, WEAPONS, currentSpread, hitDamage, nextZoomLevel, rangeFalloff, reloadAmount, reloadDuration, shotInterval, teamCanUse, weaponsInCategory, zoomFov } from './weapons';
+import { BUY_CATEGORIES, EQUIPMENT, TYPE_VISUAL, WEAPONS, currentSpread, hitDamage, nextZoomLevel, rangeFalloff, reloadAmount, reloadDuration, shotInterval, teamCanUse, weaponsInCategory, zoomFov } from './weapons';
 
 const ak = WEAPONS['ak47']!;
 const awp = WEAPONS['awp']!;
@@ -89,13 +89,10 @@ describe('Datenkonsistenz', () => {
     }
   });
 
-  it('Schusswaffen haben ein Modell; Messer/Granaten/C4 keins (prozedural)', () => {
+  it('Jede Waffe hat ein eigenes prozedurales Modell; der Messerstich nutzt das Messer', () => {
     for (const w of Object.values(WEAPONS)) {
-      if (w.mode !== 'hit') {
-        expect(w.visual.model).toBe('');
-        continue;
-      }
-      expect(w.visual.model.length).toBeGreaterThan(0);
+      if (w.id === 'knife_stab') expect(w.visual.model).toBe('knife');
+      else expect(w.visual.model).toBe(w.id);
     }
   });
 
@@ -117,17 +114,22 @@ describe('Datenkonsistenz', () => {
     expect(WEAPONS['awp']!.price).toBe(4750);
   });
 
-  it('Viewmodel-Offsets zeigen vor die Kamera (z negativ) und Mündung davor', () => {
+  it('Viewmodel-Haltung: Griff unten rechts vor der Kamera, nur leicht gedreht', () => {
     for (const w of Object.values(WEAPONS)) {
-      expect(w.visual.scale).toBeGreaterThan(0);
       expect(w.visual.pos.z).toBeLessThan(0);
-      expect(w.visual.muzzle.z).toBeLessThan(w.visual.pos.z);
+      expect(w.visual.pos.z).toBeGreaterThan(-0.5);
+      expect(w.visual.pos.y).toBeLessThan(0);
+      expect(w.visual.pos.x).toBeGreaterThan(0);
+      for (const a of [w.visual.rot.x, w.visual.rot.y, w.visual.rot.z]) expect(Math.abs(a)).toBeLessThan(0.6);
     }
   });
 
-  it('Viewmodel-Defaults je Typ werden gefüllt', () => {
-    expect(WEAPONS['p90']!.visual.scale).toBeGreaterThan(0);
-    expect(WEAPONS['p90']!.visual.pos.z).toBeLessThan(0);
+  it('Viewmodel-Defaults je Typ werden gefüllt (JSON darf überschreiben)', () => {
+    expect(WEAPONS['mp5']!.visual.pos).toEqual(TYPE_VISUAL.smg.pos);
+    expect(WEAPONS['awp']!.visual.rot).toEqual(TYPE_VISUAL.sniper.rot);
+    // Bullpups halten weiter vorn (Überschreibung nur der Position, Drehung bleibt Typ-Standard)
+    expect(WEAPONS['famas']!.visual.pos.z).toBeLessThan(TYPE_VISUAL.rifle.pos.z);
+    expect(WEAPONS['famas']!.visual.rot).toEqual(TYPE_VISUAL.rifle.rot);
   });
 });
 

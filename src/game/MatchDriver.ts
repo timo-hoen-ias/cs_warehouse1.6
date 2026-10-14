@@ -599,6 +599,7 @@ export class MatchDriver extends Behaviour {
           // Frisches Inventar: Munitionsstand der Spiegelkopie zurücksetzen (Host hat ihn schon neu)
           if (e.fresh && !this.isHost && this.local) for (const id of Object.keys(this.local.loadout.guns)) this.local.loadout.guns[id] = makeGun(WEAPONS[id]!);
           this.player.spawn(e.x, e.z, e.yaw);
+          if (this.local) this.shooter.viewModel?.setTeam(this.local.team); // Arme in Teamfarben
           this.player.hp = 100;
           this.player.setDead(false);
           this.localDeadSince = -1;

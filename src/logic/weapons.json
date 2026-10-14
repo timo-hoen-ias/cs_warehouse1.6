@@ -26,9 +26,6 @@
       "cap": 0,
       "recovery": 0.2
     },
-    "visual": {
-      "model": ""
-    },
     "cycle": 0.45
   },
   "glock": {
@@ -57,9 +54,6 @@
       "ramp": 0.12,
       "cap": 0.06,
       "recovery": 0.3
-    },
-    "visual": {
-      "model": "Pistol_1"
     }
   },
   "usp": {
@@ -88,9 +82,6 @@
       "ramp": 0.05,
       "cap": 0.06,
       "recovery": 0.32
-    },
-    "visual": {
-      "model": "Pistol_2"
     },
     "cycle": 0.15
   },
@@ -121,9 +112,6 @@
       "cap": 0.06,
       "recovery": 0.32
     },
-    "visual": {
-      "model": "Pistol_2"
-    },
     "cycle": 0.15
   },
   "deagle": {
@@ -152,9 +140,6 @@
       "ramp": 0.1,
       "cap": 0.1,
       "recovery": 0.45
-    },
-    "visual": {
-      "model": "Pistol_2"
     },
     "cycle": 0.25
   },
@@ -185,9 +170,6 @@
       "cap": 0.06,
       "recovery": 0.3
     },
-    "visual": {
-      "model": "Pistol_1"
-    },
     "cycle": 0.15
   },
   "elite": {
@@ -217,10 +199,14 @@
       "cap": 0.07,
       "recovery": 0.3
     },
+    "cycle": 0.12,
     "visual": {
-      "model": "Pistol_1"
-    },
-    "cycle": 0.12
+      "pos": {
+        "x": 0.13,
+        "y": -0.12,
+        "z": -0.25
+      }
+    }
   },
   "m3": {
     "id": "m3",
@@ -248,9 +234,6 @@
       "ramp": 0.05,
       "cap": 0.14,
       "recovery": 0.55
-    },
-    "visual": {
-      "model": "Shotgun_1"
     }
   },
   "xm1014": {
@@ -279,9 +262,6 @@
       "ramp": 0.08,
       "cap": 0.14,
       "recovery": 0.5
-    },
-    "visual": {
-      "model": "Shotgun_1"
     }
   },
   "mac10": {
@@ -312,7 +292,11 @@
       "recovery": 0.32
     },
     "visual": {
-      "model": "SubmachineGun_1"
+      "pos": {
+        "x": 0.12,
+        "y": -0.13,
+        "z": -0.25
+      }
     }
   },
   "tmp": {
@@ -343,7 +327,11 @@
       "recovery": 0.3
     },
     "visual": {
-      "model": "SubmachineGun_1"
+      "pos": {
+        "x": 0.12,
+        "y": -0.13,
+        "z": -0.25
+      }
     }
   },
   "mp5": {
@@ -372,9 +360,6 @@
       "ramp": 0.18,
       "cap": 0.09,
       "recovery": 0.32
-    },
-    "visual": {
-      "model": "SubmachineGun_1"
     }
   },
   "ump45": {
@@ -403,9 +388,6 @@
       "ramp": 0.16,
       "cap": 0.09,
       "recovery": 0.34
-    },
-    "visual": {
-      "model": "SubmachineGun_1"
     }
   },
   "p90": {
@@ -436,7 +418,11 @@
       "recovery": 0.3
     },
     "visual": {
-      "model": "SubmachineGun_1"
+      "pos": {
+        "x": 0.13,
+        "y": -0.14,
+        "z": -0.3
+      }
     }
   },
   "galil": {
@@ -465,9 +451,6 @@
       "ramp": 0.28,
       "cap": 0.15,
       "recovery": 0.48
-    },
-    "visual": {
-      "model": "AssaultRifle_1"
     }
   },
   "famas": {
@@ -498,7 +481,11 @@
       "recovery": 0.45
     },
     "visual": {
-      "model": "AssaultRifle_2"
+      "pos": {
+        "x": 0.13,
+        "y": -0.13,
+        "z": -0.28
+      }
     }
   },
   "ak47": {
@@ -527,9 +514,6 @@
       "ramp": 0.3,
       "cap": 0.16,
       "recovery": 0.5
-    },
-    "visual": {
-      "model": "AssaultRifle_1"
     }
   },
   "m4a1": {
@@ -558,9 +542,6 @@
       "ramp": 0.26,
       "cap": 0.14,
       "recovery": 0.45
-    },
-    "visual": {
-      "model": "AssaultRifle_2"
     }
   },
   "sg552": {
@@ -589,9 +570,6 @@
       "ramp": 0.26,
       "cap": 0.15,
       "recovery": 0.46
-    },
-    "visual": {
-      "model": "AssaultRifle_1"
     },
     "zoom": [
       55
@@ -624,12 +602,16 @@
       "cap": 0.14,
       "recovery": 0.46
     },
-    "visual": {
-      "model": "AssaultRifle_2"
-    },
     "zoom": [
       55
-    ]
+    ],
+    "visual": {
+      "pos": {
+        "x": 0.13,
+        "y": -0.13,
+        "z": -0.28
+      }
+    }
   },
   "scout": {
     "id": "scout",
@@ -657,9 +639,6 @@
       "ramp": 0,
       "cap": 0.08,
       "recovery": 0.7
-    },
-    "visual": {
-      "model": "SniperRifle_1"
     },
     "zoom": [
       40,
@@ -694,9 +673,6 @@
       "cap": 0.09,
       "recovery": 0.9
     },
-    "visual": {
-      "model": "SniperRifle_1"
-    },
     "zoom": [
       40,
       15
@@ -730,9 +706,6 @@
       "cap": 0.12,
       "recovery": 0.6
     },
-    "visual": {
-      "model": "SniperRifle_1"
-    },
     "zoom": [
       40,
       20
@@ -765,9 +738,6 @@
       "cap": 0.12,
       "recovery": 0.6
     },
-    "visual": {
-      "model": "SniperRifle_1"
-    },
     "zoom": [
       40,
       20
@@ -799,9 +769,6 @@
       "ramp": 0.22,
       "cap": 0.16,
       "recovery": 0.5
-    },
-    "visual": {
-      "model": "AssaultRifle_2"
     }
   },
   "hegrenade": {
@@ -830,9 +797,6 @@
       "ramp": 0,
       "cap": 0,
       "recovery": 0.2
-    },
-    "visual": {
-      "model": ""
     },
     "grenadeKind": "he"
   },
@@ -863,9 +827,6 @@
       "cap": 0,
       "recovery": 0.2
     },
-    "visual": {
-      "model": ""
-    },
     "grenadeKind": "flash"
   },
   "smokegrenade": {
@@ -895,9 +856,6 @@
       "cap": 0,
       "recovery": 0.2
     },
-    "visual": {
-      "model": ""
-    },
     "grenadeKind": "smoke"
   },
   "c4": {
@@ -926,9 +884,6 @@
       "ramp": 0,
       "cap": 0,
       "recovery": 0.2
-    },
-    "visual": {
-      "model": ""
     }
   },
   "knife_stab": {
@@ -959,7 +914,7 @@
       "recovery": 0.2
     },
     "visual": {
-      "model": ""
+      "model": "knife"
     },
     "cycle": 1.0
   }

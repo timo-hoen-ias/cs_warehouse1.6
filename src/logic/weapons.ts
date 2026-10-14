@@ -15,16 +15,16 @@ export type WeaponTeam = 'T' | 'CT' | 'both';
 /** Granaten-Art. */
 export type GrenadeKind = 'he' | 'flash' | 'smoke';
 
-/** Modell-/Anzeige-Metadaten einer Waffe. */
+type V3 = { x: number; y: number; z: number };
+
+/** Modell-/Anzeige-Metadaten einer Waffe (prozedurale Modelle: src/weapons/models/). */
 export type WeaponVisual = {
-  /** OBJ-Datei ohne Endung, relativ zu assets/weapons/obj/. leer = prozedural. */
+  /** Modell-Id im prozeduralen Katalog (Standard: eigene Waffen-Id). */
   model: string;
-  /** Skalierung auf Viewmodel-Größe. */
-  scale: number;
-  /** Kamera-lokaler Offset (rechts-unten vor der Kamera). */
-  pos: { x: number; y: number; z: number };
-  /** Mündungsposition im Modell-Koordinatensystem (für Mündungsfeuer). */
-  muzzle: { x: number; y: number; z: number };
+  /** Kameraraum-Position (m) des Griffpunkts der rechten Hand (unten rechts vor der Kamera). */
+  pos: V3;
+  /** Grund-Drehung (rad) der Waffe im Kameraraum (rx hebt, ry schwenkt die Mündung nach links). */
+  rot: V3;
 };
 
 /** Schadens-/Feuer-Parameter einer Waffe. Werte CS-angelehnt, im JSON justierbar. */
@@ -82,17 +82,17 @@ type RawWeapon = Omit<WeaponDef, 'magSize' | 'reserve' | 'visual' | 'pellets'> &
   visual?: Partial<WeaponVisual>;
 };
 
-/** Viewmodel-Standardwerte je Waffentyp (im JSON pro Waffe überschreibbar). */
+/** Viewmodel-Haltung je Waffentyp (im JSON pro Waffe überschreibbar: visual.pos / visual.rot). */
 export const TYPE_VISUAL: Record<WeaponType, Omit<WeaponVisual, 'model'>> = {
-  knife: { scale: 0.12, pos: { x: 0.3, y: -0.22, z: -0.4 }, muzzle: { x: 0, y: 0.1, z: -0.5 } },
-  pistol: { scale: 0.09, pos: { x: 0.26, y: -0.24, z: -0.45 }, muzzle: { x: 0, y: 0.03, z: -0.6 } },
-  smg: { scale: 0.085, pos: { x: 0.26, y: -0.24, z: -0.45 }, muzzle: { x: 0, y: 0.05, z: -0.55 } },
-  rifle: { scale: 0.085, pos: { x: 0.26, y: -0.24, z: -0.45 }, muzzle: { x: 0, y: 0.05, z: -0.55 } },
-  sniper: { scale: 0.085, pos: { x: 0.24, y: -0.26, z: -0.5 }, muzzle: { x: 0, y: 0.06, z: -0.65 } },
-  shotgun: { scale: 0.085, pos: { x: 0.26, y: -0.24, z: -0.45 }, muzzle: { x: 0, y: 0.05, z: -0.55 } },
-  mg: { scale: 0.09, pos: { x: 0.26, y: -0.25, z: -0.45 }, muzzle: { x: 0, y: 0.05, z: -0.55 } },
-  grenade: { scale: 0.1, pos: { x: 0.28, y: -0.24, z: -0.42 }, muzzle: { x: 0, y: 0.05, z: -0.5 } },
-  bomb: { scale: 0.1, pos: { x: 0.28, y: -0.26, z: -0.42 }, muzzle: { x: 0, y: 0.05, z: -0.5 } },
+  knife: { pos: { x: 0.11, y: -0.115, z: -0.21 }, rot: { x: 0.12, y: 0.3, z: 0.2 } },
+  pistol: { pos: { x: 0.1, y: -0.12, z: -0.25 }, rot: { x: 0.04, y: 0.06, z: 0 } },
+  smg: { pos: { x: 0.13, y: -0.125, z: -0.21 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
+  rifle: { pos: { x: 0.135, y: -0.13, z: -0.21 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
+  sniper: { pos: { x: 0.14, y: -0.135, z: -0.2 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
+  shotgun: { pos: { x: 0.135, y: -0.13, z: -0.21 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
+  mg: { pos: { x: 0.14, y: -0.14, z: -0.2 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
+  grenade: { pos: { x: 0.1, y: -0.115, z: -0.23 }, rot: { x: 0.1, y: 0.2, z: 0.1 } },
+  bomb: { pos: { x: 0.06, y: -0.12, z: -0.24 }, rot: { x: 0.35, y: 0.15, z: 0 } },
 };
 
 function normalize(raw: Record<string, RawWeapon>): Record<string, WeaponDef> {
@@ -106,10 +106,9 @@ function normalize(raw: Record<string, RawWeapon>): Record<string, WeaponDef> {
       reserve: w.reserve ?? Infinity,
       pellets: w.pellets ?? 1,
       visual: {
-        model: w.visual?.model ?? '',
-        scale: w.visual?.scale ?? base.scale,
+        model: w.visual?.model ?? id,
         pos: w.visual?.pos ?? base.pos,
-        muzzle: w.visual?.muzzle ?? base.muzzle,
+        rot: w.visual?.rot ?? base.rot,
       },
     };
   }

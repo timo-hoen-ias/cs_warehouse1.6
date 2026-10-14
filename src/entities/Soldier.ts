@@ -3,6 +3,7 @@ import type { Team } from '../logic/economy';
 import type { Pose } from '../logic/match';
 import { humanPartBoxes, type PartBox } from '../logic/hitbox';
 import { WEAPONS } from '../logic/weapons';
+import { worldGeometry } from '../weapons/models';
 import { CROUCH_DROP, LEG, fallPose, solveLegAngles, walkPose } from './soldierAnim';
 import {
   SHOULDER_X, SHOULDER_Y, TORSO_PIVOT_Y, WEAPON_POS,
@@ -214,7 +215,11 @@ export class Soldier {
     this.weaponId = id;
     const def = WEAPONS[id];
     const type: WeaponKind = def ? def.type : 'unknown';
-    this.swapGeometry(this.gunMesh, buildWeaponGeometry(type));
+    // Welt-LOD der prozeduralen Waffenmodelle (Lauf nach −Z, Ursprung = Griff) → um 180° drehen,
+    // weil der Soldat nach +Z hält. Geklont, da swapGeometry die alte Geometrie entsorgt.
+    const world = worldGeometry(def?.visual.model ?? id);
+    this.swapGeometry(this.gunMesh, world ? world.clone() : buildWeaponGeometry(type));
+    this.gunMesh.rotation.y = world ? Math.PI : 0;
     // Kurze Waffen: linke Hand umfasst den Griff, lange: Vorderschaft
     const stance: ArmStance = type === 'pistol' || type === 'knife' || type === 'grenade' || type === 'bomb' || type === 'unknown' ? 'short' : 'long';
     if (stance !== this.stance) {

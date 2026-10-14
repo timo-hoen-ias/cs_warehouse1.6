@@ -43,12 +43,14 @@ scripts/screenshot.mjs       # Screenshot + JS-Auswertung (Sichtprüfung)
 src/logic/                   # PURE + getestet: weapons, fire, recoil (Spray), combat, damage, loadout,
                              # economy, round, bombs, match, net, drops, grenade, botDecide, waypoints,
                              # move (Stufen), level, structures, props, spawns, maps, demo, zones, radar,
-                             # settings, layout/query/transform (Port aus ias.warehouse-map)
+                             # settings, ceiling, viewAnim, layout/query/transform (Port aus ias.warehouse-map)
 src/game/World.ts            # Level → Sicht + Kollision + Wegpunkte + Spawns
 src/game/MatchDriver.ts      # Host-Simulation + Client-Spiegel + Ereignisse + Bots + Zuschauer + Audio
 src/multi/Transport.ts       # LocalTransport (offline) / NeedleTransport (Raum)
 src/player/FpsPlayer.ts      # Bewegung, Blick, Ducken, Shake, Todes-/Zuschauerkamera
 src/weapons/                 # Shooter (Slots, Zoom, Spray, Messer, G), ViewModel, Fx, Grenades, DroppedView
+src/weapons/models/          # Prozedurale Waffenmodelle (Builder, Materialien, Pistolen/Gewehre/MG/Schrot/SMG,
+                             # Messer/Granaten/C4) + First-Person-Arme mit Handschuhen je Team
 src/entities/Soldier.ts      # Spielfiguren (Bots + entfernte Spieler)
 src/level/                   # LevelView (Regale instanziert, Strukturen, Schilder), Canvas-Texturen
 src/ui/                      # Lobby, Hud (Kaufmenü, Scoreboard, Radar, Feed, Chat, Scope), SettingsMenu
@@ -64,7 +66,7 @@ src/audio/Sfx.ts             # WebAudio-Synthese (Schüsse, Schritte, Piepen, Tr
 Level aus JSON, Bewegung mit AABB-Kollision, Bake-Script (MSSQL oder Demo), Smoke-Test.
 
 ### M1 — Kern-FPS ✅
-Hitscan-Waffen, Nachladen, Recoil, Viewmodels (Quaternius CC0), Effekte (Mündungsfeuer, Tracer, Decals), Ducken, Headbob, Sway.
+Hitscan-Waffen, Nachladen, Recoil, Viewmodels (anfangs Quaternius CC0, seit M3 prozedural), Effekte (Mündungsfeuer, Tracer, Decals), Ducken, Headbob, Sway.
 
 ### M2 — de_-Modus Einzelspieler ✅
 Runden-/Bomben-/Economy-Logik, erste Bots, HUD.
@@ -84,10 +86,11 @@ Runden-/Bomben-/Economy-Logik, erste Bots, HUD.
 - [x] **Grafik**: Regale mit Stehern/Traversen/Paletten/Kartons (instanziert), Bodenmarkierungen, Hängeschilder, Hallendach mit Leuchten, Tonemapping, Canvas-Texturen; Grafikstufe `?quality=low`
 - [x] **Spielfiguren** (`entities/Soldier.ts`, `soldierParts.ts`, `soldierAnim.ts` getestet): T in Wüstentarn mit Sturmhaube, CT in Navy mit Helm/Brille, Weste, Rucksack, Zweihand-Waffenhaltung (IK), Gehen/Ducken mit Kniebeuge, Fallanimation; 8 Draw-Calls je Figur
 - [x] **Hallendecke + Beleuchtung** (`level/Ceiling.ts`, `level/Lighting.ts`, `logic/ceiling.ts` getestet): Hallenhöhe 8 m, Dach als Kollision (Granaten/Schüsse), Fachwerkbinder, Pfetten, Lichtbänder, Lüftungskanal, Sprinkler, Hallenstrahler mit Lichtkegeln, gebackene Boden-Licht-Map, Arbeitslicht über den Bombenspots, Notausgang-Schilder
+- [x] **Waffenmodelle + Animationen** (`weapons/models/`, `logic/viewAnim.ts` getestet): alle 29 Einträge prozedural modelliert (abgeschrägte Profile, Holz/Polymer/Brünierung, bewegliche Teile: Schlitten, Spannhebel, Kammerstängel, Pumpe, Magazin, MG-Deckel, Splint), First-Person-Arme mit Ärmeln/Handschuhen je Team und Hand-Zielen; Clip-Bibliothek (Ziehen, Inspizieren `F`, Magazin-/Pistolen-/Schrot-/MG-Nachladen, Repetieren, Schlitten-Zyklus, Trockenschuss, Messer, Granate, C4) mit Überblendung, dazu Atmen, Lauf-Bob, Strafe-Neigung, Sprint-Haltung und Rückstoß-Feder; dieselben Modelle für Drops und Spielfiguren
 - [x] **Audio**: synthetisierte Schüsse je Waffentyp, Treffer/Kopfschuss/Kill, Schritte (geduckt lautlos), Bomben-Piepen, Granaten, Rundenjingles
 - [x] **Zuschauer** nach dem Tod (Teamkameraden aus deren Sicht, Klick wechselt), Todeskamera
 - [x] **Deployment**: GitHub-Pages-Workflow, Dockerfile für den Relay, README
-- **Verifikation:** `bun run test` (≈ 370 Tests), `tsc`, `build`, Smoke (Kauf, Runde, Bots, Treffer, Zielfernrohr, Decal, Granate/Rauch, Fallenlassen/Aufheben, Eliminierung, Runde 2) und Netztest (Host-Wahl, Spiegel, Client-Schuss → Host-Schaden, Posen, Migration, kein Geisterspieler) grün.
+- **Verifikation:** `bun run test` (≈ 430 Tests), `tsc`, `build`, Smoke (Kauf, Runde, Bots, Treffer, Zielfernrohr, Decal, Granate/Rauch, Fallenlassen/Aufheben, Eliminierung, Runde 2) und Netztest (Host-Wahl, Spiegel, Client-Schuss → Host-Schaden, Posen, Migration, kein Geisterspieler) grün.
 
 **Erkenntnisse/Notizen (M3):**
 - Needle deckelt `context.time.deltaTime` auf 0.1 s → der Host misst die Spielzeit selbst (`performance.now()`) und rechnet große Frames in Teilschritten; sonst laufen Runden bei niedriger Bildrate zu langsam.
@@ -97,7 +100,7 @@ Runden-/Bomben-/Economy-Logik, erste Bots, HUD.
 - Geländer blockieren Bewegung, aber nicht Schüsse/Sicht (`World.aabbs` ohne `rail`).
 - Die Dachplatte steckt nur in `World.aabbs` (Schüsse, Sicht, Granaten), nicht in `World.solids` — sonst blockierte sie Radar, Wegpunkte und den Waffen-Wandabstand (XZ-Tests).
 - `lightMap` addiert Licht (physikalisch skaliert): nur die Lichtflecken backen, Intensität klein halten, sonst bleicht der Boden aus.
-- Quaternius-MTLs sind fast schwarz → Viewmodel hebt Materialien auf lesbare Standard-Materialien an.
+- Waffen sind prozedural (`weapons/models/`): kein Asset-Laden, bewegliche Teile als benannte Knoten, Animationszeiten aus `reload`/`cycle` der Waffendaten. Die Quaternius-OBJs unter `assets/weapons/` werden nicht mehr geladen.
 
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON

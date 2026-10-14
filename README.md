@@ -117,7 +117,7 @@ Für ein echtes Lager die MSSQL-Zugangsdaten als Umgebungsvariablen setzen (Vorl
 | `src/player/`, `src/entities/` | Spieler-Steuerung und Soldaten-Figuren |
 | `src/multi/` | Netzwerk-Transport (Needle-Backend oder eigener Relay) |
 | `src/ui/` | Lobby und HUD |
-| `src/weapons/` | Schießen, Granaten, Viewmodel, Effekte |
+| `src/weapons/` | Schießen, Granaten, Viewmodel, Effekte; `models/` = prozedurale Waffen + Arme |
 | `src/level/` | Darstellung der Karten und Texturen |
 | `src/audio/` | Soundeffekte |
 | `levels/` | Gebackene Karten (JSON) |
@@ -144,5 +144,5 @@ Für `wss://` muss ein TLS-terminierender Reverse-Proxy (z. B. Caddy oder nginx)
 ## Lizenz und Hinweise
 
 - **Needle Engine:** Die kostenlose Variante blendet ein „made with Needle“-Label ein und ist für nicht-kommerzielle Nutzung gedacht. Für kommerzielle oder öffentliche Nutzung kann eine Needle-Lizenz nötig sein: <https://needle.tools/pricing>.
-- **Waffenmodelle:** Quaternius „Ultimate Gun Pack“, Lizenz CC0 (Public Domain), abgelegt unter `assets/weapons/` (siehe dortige `README.md`).
+- **Waffenmodelle:** prozedural im Code (`src/weapons/models/`). Das Quaternius „Ultimate Gun Pack“ (CC0) unter `assets/weapons/` liegt nur noch als Referenz bei.
 - Dieses Projekt ist von Counter-Strike 1.6 inspiriert, aber ein eigenständiges Fan-Projekt ohne Bezug zu Valve.

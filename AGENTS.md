@@ -29,7 +29,7 @@ Stack: Needle Engine 5.x (Vite + TypeScript, kein React), Bun 1.4, Vitest.
   nicht hart in Komponenten verdrahten.
 - **Keine neuen Abhängigkeiten** für Dinge, die wenige Zeilen Standardlösung sind (ponytail-Prinzip).
 - Karten sind DB-abhängig → Bake-Ergebnisse (`levels/*.json`) committen, damit alle Clients identisch spielen.
-- Waffen-Modelle (Quaternius, CC0) liegen unter `assets/weapons/` (`.blend` editierbar + `.obj`/`.mtl` zur Laufzeit). Zuordnung in `weapons.ts` (`visual`). Neue Assets in `assets/` ablegen (Needle kopiert `assets/` → `dist/assets/`).
+- Waffen-Modelle sind **prozedural** (`src/weapons/models/`, eine Builder-Funktion je Waffe, Katalog-Test `catalog.test.ts`); Zuordnung in `weapons.ts` (`visual.model`). Animationen als pure Clips in `src/logic/viewAnim.ts`. Die Quaternius-OBJs unter `assets/weapons/` sind nur noch Referenz. Neue Assets in `assets/` ablegen (Needle kopiert `assets/` → `dist/assets/`).
 - Netzwerk: Host authoritativ (Dienstältester im Raum), Clients senden Posen/Schüsse/Käufe, Host sendet
   Snapshots + Ereignisse (`src/logic/net.ts`, `src/game/MatchDriver.ts`). Neue Spielregeln immer als pure
   Funktion in `src/logic/` + Test, der Driver ruft sie nur auf. Eingaben fremder Clients auf dem Host prüfen.

@@ -12,6 +12,7 @@ import type { Aabb } from '../logic/hitbox';
 
 const RELOAD_KEY = 'KeyR';
 const LAST_WEAPON_KEY = 'KeyQ';
+const INSPECT_KEY = 'KeyF';
 const USE_KEY = 'KeyE';
 const MOUSE_FIRE = 0;
 const MOUSE_ALT = 2;
@@ -234,15 +235,20 @@ export class Shooter extends Behaviour {
     }
 
     if (this.reloadRequested && state) {
+      const magBefore = state.mag;
       if (startReload(state, def)) {
         this.onReload?.();
-        this.viewModel?.reloadAnim(state.reloadLeft);
+        // Animation exakt auf die echte Nachladezeit; Schrot: so viele Patronen wie fehlen
+        this.viewModel?.reloadAnim(state.reloadLeft, { empty: magBefore === 0, shells: Math.min(def.magSize - magBefore, state.reserve) });
       }
       this.reloadRequested = false;
     }
 
     const blocked = this.blocked?.() ?? false;
     const menu = this.menuOpen?.() ?? false;
+    // Viewmodel: Bewegung (Sprint senkt die Waffe) und C4-Tippen beim Legen
+    this.viewModel?.setMotion(!!this.player?.moving(), !!this.player?.sprinting(), !!this.player?.crouching());
+    this.viewModel?.setPlanting(def.mode === 'plant' && this.eHeld && !blocked && !menu);
     if (this.fireDown && def.rpm > 0 && def.mode === 'hit' && !blocked && !menu) this.fire(def);
 
     const rec = this.recoilState();
@@ -300,6 +306,7 @@ export class Shooter extends Behaviour {
       if (!res.ok) {
         if (res.reason === 'empty' && !this.semiLatch) {
           this.onEmptyClick?.();
+          this.viewModel?.dryFire();
           this.reloadRequested = true;
           this.semiLatch = true;
         }
@@ -330,6 +337,8 @@ export class Shooter extends Behaviour {
     const dirs = shotDirs(def, aim, spread);
     const punch = def.type === 'sniper' ? 0.16 : def.type === 'shotgun' ? 0.14 : Math.min(0.12, kickPitch * 9 + 0.018);
     this.viewModel?.kick(punch);
+    // Teile-Animation (Schlitten/Verschluss/Repetieren) vor der Mündungsabfrage (Doppelpistole wechselt die Seite)
+    this.viewModel?.fireAnim(state ? state.mag === 0 : false);
     this.player?.shake(punch * (scoped ? 0.15 : 0.35));
 
     // Repetierer: nach dem Schuss raus aus dem Zielfernrohr, nach dem Repetieren wieder rein
@@ -370,7 +379,7 @@ export class Shooter extends Behaviour {
     if (!ray) return;
     const kind = def.grenadeKind;
     this.onThrow?.(kind, ray.origin, ray.dir, strength);
-    this.viewModel?.kick(0.08);
+    this.viewModel?.throwAnim();
     // Danach beste Waffe (Host nimmt die Granate aus dem Inventar; Spiegel folgt)
     // Den Bestand verringert der Host (offline: derselbe Loadout, sofort; online: per Snapshot)
     const lo = this.loadout?.();
@@ -386,13 +395,16 @@ export class Shooter extends Behaviour {
     if (e.button === MOUSE_FIRE) {
       this.fireDown = true;
       this.semiLatch = false;
-      if (def.mode === 'throw') this.throwArmed = def.grenadeKind ?? null;
-      else if (def.mode === 'melee') this.fire(def, false);
+      if (def.mode === 'throw') {
+        this.throwArmed = def.grenadeKind ?? null;
+        this.viewModel?.pullPin();
+      } else if (def.mode === 'melee') this.fire(def, false);
       // Erster Schuss sofort beim Klick (auch Automatik) — kein Frame Eingabeverzögerung
       else if (def.mode === 'hit') this.fire(def);
     } else if (e.button === MOUSE_ALT && def.mode === 'throw') {
       this.altDown = true;
       this.throwArmed = def.grenadeKind ?? null;
+      this.viewModel?.pullPin();
     } else if (e.button === MOUSE_ALT && (this.player?.isLocked() ?? true)) {
       // Rechte Maustaste (nur mit gefangener Maus, sonst ist sie Umschauen): Zoom bzw. Messerstich
       if (def.mode === 'melee') this.fire(def, true);
@@ -425,6 +437,11 @@ export class Shooter extends Behaviour {
     if (this.menuOpen?.()) return;
     if (e.code === RELOAD_KEY) {
       this.reloadRequested = true;
+      return;
+    }
+    if (e.code === INSPECT_KEY) {
+      // Inspizieren (CS:GO-Stil): nur ohne Zoom und nicht beim Nachladen
+      if (this.zoomLevel === 0 && !((this.gunState()?.reloadLeft ?? 0) > 0)) this.viewModel?.inspect();
       return;
     }
     if (e.code === 'KeyG') {

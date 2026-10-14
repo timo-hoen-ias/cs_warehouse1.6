@@ -261,6 +261,11 @@ export class FpsPlayer extends Behaviour {
     return this.crouchKey;
   }
 
+  /** true, solange gesprintet wird (Shift + Bewegung, nicht geduckt) — senkt die Viewmodel-Waffe. */
+  sprinting(): boolean {
+    return !this.crouchKey && !!(this.keys['ShiftLeft'] || this.keys['ShiftRight']) && this.moving();
+  }
+
   /** Spieler-HP (für HUD; Schaden kommt in M2 durch Gegner). */
   hp = 100;
   takeDamage(dmg: number): void {
