@@ -1,26 +1,25 @@
-// Smoke-Test M0 (CDP): startet einen headless Edge mit Dev-Port, lädt die Dev-URL
-// und prüft, dass die Szene wirklich rendert (drei renderer.info) + keine Console-Fehler.
-// Aufruf: bun scripts/smoke.mjs            (Dev-Server muss auf :3000 laufen)
-//         bun run dev & bun run smoke
+// Smoke-Test (CDP): startet einen headless Browser, lädt die Dev-URL im Auto-Modus
+// (?auto=1: Lobby übersprungen, offline gegen Bots) und prüft End-to-End:
+// Szene rendert, Runde wird live, Schuss trifft Bot, Eliminierung beendet Runde,
+// Granate fliegt, Wand-Decal, Viewmodel, Kauf; keine Console-Fehler.
+// Aufruf: bun scripts/smoke.mjs   (Dev-Server muss auf :3000 laufen)
+//   Browser: Edge (Windows-Standard) oder per Env BROWSER=/pfad/zu/chromium
 
-// Browser: Edge (Windows-Standard) oder jeder Chromium-Build per Env BROWSER/EDGE
-// (Linux z. B. BROWSER=/opt/pw-browsers/chromium).
-const EDGE = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+const BROWSER = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const CDP_PORT = 9223;
-const URL = 'http://localhost:3000/';
-const TIMEOUT = 18000;
+const URL = process.env.URL ?? 'http://localhost:3000/?auto=1&fill=4';
+const TIMEOUT = 20000;
 
-function startEdge() {
+function startBrowser() {
   const { spawn } = require('child_process');
-  // Eindeutiges Nutzerprofil pro Lauf → kein Konflikt mit hängenden Alt-Prozessen.
   const profile = process.cwd() + '/.edge-smoke-' + process.pid;
   const args = [
     '--headless=new', '--no-sandbox', '--disable-gpu-sandbox', '--remote-debugging-port=' + CDP_PORT,
-    '--user-data-dir=' + profile,
-    '--no-first-run', '--no-default-browser-check', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
+    '--user-data-dir=' + profile, '--no-first-run', '--no-default-browser-check',
+    '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required',
     '--window-size=1280,800', 'about:blank',
   ];
-  const proc = spawn(EDGE, args, { stdio: 'ignore', detached: true });
+  const proc = spawn(BROWSER, args, { stdio: 'ignore', detached: true });
   proc._profile = profile;
   return proc;
 }
@@ -33,21 +32,18 @@ async function waitForCdp() {
     } catch { /* weiter */ }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error('CDP nicht erreichbar — Edge startet nicht?');
+  throw new Error('CDP nicht erreichbar — Browser startet nicht?');
 }
 
-async function closeOldTabs() {
-  try {
-    const tabs = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json`)).json();
-    for (const t of tabs) if (t.type === 'page' && /localhost:3000/.test(t.url)) await fetch(`http://127.0.0.1:${CDP_PORT}/json/close/${t.id}`).catch(() => {});
-  } catch { /* egal */ }
-}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function run() {
-  const edgeProc = startEdge();
+  const proc = startBrowser();
+  const fails = [];
+  const ok = (msg) => console.log('✓ ' + msg);
+  const fail = (msg) => { console.error('✗ ' + msg); fails.push(msg); };
   try {
     await waitForCdp();
-    await closeOldTabs();
     const newTab = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?about:blank`, { method: 'PUT' });
     const target = newTab.ok ? await newTab.json() : null;
     if (!target?.webSocketDebuggerUrl) throw new Error('kein CDP-Target');
@@ -60,10 +56,14 @@ async function run() {
       pending.set(msgId, resolve);
       ws.send(JSON.stringify({ id: msgId, method, params }));
     });
-    const evalValue = async (expr) => (await send('Runtime.evaluate', { expression: expr, returnByValue: true }))?.result?.value;
+    const ev = async (expr) => {
+      const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
+      return r?.result?.value;
+    };
+    const evJson = async (expr) => JSON.parse((await ev(`JSON.stringify((${expr}) ?? null)`)) ?? 'null');
 
-    ws.onmessage = (ev) => {
-      const m = JSON.parse(ev.data);
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
       if (m.id && pending.has(m.id)) { pending.get(m.id)?.(m.result); pending.delete(m.id); return; }
       if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error')
         errors.push('[console] ' + m.params.args.map((x) => x.value ?? x.description ?? '').join(' '));
@@ -76,99 +76,115 @@ async function run() {
     await send('Page.enable');
     await send('Page.navigate', { url: URL });
 
-    // warten bis __csw (unser DEV-Hook) gesetzt ist
+    // 1) Szene-Hook
     const t0 = Date.now();
     let state = null;
     while (Date.now() - t0 < TIMEOUT) {
-      const v = await evalValue(`globalThis.__csw ? JSON.stringify(globalThis.__csw) : null`);
-      if (v) { state = JSON.parse(v); break; }
-      await new Promise((r) => setTimeout(r, 500));
+      state = await evJson('globalThis.__csw');
+      if (state) break;
+      await sleep(500);
     }
-    if (!state) { console.error('✗ Szene-Hook nie gesetzt (Engine gestartet?)'); process.exitCode = 1; }
-    else console.log('✓ Szene: ' + JSON.stringify(state));
+    if (!state) fail('Szene-Hook nie gesetzt (Engine gestartet?)');
+    else ok('Szene: ' + JSON.stringify(state));
 
-    // einige Frames rendern lassen, dann Draw-Calls prüfen
-    await new Promise((r) => setTimeout(r, 2000));
-    const frames = JSON.parse(await evalValue(`JSON.stringify(globalThis.__frames?.() ?? null)`) ?? 'null');
-    if (!frames || !frames.calls || frames.calls <= 0) {
-      console.error('✗ Renderer meldet keine Draw-Calls (nichts gerendert?)', frames);
-      process.exitCode = 1;
-    } else console.log(`✓ Render: ${frames.calls} Draw-Calls, ${frames.triangles} Triangles`);
+    // 2) Render
+    await sleep(2000);
+    const frames = await evJson('globalThis.__frames?.()');
+    if (!frames || !frames.calls) fail('Renderer meldet keine Draw-Calls');
+    else ok(`Render: ${frames.calls} Draw-Calls, ${frames.triangles} Triangles`);
 
-    // Schießen: Ziel 0 anvisieren + AWP-Schuss → HP muss sinken
-    if (!process.exitCode) {
-      const before = JSON.parse(await evalValue(`JSON.stringify(globalThis.__dummyHp?.() ?? null)`) ?? 'null');
-      await evalValue(`globalThis.__aimShoot?.(0); 'ok'`);
-      await new Promise((r) => setTimeout(r, 700));
-      const after = JSON.parse(await evalValue(`JSON.stringify(globalThis.__dummyHp?.() ?? null)`) ?? 'null');
-      const dmg = before && after ? before[0] - after[0] : 0;
-      if (dmg > 0) console.log(`✓ Schuss getroffen: Ziel-HP ${before[0]} → ${after[0]} (${dmg} Schaden)`);
-      else { console.error(`✗ Schuss ohne Treffer (HP ${before?.[0]} → ${after?.[0]})`); process.exitCode = 1; }
-    }
+    // 3) Viewmodel
+    const vm = await evJson('globalThis.__vm?.()');
+    if (vm?.loaded && vm.verts > 200) ok(`Viewmodel: ${vm.meshes} Mesh, ${vm.verts} Vertices`);
+    else fail(`Viewmodel nicht geladen (${JSON.stringify(vm)})`);
+    const aim = await evJson('globalThis.__vmAim?.()');
+    if (aim && aim.z < 0) ok(`Mündung vor Kamera: z=${aim.z}`);
+    else fail(`Mündung falsch (${JSON.stringify(aim)})`);
 
-    // M2: Runde muss in 'live' kommen (freeze 6s)
-    if (!process.exitCode) {
-      const tRound = Date.now();
-      let phase = null;
-      while (Date.now() - tRound < 15000) {
-        const r = JSON.parse(await evalValue(`JSON.stringify(globalThis.__round?.() ?? null)`) ?? 'null');
-        if (r) { phase = r.phase; if (phase === 'live' || phase === 'roundEnd' || phase === 'bomb') break; }
-        await new Promise((r2) => setTimeout(r2, 700));
+    const waitFor = async (expr, cond, ms, step = 500) => {
+      const t = Date.now();
+      let v = null;
+      while (Date.now() - t < ms) {
+        v = await evJson(expr);
+        if (v && cond(v)) return v;
+        await sleep(step);
       }
-      if (phase === 'live') console.log('✓ Runde: live erreicht');
-      else { console.error('✗ Runde wurde nie live (phase=' + phase + ')'); process.exitCode = 1; }
-    }
+      return v;
+    };
 
-    // M2: alle CT-Bots eliminieren → CT alive 0 → Runde gewonnen (1:0)
-    if (!process.exitCode) {
-      await evalValue(`globalThis.__killBots?.(); 'ok'`);
-      await new Promise((r) => setTimeout(r, 600));
-      const r = JSON.parse(await evalValue(`JSON.stringify(globalThis.__round?.() ?? null)`) ?? 'null');
-      const alive = await evalValue(`globalThis.__aliveCts?.() ?? null`);
-      if (r && (r.phase === 'roundEnd' || r.phase === 'freeze') && r.score === '1:0' && alive === 0) {
-        console.log(`✓ Eliminierung: CT-Alive ${alive}, Score ${r.score} → ${r.phase}`);
-      } else { console.error(`✗ Eliminierung fehlgeschlagen (phase=${r?.phase}, score=${r?.score}, alive=${alive})`); process.exitCode = 1; }
-    }
+    // 4) Kaufphase abwarten (warmup 5 s → freeze), Kevlar kaufen (800 $ → 150 $)
+    let st = await waitFor('globalThis.__state?.()', (v) => v.phase === 'freeze', 60000);
+    if (st?.phase === 'freeze') ok('Kaufphase erreicht');
+    else fail('Kaufphase nie erreicht: ' + JSON.stringify(st));
+    const lo = await evJson('globalThis.__buy?.("kevlar")');
+    const money = (await evJson('globalThis.__state?.()'))?.money;
+    if (lo?.armor === 100 && money === 150) ok('Kauf: Kevlar für 650 $ (Rest 150 $)');
+    else fail(`Kauf fehlgeschlagen: armor=${lo?.armor} money=${money}`);
 
-    // Waffen-Viewmodel + Effekte: echtes OBJ geladen (>200 Vertices) & Schuss erzeugt Effekte
-    if (!process.exitCode) {
-      const vm = JSON.parse(await evalValue(`JSON.stringify(globalThis.__vm?.() ?? null)`) ?? 'null');
-      if (vm?.loaded && vm.verts > 200) console.log(`✓ Viewmodel: ${vm.meshes} Mesh, ${vm.verts} Vertices`);
-      else { console.error(`✗ Viewmodel nicht geladen (${JSON.stringify(vm)})`); process.exitCode = 1; }
-      // Mündung muss in Kamerarichtung (z<0) und vor der Kamera liegen
-      const aim = JSON.parse(await evalValue(`JSON.stringify(globalThis.__vmAim?.() ?? null)`) ?? 'null');
-      if (aim && aim.z < 0) console.log(`✓ Mündung vor Kamera: z=${aim.z} (rechts x=${aim.x}, y=${aim.y})`);
-      else { console.error(`✗ Mündung falsch ausgerichtet (${JSON.stringify(aim)})`); process.exitCode = 1; }
-    }
-    // Effekte + Wand-Decal: Schuss auf die leere Ostwand → Decal am echten Trefferpunkt
-    if (!process.exitCode) {
-      await evalValue(`globalThis.__wallShot?.(); 'ok'`);
-      await new Promise((r) => setTimeout(r, 500));
-      const decals = await evalValue(`globalThis.__decals?.() ?? null`);
-      const created = await evalValue(`globalThis.__fxWall?.() ?? null`);
-      const ok = decals && decals.count >= 1 && decals.nearest > 2 && decals.maxSize <= 0.1;
-      if (ok) {
-        console.log(`✓ Wand-Decal am Trefferpunkt: ${decals.count} aktiv, ${decals.nearest}m entfernt, Größe ≤${decals.maxSize}m (${created} gesamt)`);
-      } else { console.error(`✗ Wand-Decal fehlt/am falschen Ort oder zu groß (${JSON.stringify(decals)}, created=${created})`); process.exitCode = 1; }
-    }
+    // 5) Runde live
+    st = await waitFor('globalThis.__state?.()', (v) => v.phase === 'live' || v.phase === 'bomb', 60000);
+    if (st?.phase === 'live') ok(`Runde live: ${JSON.stringify(st)}`);
+    else fail('Runde wurde nie live: ' + JSON.stringify(st));
 
-    // Draco-/KTX2-Decoder werden von einem CDN geladen — in Umgebungen ohne Internet
-    // scheitert der Fetch (kein Spielfehler, wir nutzen keine komprimierten GLBs).
+    // 6) Bots leben und bewegen sich
+    const b1 = await evJson('globalThis.__bots?.()');
+    await sleep(3000);
+    const b2 = await evJson('globalThis.__bots?.()');
+    const moved = b1 && b2 && b1.some((b, i) => Math.hypot(b.x - b2[i].x, b.z - b2[i].z) > 0.2);
+    if (b1?.length >= 2 && moved) ok(`Bots: ${b1.length}, bewegen sich`);
+    else fail(`Bots bewegen sich nicht: ${JSON.stringify(b1)} → ${JSON.stringify(b2)}`);
+
+    // 7) Schuss auf Gegner-Bot (AWP, Körpermitte, 4 m)
+    const before = await evJson('globalThis.__enemyHp?.()');
+    const aimRes = await evJson('globalThis.__aimAtBot?.()');
+    await sleep(1500);
+    const after = await evJson('globalThis.__enemyHp?.()');
+    const victim = aimRes?.target;
+    const hpB = before?.find((p) => p.id === victim)?.hp;
+    const hpA = after?.find((p) => p.id === victim)?.hp;
+    if (victim && hpA < hpB) ok(`Schuss trifft Bot ${victim}: HP ${hpB} → ${hpA}`);
+    else fail(`Schuss ohne Treffer (${JSON.stringify(aimRes)}, ${hpB} → ${hpA})`);
+
+    // 8) Wand-Decal
+    await evJson('globalThis.__wallShot?.()');
+    await sleep(1200);
+    const decals = await evJson('globalThis.__decals?.()');
+    if (decals && decals.count >= 1 && decals.maxSize <= 0.1) ok(`Wand-Decal: ${decals.count} aktiv, ${decals.nearest} m, ≤${decals.maxSize} m`);
+    else fail(`Wand-Decal fehlt (${JSON.stringify(decals)})`);
+
+    // 9) Granate werfen → fliegt → Rauch
+    await evJson('globalThis.__throwNade?.("smoke")');
+    const nades = await waitFor('({n: globalThis.__nades?.()})', (v) => v.n >= 1, 5000, 200);
+    if (nades?.n >= 1) ok(`Granate unterwegs: ${nades.n}`);
+    else fail('Granate nicht erzeugt');
+    const sm = await waitFor('globalThis.__state?.()', (v) => v.smokes >= 1, 20000);
+    if (sm?.smokes >= 1) ok('Rauchwolke aktiv');
+    else fail('Rauch nicht gezündet: ' + JSON.stringify(sm));
+
+    // 10) Alle CT eliminieren → Runde endet 1:0
+    await evJson('globalThis.__killTeam?.("CT")');
+    const st2 = await waitFor('globalThis.__state?.()', (v) => v.score === '1:0', 10000, 300);
+    if (st2?.score === '1:0' && (st2.phase === 'roundEnd' || st2.phase === 'freeze')) ok(`Eliminierung: ${st2.score} → ${st2.phase}, Geld ${st2.money}`);
+    else fail(`Eliminierung fehlgeschlagen: ${JSON.stringify(st2)}`);
+
+    // 11) Nächste Runde startet (freeze) und Spieler lebt
+    const st3 = await waitFor('globalThis.__state?.()', (v) => v.round === 2, 40000);
+    const pos = await evJson('globalThis.__pos?.()');
+    if (st3?.round === 2 && st3.alive?.T >= 1 && st3.alive?.CT >= 1 && pos && !pos.dead) ok(`Runde 2 gestartet (${st3.phase}), alle respawnt`);
+    else fail(`Runde 2 nicht gestartet: ${JSON.stringify(st3)} ${JSON.stringify(pos)}`);
+
     const relevant = errors.filter((e) => !/DRACOLoader|KTX2Loader/.test(e));
-    if (relevant.length) { console.error('✗ Console-Fehler:\n' + relevant.join('\n')); process.exitCode = 1; }
-    else console.log('✓ Keine Console-Fehler');
-
+    if (relevant.length) fail('Console-Fehler:\n' + relevant.join('\n'));
+    else ok('Keine Console-Fehler');
     ws.close();
+  } catch (e) {
+    fail(String(e));
   } finally {
-    try { edgeProc.kill(); } catch { /* tot */ }
-    // Profil-Verzeichnis aufräumen
-    try {
-      const { rmSync } = require('fs');
-      rmSync(edgeProc._profile, { recursive: true, force: true });
-    } catch { /* egal */ }
+    try { proc.kill(); } catch { /* tot */ }
+    try { require('fs').rmSync(proc._profile, { recursive: true, force: true }); } catch { /* egal */ }
   }
-  console.log(process.exitCode ? 'SMOKE FEHLGESCHLAGEN' : 'SMOKE OK');
-  process.exit(process.exitCode ?? 0);
+  console.log(fails.length ? `SMOKE FEHLGESCHLAGEN (${fails.length})` : 'SMOKE OK');
+  process.exit(fails.length ? 1 : 0);
 }
 
 run().catch((e) => { console.error(e); process.exit(1); });

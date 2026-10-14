@@ -146,7 +146,7 @@ export function lineOfSight(a: Vec3, b: Vec3, solids: Aabb[]): boolean {
  * HE-Schaden auf ein Ziel: linearer Abfall bis zum Radius, 0 ohne Sichtlinie
  * (Explosion hinter Regal/Wand). Zielpunkt = Körpermitte.
  */
-export function heDamageAt(center: Vec3, target: Vec3, solids: Aabb[], radius = GRENADE.heRadius, max = GRENADE.heDamage): number {
+export function heDamageAt(center: Vec3, target: Vec3, solids: Aabb[], radius: number = GRENADE.heRadius, max: number = GRENADE.heDamage): number {
   const d = Math.hypot(target.x - center.x, target.y - center.y, target.z - center.z);
   if (d >= radius) return 0;
   if (!lineOfSight(center, target, solids)) return 0;

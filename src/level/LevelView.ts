@@ -122,20 +122,18 @@ function buildCeiling(group: THREE.Group, inner: LevelBuild['inner'], height: nu
   group.add(mesh);
   const beamMat = new THREE.MeshStandardMaterial({ color: 0x3a4149, roughness: 0.8 });
   const step = 8;
-  for (let x = inner.minX + step / 2; x < inner.maxX; x += step) {
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, d), beamMat);
-    beam.position.set(x, height - 0.25, (inner.minZ + inner.maxZ) / 2);
-    group.add(beam);
-  }
-  // Hallenbeleuchtung: Leuchtbalken (emissiv, kein echtes Licht → günstig)
-  const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff4d6 });
-  for (let x = inner.minX + step / 2; x < inner.maxX; x += step) {
-    for (let z = inner.minZ + 6; z < inner.maxZ; z += 12) {
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 1.6), lampMat);
-      lamp.position.set(x, height - 0.55, z);
-      group.add(lamp);
-    }
-  }
+  const beamXs: number[] = [];
+  for (let x = inner.minX + step / 2; x < inner.maxX; x += step) beamXs.push(x);
+  const beams = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, 0.5, d), beamMat, beamXs.length);
+  const m4 = new THREE.Matrix4();
+  beamXs.forEach((x, i) => beams.setMatrixAt(i, m4.makeTranslation(x, height - 0.25, (inner.minZ + inner.maxZ) / 2)));
+  group.add(beams);
+  // Hallenbeleuchtung: Leuchtbalken (emissiv, kein echtes Licht → günstig), eine Instanz-Gruppe
+  const lampPos: [number, number][] = [];
+  for (const x of beamXs) for (let z = inner.minZ + 6; z < inner.maxZ; z += 12) lampPos.push([x, z]);
+  const lamps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.08, 1.6), new THREE.MeshBasicMaterial({ color: 0xfff4d6 }), lampPos.length);
+  lampPos.forEach(([x, z], i) => lamps.setMatrixAt(i, m4.makeTranslation(x, height - 0.55, z)));
+  group.add(lamps);
 }
 
 function addSolidBox(group: THREE.Group, b: SolidBox, mat: THREE.Material | THREE.Material[]): THREE.Mesh {

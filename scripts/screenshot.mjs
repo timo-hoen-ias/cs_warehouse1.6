@@ -41,7 +41,8 @@ async function run() {
     await send('Page.navigate', { url: URL });
     await new Promise((r) => setTimeout(r, WAIT));
     if (PRE) {
-      await send('Runtime.evaluate', { expression: PRE, awaitPromise: true });
+      const res = await send('Runtime.evaluate', { expression: PRE, awaitPromise: true, returnByValue: true });
+      console.log('Eval:', JSON.stringify(res?.result?.value ?? res?.result?.description ?? null));
       await new Promise((r) => setTimeout(r, 1500));
     }
     const shot = await send('Page.captureScreenshot', { format: 'png' });

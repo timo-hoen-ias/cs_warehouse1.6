@@ -1,0 +1,1128 @@
+import { Behaviour, registerType } from '@needle-tools/engine';
+import * as THREE from 'three';
+import type { World } from './World';
+import type { NetTransport } from '../multi/Transport';
+import type { FpsPlayer } from '../player/FpsPlayer';
+import type { Shooter } from '../weapons/Shooter';
+import type { Hud } from '../ui/Hud';
+import type { Grenades } from '../weapons/Grenades';
+import type { Sfx } from '../audio/Sfx';
+import { Soldier } from '../entities/Soldier';
+import {
+  addPlayer, aliveCounts, applyExplosion, applyHit, balanceBots, beginRound, bombCarrier, finishRound, newMatch, removePlayer,
+  restartMatch, rewardAction, switchTeam, type MatchPlayer, type MatchState, type Pose,
+} from '../logic/match';
+import { ROUND, tickRound, type RoundPhase } from '../logic/round';
+import { spotAt } from '../logic/zones';
+import type { Team } from '../logic/economy';
+import { WEAPONS, type WeaponDef } from '../logic/weapons';
+import { buyAmmo, buyItem, botBuy, consumeGrenade, bestWeapon } from '../logic/loadout';
+import { fireSpread, startReload, tickGun, tryShoot } from '../logic/fire';
+import { resolveRay, shotDirs, aimAt, spreadDir, dirToYawPitch, type ShotTarget } from '../logic/combat';
+import { humanPartBoxes, type Vec3 } from '../logic/hitbox';
+import { BOT, BOT_NAMES, aimError, decideBot, newBotMemory, type BotMemory } from '../logic/botDecide';
+import { bfsPath, nearestWaypoint } from '../logic/waypoints';
+import { PLAYER, stepPlayer, type PlayerMotion } from '../logic/move';
+import { GRENADE, flashStrength, heDamageAt, stepGrenade, throwGrenade, type GrenadeState, type Smoke } from '../logic/grenade';
+import { applySnapshot, lerpPose, packSnapshot, poseMsg, sanitizeName, type GameEvent, type NetMsg, type PoseMsg, type Snapshot } from '../logic/net';
+import { mulberry32 } from '../logic/demo';
+
+export type DriverOptions = {
+  localName: string;
+  team: Team | 'auto';
+  /** Gesamtzahl Spieler inkl. Menschen, die der Host mit Bots auffüllt (0 = keine Bots). */
+  fillTo: number;
+  botSkill: number;
+};
+
+type BotRuntime = {
+  id: string;
+  mem: BotMemory;
+  motion: PlayerMotion;
+  path: number[];
+  pathAt: number;
+  pathTarget: { x: number; z: number } | null;
+  pose: Pose;
+  eHeld: boolean;
+  blind: number;
+  /** Deterministischer Zufall je Bot (Streuung, Reaktion). */
+  rnd: () => number;
+  lastShotAt: number;
+};
+
+type RemotePose = { prev: Pose; next: Pose; t: number; w: string; c: boolean; m: boolean; e: boolean; age: number };
+
+const SNAP_HZ = 10;
+const POSE_HZ = 20;
+const BOT_SPEED = 4.0;
+
+/**
+ * Spiel-Treiber (Needle-Behaviour). Läuft auf jedem Client; der gewählte Host
+ * rechnet autoritativ (Runde, Bombe, Treffer, Economy, Bots, Granaten) und
+ * verteilt Snapshots + Ereignisse. Clients simulieren ihre Bewegung selbst,
+ * senden Posen/Schüsse/Käufe und spiegeln den Match-Zustand fürs HUD.
+ */
+@registerType
+export class MatchDriver extends Behaviour {
+  world!: World;
+  net!: NetTransport;
+  player!: FpsPlayer;
+  shooter!: Shooter;
+  hud!: Hud;
+  grenades!: Grenades;
+  sfx?: Sfx;
+  options: DriverOptions = { localName: 'Spieler', team: 'auto', fillTo: 6, botSkill: 0.6 };
+
+  /** Autoritativ (Host) bzw. Spiegel (Client). */
+  match: MatchState = newMatch();
+  private wasHost = false;
+  private helloSent = false;
+  private snapSeq = 0;
+  private snapTimer = 0;
+  private poseTimer = 0;
+  private lastSnapSeq = -1;
+  private readonly bots = new Map<string, BotRuntime>();
+  private readonly soldiers = new Map<string, Soldier>();
+  private readonly remotePoses = new Map<string, RemotePose>();
+  private lastRound = 0;
+  private lastPhase: RoundPhase = 'warmup';
+  private plan: 'a' | 'b' = 'a';
+  private nades: { id: number; g: GrenadeState }[] = [];
+  private nadeSeq = 1;
+  private smokes: Smoke[] = [];
+  private bombPos: Vec3 | null = null;
+  private planterId: string | null = null;
+  private defuserId: string | null = null;
+  private fireSeq = 0;
+  private rnd = mulberry32(42);
+  private localDeadSince = -1;
+  private chatLines: { who: string; text: string; team: Team | null }[] = [];
+  private pendingHandled = false;
+  private botIndex = 0;
+
+  get localId(): string {
+    return this.net.id;
+  }
+
+  get isHost(): boolean {
+    return !this.net.online || this.net.hostId === this.net.id;
+  }
+
+  /** Lokaler Spieler im Match (Host: autoritativ; Client: Spiegel, ggf. undefined vor dem ersten Snapshot). */
+  get local(): MatchPlayer | undefined {
+    return this.match.players[this.localId];
+  }
+
+  start(): void {
+    this.net.onMessage = (msg) => this.onNet(msg);
+    this.net.onPeersChanged = () => this.onPeers();
+    this.net.onPeerLeft = (id) => this.onPeerLeft(id);
+    this.shooter.onFire = (w, o, d) => this.localFire(w, o, d);
+    this.shooter.onThrow = (kind, o, d, s) => this.localThrow(kind, o, d, s);
+    this.shooter.onReload = () => undefined;
+    this.hud.onBuy = (item) => this.requestBuy(item);
+    this.hud.onBuyAmmo = (slot) => this.requestAmmo(slot);
+    this.hud.onChat = (text) => this.sendChat(text);
+    this.hud.onTeam = (team) => this.requestTeam(team);
+    if (!this.net.online) this.becomeHost();
+  }
+
+  onDestroy(): void {
+    for (const s of this.soldiers.values()) s.dispose();
+    this.soldiers.clear();
+    this.net.dispose();
+  }
+
+  // ---------------------------------------------------------------- Netz
+
+  private onPeers(): void {
+    if (this.isHost && !this.wasHost) this.becomeHost();
+    else if (!this.isHost && this.wasHost) this.wasHost = false;
+    if (!this.isHost) this.sendHello();
+    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName} · ${this.net.peers.length + 1} Spieler · ${this.isHost ? 'Host' : 'Client'}` : 'Offline gegen Bots');
+  }
+
+  private sendHello(): void {
+    this.net.send({ t: 'hello', id: this.localId, name: this.options.localName, team: this.options.team });
+    this.helloSent = true;
+  }
+
+  private becomeHost(): void {
+    this.wasHost = true;
+    // Host-Migration: Spiegel wird autoritativ; eigener Spieler sicherstellen
+    if (!this.match.players[this.localId]) {
+      addPlayer(this.match, this.localId, sanitizeName(this.options.localName), { team: this.options.team });
+    }
+    for (const p of Object.values(this.match.players)) if (p.bot) this.ensureBot(p);
+    this.fillBots();
+    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName} · Host` : 'Offline gegen Bots');
+    if (this.match.round.round === 0 && this.match.round.phase === 'warmup') {
+      // Warmup: alle sofort spawnen
+      this.spawnAllNow();
+    }
+  }
+
+  private onPeerLeft(id: string): void {
+    const soldier = this.soldiers.get(id);
+    if (soldier) {
+      soldier.dispose();
+      this.soldiers.delete(id);
+    }
+    this.remotePoses.delete(id);
+    if (this.isHost && this.match.players[id]) {
+      const name = this.match.players[id]!.name;
+      removePlayer(this.match, id);
+      this.emit({ k: 'leave', id, name });
+      this.fillBots();
+    }
+  }
+
+  private onNet(msg: NetMsg): void {
+    switch (msg.t) {
+      case 'pose':
+        this.applyRemotePose(msg);
+        break;
+      case 'poses':
+        if (!this.isHost) for (const p of msg.p) this.applyRemotePose(p);
+        break;
+      case 'snap':
+        if (!this.isHost) this.applySnap(msg.s);
+        break;
+      case 'ev':
+        if (!this.isHost) this.onEvent(msg.e);
+        break;
+      case 'hello':
+        if (this.isHost) this.hostHello(msg.id, msg.name, msg.team);
+        break;
+      case 'fire':
+        if (this.isHost) this.hostFire(msg.id, msg.w, { x: msg.o[0], y: msg.o[1], z: msg.o[2] }, msg.d.map((d) => ({ x: d[0], y: d[1], z: d[2] })));
+        break;
+      case 'throw':
+        if (this.isHost) this.hostThrow(msg.id, msg.kind, { x: msg.o[0], y: msg.o[1], z: msg.o[2] }, { x: msg.d[0], y: msg.d[1], z: msg.d[2] }, msg.s);
+        break;
+      case 'buy':
+        if (this.isHost) this.hostBuy(msg.id, msg.item);
+        break;
+      case 'ammo':
+        if (this.isHost) this.hostAmmo(msg.id, msg.slot);
+        break;
+      case 'team':
+        if (this.isHost) this.hostTeam(msg.id, msg.team);
+        break;
+      case 'chat':
+        this.pushChat(msg.name, msg.text, msg.team);
+        break;
+      case 'reload':
+        break;
+    }
+  }
+
+  private applyRemotePose(p: PoseMsg): void {
+    if (p.id === this.localId) return;
+    const pose: Pose = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch };
+    const r = this.remotePoses.get(p.id);
+    if (r) {
+      r.prev = lerpPose(r.prev, r.next, Math.min(1, r.t));
+      r.next = pose;
+      r.t = 0;
+      r.w = p.w;
+      r.c = p.c;
+      r.m = p.m;
+      r.e = p.e;
+      r.age = 0;
+    } else {
+      this.remotePoses.set(p.id, { prev: pose, next: pose, t: 1, w: p.w, c: p.c, m: p.m, e: p.e, age: 0 });
+    }
+    if (this.isHost) {
+      const mp = this.match.players[p.id];
+      if (mp && !mp.bot) {
+        mp.pose = pose;
+        mp.weapon = p.w;
+      }
+    }
+  }
+
+  private emit(e: GameEvent): void {
+    this.net.send({ t: 'ev', e });
+    this.onEvent(e);
+  }
+
+  // ---------------------------------------------------------------- Host: Spieler
+
+  private hostHello(id: string, name: string, team: Team | 'auto'): void {
+    if (this.match.players[id]) return;
+    const p = addPlayer(this.match, id, sanitizeName(name), { team });
+    this.fillBots();
+    balanceBots(this.match);
+    this.emit({ k: 'join', id, name: p.name, team: p.team });
+    // Außerhalb der Kampfphase sofort spawnen
+    if (this.match.round.phase !== 'live' && this.match.round.phase !== 'bomb') this.spawnOne(p);
+    this.broadcastSnapshot();
+  }
+
+  private hostTeam(id: string, team: Team): void {
+    const p = this.match.players[id];
+    if (!p || p.team === team) return;
+    switchTeam(this.match, id, team);
+    balanceBots(this.match);
+    this.emit({ k: 'join', id, name: p.name, team });
+    if (this.match.round.phase !== 'live' && this.match.round.phase !== 'bomb') this.spawnOne(p);
+  }
+
+  private requestTeam(team: Team): void {
+    if (this.isHost) this.hostTeam(this.localId, team);
+    else this.net.send({ t: 'team', id: this.localId, team });
+  }
+
+  /** Bots auffüllen/abbauen bis options.fillTo Spieler. */
+  private fillBots(): void {
+    if (!this.isHost) return;
+    const humans = Object.values(this.match.players).filter((p) => !p.bot).length;
+    const want = Math.max(0, this.options.fillTo - humans);
+    const bots = Object.values(this.match.players).filter((p) => p.bot);
+    while (bots.length < want) {
+      const id = `bot-${this.botIndex++}`;
+      const name = BOT_NAMES[(this.botIndex - 1) % BOT_NAMES.length]!;
+      const p = addPlayer(this.match, id, name, { bot: true });
+      bots.push(p);
+      this.ensureBot(p);
+      if (this.match.round.phase !== 'live' && this.match.round.phase !== 'bomb') this.spawnOne(p);
+    }
+    while (bots.length > want) {
+      const p = bots.pop()!;
+      removePlayer(this.match, p.id);
+      this.bots.delete(p.id);
+      const s = this.soldiers.get(p.id);
+      if (s) {
+        s.dispose();
+        this.soldiers.delete(p.id);
+      }
+    }
+    balanceBots(this.match);
+  }
+
+  private ensureBot(p: MatchPlayer): void {
+    if (this.bots.has(p.id)) return;
+    const seed = Number(p.id.replace(/\D/g, '')) || 1;
+    const rnd = mulberry32(seed * 7919);
+    this.bots.set(p.id, {
+      id: p.id,
+      mem: newBotMemory(rnd),
+      motion: { x: p.pose.x, y: PLAYER.eye, z: p.pose.z, vy: 0, grounded: true },
+      path: [],
+      pathAt: 0,
+      pathTarget: null,
+      pose: { ...p.pose },
+      eHeld: false,
+      blind: 0,
+      rnd,
+      lastShotAt: 0,
+    });
+  }
+
+  private spawnOne(p: MatchPlayer): void {
+    const idx = Object.values(this.match.players).filter((q) => q.team === p.team).indexOf(p);
+    p.pose = this.world.spawnPose(p.team, Math.max(0, idx));
+    p.hp = 100;
+    p.alive = true;
+    p.weapon = bestWeapon(p.loadout);
+    const b = this.bots.get(p.id);
+    if (b) {
+      b.motion = { x: p.pose.x, y: PLAYER.eye, z: p.pose.z, vy: 0, grounded: true };
+      b.pose = { ...p.pose };
+      b.path = [];
+      b.pathTarget = null;
+    }
+    this.emitSpawn(p);
+  }
+
+  private spawnAllNow(): void {
+    for (const p of Object.values(this.match.players)) this.spawnOne(p);
+  }
+
+  private emitSpawn(p: MatchPlayer): void {
+    this.emit({ k: 'spawn', id: p.id, x: p.pose.x, z: p.pose.z, yaw: p.pose.yaw });
+  }
+
+  // ---------------------------------------------------------------- Host: Kampf
+
+  private targetsFor(ignore: string): ShotTarget[] {
+    const out: ShotTarget[] = [];
+    for (const p of Object.values(this.match.players)) {
+      if (!p.alive || p.id === ignore) continue;
+      const crouch = this.remotePoses.get(p.id)?.c ?? (p.id === this.localId ? this.player.crouching() : false);
+      out.push({ id: p.id, parts: humanPartBoxes({ x: p.pose.x, y: 0, z: p.pose.z }, crouch ? 0.75 : 1) });
+    }
+    return out;
+  }
+
+  private hostFire(shooterId: string, weaponId: string, origin: Vec3, dirs: Vec3[]): void {
+    const shooter = this.match.players[shooterId];
+    const def = WEAPONS[weaponId];
+    if (!shooter || !shooter.alive || !def) return;
+    if (this.match.round.phase === 'freeze' || this.match.round.phase === 'warmup' && false) return;
+    const targets = this.targetsFor(shooterId);
+    const ends: [number, number, number][] = [];
+    const walls: [number, number, number][] = [];
+    for (const dir of dirs) {
+      const hit = resolveRay(origin, dir, def.range, this.world.aabbs, targets, shooterId);
+      ends.push([hit.point.x, hit.point.y, hit.point.z]);
+      if (hit.kind === 'wall') walls.push([hit.point.x, hit.point.y, hit.point.z]);
+      if (hit.kind === 'target') {
+        const victim = this.match.players[hit.id];
+        if (!victim) continue;
+        const r = applyHit(this.match, hit.id, shooterId, def, hit.part, hit.dist);
+        if (!r) continue;
+        this.emit({ k: 'hit', victim: hit.id, attacker: shooterId, dmg: r.dmg, part: hit.part, from: [origin.x, origin.y, origin.z], at: [hit.point.x, hit.point.y, hit.point.z] });
+        if (r.killed) this.onHostKill(victim, shooterId, def.id, hit.part === 'head');
+        if (def.pellets === 1 && hit.part === 'head' && def.type !== 'shotgun') { /* ein Kopftreffer reicht */ }
+      }
+    }
+    this.net.send({ t: 'ev', e: { k: 'shot', id: shooterId, w: weaponId, o: [origin.x, origin.y, origin.z], ends, walls } });
+    if (shooterId !== this.localId) this.onEvent({ k: 'shot', id: shooterId, w: weaponId, o: [origin.x, origin.y, origin.z], ends, walls });
+  }
+
+  private onHostKill(victim: MatchPlayer, killerId: string | null, weapon: string, hs: boolean): void {
+    this.emit({ k: 'kill', killer: killerId, victim: victim.id, weapon, hs });
+    const b = this.bots.get(victim.id);
+    if (b) b.path = [];
+  }
+
+  private hostThrow(id: string, kind: 'he' | 'flash' | 'smoke', origin: Vec3, dir: Vec3, strength: number): void {
+    const p = this.match.players[id];
+    if (!p || !p.alive) return;
+    if (p.loadout.grenades[kind] <= 0) return;
+    consumeGrenade(p.loadout, kind);
+    const g = throwGrenade(kind, origin, dir, id, strength);
+    const nid = this.nadeSeq++;
+    this.nades.push({ id: nid, g });
+    this.emit({ k: 'nade', id: nid, kind, owner: id, o: [g.pos.x, g.pos.y, g.pos.z], v: [g.vel.x, g.vel.y, g.vel.z] });
+  }
+
+  private hostBuy(id: string, item: string): void {
+    const p = this.match.players[id];
+    if (!p) return;
+    const phase = this.match.round.phase;
+    const canBuy = phase === 'warmup' || phase === 'freeze' || (phase === 'live' && this.match.round.timer > ROUND.roundTime - 15);
+    if (!canBuy || !p.alive) {
+      this.emit({ k: 'buy', id, item, ok: false, reason: 'Kaufzeit vorbei' });
+      return;
+    }
+    const r = buyItem(p.loadout, p.money, item, p.team);
+    if (r.ok) {
+      const def = WEAPONS[item];
+      if (def && (def.slot === 1 || def.slot === 2)) p.weapon = item;
+    }
+    this.emit({ k: 'buy', id, item, ok: r.ok, reason: r.ok ? undefined : buyReason(r.reason) });
+  }
+
+  private hostAmmo(id: string, slot: 1 | 2): void {
+    const p = this.match.players[id];
+    if (!p) return;
+    const r = buyAmmo(p.loadout, p.money, slot);
+    this.emit({ k: 'buy', id, item: slot === 1 ? 'Munition Primär' : 'Munition Pistole', ok: r.ok, reason: r.ok ? undefined : buyReason(r.reason) });
+  }
+
+  // ---------------------------------------------------------------- Lokale Aktionen
+
+  private localFire(weaponId: string, origin: Vec3, dirs: Vec3[]): void {
+    if (this.isHost) this.hostFire(this.localId, weaponId, origin, dirs);
+    else this.net.send({ t: 'fire', id: this.localId, w: weaponId, o: [origin.x, origin.y, origin.z], d: dirs.map((d) => [d.x, d.y, d.z]), seq: this.fireSeq++ });
+  }
+
+  private localThrow(kind: 'he' | 'flash' | 'smoke', origin: Vec3, dir: Vec3, strength: number): void {
+    if (this.isHost) this.hostThrow(this.localId, kind, origin, dir, strength);
+    else this.net.send({ t: 'throw', id: this.localId, kind, o: [origin.x, origin.y, origin.z], d: [dir.x, dir.y, dir.z], s: strength });
+  }
+
+  requestBuy(item: string): void {
+    if (this.isHost) this.hostBuy(this.localId, item);
+    else this.net.send({ t: 'buy', id: this.localId, item });
+  }
+
+  requestAmmo(slot: 1 | 2): void {
+    if (this.isHost) this.hostAmmo(this.localId, slot);
+    else this.net.send({ t: 'ammo', id: this.localId, slot });
+  }
+
+  sendChat(text: string): void {
+    const t = text.trim().slice(0, 120);
+    if (!t) return;
+    const team = this.local?.team ?? null;
+    this.net.send({ t: 'chat', id: this.localId, name: this.options.localName, text: t, team });
+    this.pushChat(this.options.localName, t, team);
+  }
+
+  private pushChat(who: string, text: string, team: Team | null): void {
+    this.chatLines.push({ who, text, team });
+    if (this.chatLines.length > 8) this.chatLines.shift();
+    this.hud.setChat(this.chatLines);
+  }
+
+  // ---------------------------------------------------------------- Ereignisse (alle)
+
+  private onEvent(e: GameEvent): void {
+    switch (e.k) {
+      case 'spawn':
+        if (e.id === this.localId) {
+          this.player.spawn(e.x, e.z, e.yaw);
+          this.player.hp = 100;
+          this.player.setDead(false);
+          this.localDeadSince = -1;
+          this.shooter.onSpawn();
+          this.hud.setSpectator(null);
+        }
+        break;
+      case 'hit': {
+        const victimSoldier = this.soldiers.get(e.victim);
+        victimSoldier?.flashHit();
+        if (e.victim === this.localId) {
+          this.player.hp = Math.max(0, this.player.hp - e.dmg);
+          const ang = Math.atan2(e.from[0] - this.player.motionX(), e.from[2] - this.player.motionZ());
+          this.hud.damageFrom(ang - this.player.yawNow());
+          this.sfx?.play('hurt');
+        }
+        if (e.attacker === this.localId) {
+          this.hud.hitmarker(false);
+          this.sfx?.play('hit');
+          this.grenades.fx.impact({ kind: 'target', part: e.part, point: { x: e.at[0], y: e.at[1], z: e.at[2] }, killed: false, normal: { x: 0, y: 1, z: 0 } }, { x: 0, y: -1, z: 0 });
+        }
+        break;
+      }
+      case 'kill': {
+        if (e.killer === this.localId) {
+          this.hud.hitmarker(true);
+          this.sfx?.play('kill');
+        }
+        if (e.victim === this.localId) {
+          this.player.hp = 0;
+          this.player.setDead(true);
+          this.localDeadSince = this.match.time;
+          this.hud.setSpectator('Du bist tot — Zuschauer bis zur nächsten Runde');
+          this.sfx?.play('death');
+        }
+        this.soldiers.get(e.victim)?.setAlive(false);
+        this.hud.pushKill(e, this.match);
+        break;
+      }
+      case 'shot': {
+        if (e.id === this.localId) break;
+        const o = { x: e.o[0], y: e.o[1], z: e.o[2] };
+        for (const end of e.ends) this.grenades.fx.tracer(o, { x: end[0], y: end[1], z: end[2] });
+        for (const w of e.walls) this.grenades.fx.impact({ kind: 'wall', point: { x: w[0], y: w[1], z: w[2] }, normal: { x: 0, y: 1, z: 0 } }, { x: 0, y: -1, z: 0 });
+        this.grenades.fx.muzzleFlash({ x: o.x, y: o.y - 0.1, z: o.z }, { x: e.ends[0]![0] - o.x, y: e.ends[0]![1] - o.y, z: e.ends[0]![2] - o.z }, 0.8);
+        const d = Math.hypot(o.x - this.player.motionX(), o.z - this.player.motionZ());
+        this.sfx?.shot(e.w, d);
+        break;
+      }
+      case 'nade':
+        this.grenades.spawn(e.id, e.kind, { x: e.o[0], y: e.o[1], z: e.o[2] });
+        this.sfx?.play('throw');
+        break;
+      case 'boom': {
+        const at = { x: e.at[0], y: e.at[1], z: e.at[2] };
+        this.grenades.detonate(e.id, e.kind, at);
+        if (e.kind === 'flash') {
+          const cam = this.context.mainCamera as THREE.PerspectiveCamera;
+          const dir = cam.getWorldDirection(new THREE.Vector3());
+          const eye = cam.getWorldPosition(new THREE.Vector3());
+          const s = this.player.isDead() ? 0 : flashStrength({ x: eye.x, y: eye.y, z: eye.z }, { x: dir.x, y: dir.y, z: dir.z }, at, this.world.aabbs);
+          if (s > 0.05) this.hud.flash(s);
+          this.sfx?.play('flash', s);
+        } else if (e.kind === 'he') {
+          const d = Math.hypot(at.x - this.player.motionX(), at.z - this.player.motionZ());
+          this.sfx?.play('boom', Math.max(0.2, 1 - d / 60));
+        } else this.sfx?.play('smoke');
+        break;
+      }
+      case 'bomb':
+        if (e.what === 'planted') {
+          this.hud.showBanner('Die Bombe wurde gelegt!', '#ff9d8a');
+          this.sfx?.play('planted');
+        } else if (e.what === 'defused') {
+          this.hud.showBanner('Bombe entschärft!', '#8fd0ff');
+          this.sfx?.play('defused');
+        } else if (e.what === 'exploded') {
+          this.sfx?.play('boom', 1);
+          const at = this.bombPos ?? (e.spot ? { x: this.world.zones[e.spot].x, y: 0.2, z: this.world.zones[e.spot].z } : null);
+          if (at) this.grenades.detonate(-1, 'he', at, 3);
+        }
+        break;
+      case 'round':
+        if (e.what === 'start') {
+          this.hud.showBanner(`Runde ${e.round}`, '#dfe6ee');
+          this.hud.setSpectator(null);
+          this.sfx?.play('roundStart');
+          this.grenades.clearAll();
+          this.smokes = [];
+          this.bombPos = null;
+        } else {
+          this.hud.showBanner(outcomeText(e.outcome ?? '', e.reason ?? ''), e.outcome?.startsWith('t_') ? '#ffb070' : '#8fc0ff');
+          this.sfx?.play(e.outcome && ((e.outcome.startsWith('t_') && this.local?.team === 'T') || (e.outcome.startsWith('ct_') && this.local?.team === 'CT')) ? 'win' : 'lose');
+        }
+        break;
+      case 'buy':
+        if (e.id === this.localId) {
+          if (e.ok) {
+            this.sfx?.play('buy');
+            const def = WEAPONS[e.item];
+            if (def && (def.slot === 1 || def.slot === 2)) this.shooter.setWeapon(e.item);
+            this.hud.notice(`Gekauft: ${def?.name ?? e.item}`);
+          } else this.hud.notice(`Kauf fehlgeschlagen: ${e.reason ?? ''}`);
+        }
+        break;
+      case 'match':
+        this.hud.showBanner(`${e.winner === 'T' ? 'Terroristen' : 'Counter-Terroristen'} gewinnen das Match!`, '#ffd98a', 6000);
+        break;
+      case 'join':
+        this.hud.notice(`${e.name} ist Team ${e.team} beigetreten`);
+        break;
+      case 'leave':
+        this.hud.notice(`${e.name} hat das Spiel verlassen`);
+        break;
+    }
+  }
+
+  private applySnap(s: Snapshot): void {
+    if (s.seq <= this.lastSnapSeq && s.seq > 0) return;
+    this.lastSnapSeq = s.seq;
+    const prevPhase = this.match.round.phase;
+    const prevRound = this.match.round.round;
+    applySnapshot(this.match, s);
+    this.smokes = s.smokes.map((x) => ({ pos: { x: x.p[0], y: x.p[1], z: x.p[2] }, radius: x.r, timeLeft: x.t }));
+    this.bombPos = s.bombPos ? { x: s.bombPos[0], y: s.bombPos[1], z: s.bombPos[2] } : null;
+    this.grenades.syncPositions(s.nades);
+    const me = this.local;
+    if (me) {
+      this.player.hp = me.hp;
+      if (!me.alive && !this.player.isDead()) {
+        this.player.setDead(true);
+        this.hud.setSpectator('Du bist tot — Zuschauer bis zur nächsten Runde');
+      }
+      this.player.frozen = this.match.round.phase === 'freeze';
+    }
+    void prevPhase;
+    void prevRound;
+  }
+
+  // ---------------------------------------------------------------- Frame
+
+  update(): void {
+    const dt = Math.min(this.context.time.deltaTime, 0.1);
+    if (this.net.online && !this.helloSent && !this.isHost && this.net.id) this.sendHello();
+    if (this.isHost) this.hostTick(dt);
+    else this.clientTick(dt);
+    this.renderSoldiers(dt);
+    this.grenades.tick(dt, this.isHost ? this.nades.map((n) => ({ id: n.id, p: n.g.pos })) : null);
+    this.updateHud();
+  }
+
+  private clientTick(dt: number): void {
+    this.poseTimer += dt;
+    if (this.poseTimer >= 1 / POSE_HZ) {
+      this.poseTimer = 0;
+      this.net.send(poseMsg(this.localId, this.localPose(), this.shooter.weaponId, this.player.crouching(), this.player.moving(), this.shooter.eHeld && !this.player.isDead()));
+    }
+    for (const s of this.smokes) s.timeLeft -= dt;
+    this.match.time += dt;
+    this.match.round.timer = Math.max(0, this.match.round.timer - dt);
+    if (this.match.round.bomb.phase === 'planted') this.match.round.bomb.fuseLeft = Math.max(0, this.match.round.bomb.fuseLeft - dt);
+  }
+
+  private localPose(): Pose {
+    return { x: this.player.motionX(), y: 0, z: this.player.motionZ(), yaw: this.player.yawNow(), pitch: this.player.pitchNow() };
+  }
+
+  private hostTick(dt: number): void {
+    const m = this.match;
+    m.time += dt;
+    const me = m.players[this.localId];
+    if (me) {
+      me.pose = this.localPose();
+      me.weapon = this.shooter.weaponId;
+      if (me.alive && this.player.isDead()) { /* Snapshot-Spiegel korrigiert */ }
+    }
+    this.player.frozen = m.round.phase === 'freeze';
+
+    // Bots denken/laufen/schießen
+    for (const b of this.bots.values()) this.tickBot(b, dt);
+
+    // Bombe: Plant (T mit Bombe, E, im Spot) / Defuse (CT, E, am Bombenspot)
+    const carrier = bombCarrier(m);
+    let inSpot: 'a' | 'b' | null = null;
+    let plant = false;
+    let defuse = false;
+    let hasKit = false;
+    this.planterId = null;
+    this.defuserId = null;
+    if (carrier && (m.round.phase === 'live')) {
+      const held = this.eHeldFor(carrier.id);
+      const s = spotAt(carrier.pose.x, carrier.pose.z, this.world.zones, BOT.spotRadius);
+      if (held && s && carrier.weapon === 'c4') {
+        inSpot = s;
+        plant = true;
+        this.planterId = carrier.id;
+      } else if (held && s && !carrier.bot) {
+        // Mensch hält E im Spot ohne C4 in der Hand → automatisch Bombe ziehen (Komfort)
+        inSpot = s;
+        plant = true;
+        this.planterId = carrier.id;
+      }
+    }
+    if (m.round.phase === 'bomb' && m.round.bomb.spot) {
+      const spot = m.round.bomb.spot;
+      for (const p of Object.values(m.players)) {
+        if (!p.alive || p.team !== 'CT') continue;
+        const bp = this.bombPos ?? { x: this.world.zones[spot].x, y: 0, z: this.world.zones[spot].z };
+        if (Math.hypot(p.pose.x - bp.x, p.pose.z - bp.z) > BOT.spotRadius) continue;
+        if (!this.eHeldFor(p.id)) continue;
+        defuse = true;
+        inSpot = spot;
+        hasKit = p.loadout.defuseKit;
+        this.defuserId = p.id;
+        break;
+      }
+    }
+    const bombBefore = m.round.bomb.phase;
+    const result = tickRound(m.round, { alive: aliveCounts(m), bombAction: { plant, defuse }, inSpot, hasKit }, dt);
+    if (m.round.bomb.phase !== bombBefore) {
+      if (m.round.bomb.phase === 'planted' && bombBefore === 'planting') {
+        if (this.planterId) {
+          rewardAction(m, this.planterId, 'plant');
+          const pl = m.players[this.planterId];
+          if (pl) {
+            pl.loadout.bomb = false;
+            this.bombPos = { x: pl.pose.x, y: 0.15, z: pl.pose.z };
+            if (pl.weapon === 'c4') pl.weapon = bestWeapon(pl.loadout);
+            if (pl.id === this.localId) this.shooter.setWeapon(bestWeapon(pl.loadout));
+          }
+          // Taktik-Plan der T: ab jetzt Bombe verteidigen (Rolle wechselt automatisch)
+        }
+        this.emit({ k: 'bomb', what: 'planted', by: this.planterId, spot: m.round.bomb.spot });
+      } else if (m.round.bomb.phase === 'defused') {
+        if (this.defuserId) rewardAction(m, this.defuserId, 'defuse');
+        this.emit({ k: 'bomb', what: 'defused', by: this.defuserId, spot: m.round.bomb.spot });
+      } else if (m.round.bomb.phase === 'exploded') {
+        this.emit({ k: 'bomb', what: 'exploded', by: null, spot: m.round.bomb.spot });
+        // Explosionsschaden an allen in der Nähe
+        if (this.bombPos) {
+          for (const p of Object.values(m.players)) {
+            if (!p.alive) continue;
+            const dmg = heDamageAt(this.bombPos, { x: p.pose.x, y: 1, z: p.pose.z }, [], 18, 300);
+            if (dmg > 0) {
+              const r = applyExplosion(m, p.id, null, dmg, 1);
+              if (r?.killed) this.onHostKill(p, null, 'c4', false);
+            }
+          }
+        }
+      }
+    }
+    if (result) {
+      const planted = result.outcome === 't_win_explode' || result.outcome === 'ct_win_defuse' || m.round.bomb.phase !== 'none';
+      const winner = finishRound(m, result.outcome, planted);
+      this.emit({ k: 'round', what: 'end', round: m.round.round, outcome: result.outcome, reason: result.reason });
+      if (winner) this.emit({ k: 'match', winner });
+    }
+    // Neue Runde (round.ts startet sie nach roundEnd/warmup selbst)
+    if (m.round.round !== this.lastRound && m.round.phase === 'freeze') {
+      this.lastRound = m.round.round;
+      if (m.winner && m.matchEndTimer <= 0) restartMatch(m);
+      this.startRound();
+    }
+    if (m.winner) {
+      m.matchEndTimer -= dt;
+      if (m.matchEndTimer <= 0) {
+        restartMatch(m);
+        m.round.round = 0;
+        m.round.phase = 'warmup';
+        m.round.timer = ROUND.warmupTime;
+        this.lastRound = 0;
+        this.spawnAllNow();
+      }
+    }
+    this.lastPhase = m.round.phase;
+
+    // Granaten simulieren
+    this.tickGrenades(dt);
+    for (const s of this.smokes) s.timeLeft -= dt;
+    this.smokes = this.smokes.filter((s) => s.timeLeft > 0);
+
+    // Lokaler Spieler-Zustand aus dem Match
+    if (me) {
+      this.player.hp = me.hp;
+      if (!me.alive && !this.player.isDead()) {
+        this.player.setDead(true);
+        this.hud.setSpectator('Du bist tot — Zuschauer bis zur nächsten Runde');
+      }
+    }
+
+    // Netz: Bot-Posen + Snapshot
+    if (this.net.online) {
+      this.poseTimer += dt;
+      if (this.poseTimer >= 1 / POSE_HZ) {
+        this.poseTimer = 0;
+        const list: PoseMsg[] = [poseMsg(this.localId, this.localPose(), this.shooter.weaponId, this.player.crouching(), this.player.moving(), this.shooter.eHeld)];
+        for (const b of this.bots.values()) {
+          const p = m.players[b.id];
+          if (p) list.push(poseMsg(b.id, b.pose, p.weapon, false, b.path.length > 0, b.eHeld));
+        }
+        this.net.send({ t: 'poses', p: list });
+      }
+      this.snapTimer += dt;
+      if (this.snapTimer >= 1 / SNAP_HZ) {
+        this.snapTimer = 0;
+        this.broadcastSnapshot();
+      }
+    }
+  }
+
+  private broadcastSnapshot(): void {
+    if (!this.net.online) return;
+    const snap = packSnapshot(this.match, ++this.snapSeq, {
+      nades: this.nades.map((n) => ({ id: n.id, kind: n.g.kind, p: [n.g.pos.x, n.g.pos.y, n.g.pos.z] })),
+      smokes: this.smokes,
+      bombPos: this.bombPos ? [this.bombPos.x, this.bombPos.y, this.bombPos.z] : null,
+    });
+    this.net.send({ t: 'snap', s: snap });
+  }
+
+  private eHeldFor(id: string): boolean {
+    if (id === this.localId) return this.shooter.eHeld && !this.player.isDead();
+    const b = this.bots.get(id);
+    if (b) return b.eHeld;
+    return this.remotePoses.get(id)?.e ?? false;
+  }
+
+  private startRound(): void {
+    const m = this.match;
+    // Taktik-Plan für die T-Bots (zufälliger Spot), Bots kaufen
+    this.plan = this.rnd() < 0.5 ? 'a' : 'b';
+    this.fillBots();
+    beginRound(m, (team, i) => this.world.spawnPose(team, i), this.rnd);
+    for (const p of Object.values(m.players)) {
+      if (p.bot) {
+        botBuy(p.loadout, p.money, p.team, this.rnd);
+        p.weapon = bestWeapon(p.loadout);
+        const b = this.bots.get(p.id);
+        if (b) {
+          b.motion = { x: p.pose.x, y: PLAYER.eye, z: p.pose.z, vy: 0, grounded: true };
+          b.pose = { ...p.pose };
+          b.path = [];
+          b.pathTarget = null;
+          b.mem = newBotMemory(b.rnd);
+          b.blind = 0;
+        }
+      }
+      this.emitSpawn(p);
+    }
+    this.nades = [];
+    this.smokes = [];
+    this.bombPos = null;
+    this.emit({ k: 'round', what: 'start', round: m.round.round });
+    this.broadcastSnapshot();
+  }
+
+  // ---------------------------------------------------------------- Host: Bots
+
+  private tickBot(b: BotRuntime, dt: number): void {
+    const m = this.match;
+    const p = m.players[b.id];
+    if (!p || !p.alive) {
+      b.eHeld = false;
+      return;
+    }
+    b.blind = Math.max(0, b.blind - dt);
+    const def = WEAPONS[p.weapon] ?? WEAPONS['knife']!;
+    const enemies = Object.values(m.players)
+      .filter((q) => q.alive && q.team !== p.team && q.id !== b.id)
+      .map((q) => ({ id: q.id, pos: { x: q.pose.x, z: q.pose.z } }));
+    const decision = decideBot({
+      self: { id: b.id, team: p.team, pos: { x: b.pose.x, z: b.pose.z }, hasBomb: p.loadout.bomb, weaponRange: def.mode === 'melee' ? def.range : Math.min(def.range, BOT.sight), auto: def.rpm > 0, skill: this.options.botSkill, index: Number(b.id.replace(/\D/g, '')) || 0 },
+      enemies: b.blind > 0 ? [] : enemies,
+      solids: this.world.parts,
+      smokes: this.smokes,
+      zones: this.world.zones,
+      bomb: { phase: m.round.bomb.phase, spot: m.round.bomb.spot, pos: this.bombPos ? { x: this.bombPos.x, z: this.bombPos.z } : null },
+      phase: m.round.phase,
+      plan: this.plan,
+    }, b.mem, dt, b.rnd);
+
+    // Waffe: Bombe in die Hand beim Pflanzen, sonst beste Waffe
+    if (decision.plant && p.loadout.bomb) p.weapon = 'c4';
+    else if (p.weapon === 'c4') p.weapon = bestWeapon(p.loadout);
+    b.eHeld = decision.plant || decision.defuse;
+
+    // Bewegung über Wegpunkte
+    if (decision.moveTo && m.round.phase !== 'freeze') this.botMove(b, decision.moveTo, dt);
+    else {
+      b.motion = stepPlayer(b.motion, 0, 0, false, dt, this.world.solids);
+      b.pose.x = b.motion.x;
+      b.pose.z = b.motion.z;
+    }
+
+    // Blick
+    if (decision.lookAt) {
+      const target = decision.target ? m.players[decision.target] : null;
+      const ty = target ? 1.2 : 1.2;
+      const aim = aimAt({ x: b.pose.x, y: BOT.eye, z: b.pose.z }, { x: decision.lookAt.x, y: ty, z: decision.lookAt.z });
+      const yp = dirToYawPitch(aim.dir);
+      b.pose.yaw = yp.yaw;
+      b.pose.pitch = yp.pitch;
+    }
+    p.pose = { ...b.pose };
+
+    // Schießen
+    const gun = p.loadout.guns[p.weapon];
+    if (gun) tickGun(gun, def, dt);
+    if (decision.fire && decision.target && def.mode !== 'throw' && def.mode !== 'plant') {
+      const target = m.players[decision.target];
+      if (!target) return;
+      if (gun && gun.mag <= 0) {
+        startReload(gun, def);
+        return;
+      }
+      const interval = def.rpm > 0 ? 60 / def.rpm : 0.45;
+      if (m.time - b.lastShotAt < interval) return;
+      if (gun) {
+        const r = tryShoot(gun, def);
+        if (!r.ok) return;
+      }
+      b.lastShotAt = m.time;
+      const eye = { x: b.pose.x, y: BOT.eye, z: b.pose.z };
+      const aim = aimAt(eye, { x: target.pose.x, y: 1.1, z: target.pose.z });
+      const err = aimError(b.mem.sightTime, this.options.botSkill);
+      const base = spreadDir(aim.dir, err, b.rnd);
+      const spread = gun ? fireSpread(def, gun, b.path.length > 0, false) : def.spreadBase;
+      const dirs = shotDirs(def, base, spread, b.rnd);
+      this.hostFire(b.id, def.id, eye, dirs);
+      this.grenades.fx.muzzleFlash({ x: eye.x + aim.dir.x * 0.5, y: eye.y - 0.1, z: eye.z + aim.dir.z * 0.5 }, aim.dir, 0.8);
+      const d = Math.hypot(eye.x - this.player.motionX(), eye.z - this.player.motionZ());
+      this.sfx?.shot(def.id, d);
+    }
+  }
+
+  private botMove(b: BotRuntime, target: { x: number; z: number }, dt: number): void {
+    const wp = this.world.waypoints;
+    if (!b.pathTarget || Math.hypot(b.pathTarget.x - target.x, b.pathTarget.z - target.z) > 1.5 || b.pathAt >= b.path.length) {
+      const here = nearestWaypoint(wp, b.pose.x, b.pose.z);
+      const there = nearestWaypoint(wp, target.x, target.z);
+      b.path = here >= 0 && there >= 0 ? bfsPath(wp, here, there) : [];
+      b.pathAt = 0;
+      b.pathTarget = { ...target };
+      // Ersten Punkt überspringen, wenn er hinter uns liegt
+      if (b.path.length > 1) {
+        const p0 = wp.points[b.path[0]!]!.pos;
+        if (Math.hypot(p0[0] - b.pose.x, p0[2] - b.pose.z) < 0.5) b.pathAt = 1;
+      }
+    }
+    let gx = target.x;
+    let gz = target.z;
+    const next = b.path[b.pathAt];
+    const wpt = next !== undefined ? wp.points[next] : undefined;
+    if (wpt) {
+      gx = wpt.pos[0];
+      gz = wpt.pos[2];
+      if (Math.hypot(gx - b.pose.x, gz - b.pose.z) < 0.45) {
+        b.pathAt += 1;
+        return;
+      }
+    } else if (Math.hypot(gx - b.pose.x, gz - b.pose.z) < 0.4) {
+      b.path = [];
+      return;
+    }
+    const dx = gx - b.pose.x;
+    const dz = gz - b.pose.z;
+    const l = Math.hypot(dx, dz) || 1;
+    b.motion = stepPlayer(b.motion, (dx / l) * BOT_SPEED, (dz / l) * BOT_SPEED, false, dt, this.world.solids);
+    b.pose.x = b.motion.x;
+    b.pose.z = b.motion.z;
+  }
+
+  // ---------------------------------------------------------------- Host: Granaten
+
+  private tickGrenades(dt: number): void {
+    const m = this.match;
+    for (const n of [...this.nades]) {
+      const boom = stepGrenade(n.g, dt, this.world.aabbs);
+      if (!boom) continue;
+      const at = { ...n.g.pos };
+      this.nades = this.nades.filter((x) => x !== n);
+      this.emit({ k: 'boom', id: n.id, kind: n.g.kind, at: [at.x, at.y, at.z] });
+      if (n.g.kind === 'he') {
+        for (const p of Object.values(m.players)) {
+          if (!p.alive) continue;
+          const dmg = heDamageAt(at, { x: p.pose.x, y: 1.0, z: p.pose.z }, this.world.aabbs);
+          if (dmg <= 0) continue;
+          const r = applyExplosion(m, p.id, n.g.owner, dmg);
+          if (!r) continue;
+          this.emit({ k: 'hit', victim: p.id, attacker: n.g.owner, dmg: r.dmg, part: 'body', from: [at.x, at.y, at.z], at: [p.pose.x, 1, p.pose.z] });
+          if (r.killed) this.onHostKill(p, n.g.owner, 'hegrenade', false);
+        }
+      } else if (n.g.kind === 'smoke') {
+        this.smokes.push({ pos: at, radius: GRENADE.smokeRadius, timeLeft: GRENADE.smokeDuration });
+      } else if (n.g.kind === 'flash') {
+        for (const b of this.bots.values()) {
+          const p = m.players[b.id];
+          if (!p?.alive) continue;
+          const dir = { x: -Math.sin(b.pose.yaw), y: 0, z: -Math.cos(b.pose.yaw) };
+          const s = flashStrength({ x: b.pose.x, y: BOT.eye, z: b.pose.z }, dir, at, this.world.aabbs);
+          if (s > 0.1) b.blind = Math.max(b.blind, GRENADE.flashDuration * s);
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------- Darstellung
+
+  private renderSoldiers(dt: number): void {
+    const m = this.match;
+    for (const p of Object.values(m.players)) {
+      if (p.id === this.localId) continue;
+      let s = this.soldiers.get(p.id);
+      if (!s) {
+        s = new Soldier(p.id, p.name, p.team);
+        s.addTo(this.context.scene);
+        this.soldiers.set(p.id, s);
+      }
+      if (s.team !== p.team) s.setTeam(p.team);
+      if (s.name !== p.name) s.setName(p.name);
+      s.setAlive(p.alive);
+      s.setWeapon(p.weapon);
+      let pose: Pose;
+      let crouch = false;
+      const bot = this.bots.get(p.id);
+      if (this.isHost && bot) pose = bot.pose;
+      else {
+        const r = this.remotePoses.get(p.id);
+        if (r) {
+          r.t += dt * POSE_HZ;
+          r.age += dt;
+          pose = lerpPose(r.prev, r.next, r.t);
+          crouch = r.c;
+        } else pose = p.pose;
+      }
+      if (p.alive) s.setPose(pose, crouch);
+    }
+    for (const [id, s] of this.soldiers) {
+      if (!m.players[id]) {
+        s.dispose();
+        this.soldiers.delete(id);
+      }
+    }
+  }
+
+  private updateHud(): void {
+    const m = this.match;
+    const me = this.local;
+    const phase = m.round.phase;
+    this.hud.setRound({
+      phase,
+      timer: Math.ceil(m.round.timer),
+      tRounds: m.round.tRounds,
+      ctRounds: m.round.ctRounds,
+      round: m.round.round,
+      bombInfo: bombInfoText(m, this.planterId === this.localId || this.defuserId === this.localId),
+      mapName: this.world.mapName,
+      alive: aliveCounts(m),
+      winner: m.winner,
+    });
+    if (me) {
+      this.hud.setPlayer({
+        team: me.team,
+        money: me.money.amount,
+        armor: me.loadout.armor,
+        helmet: me.loadout.helmet,
+        hasBomb: me.loadout.bomb,
+        hasKit: me.loadout.defuseKit,
+        nades: me.loadout.grenades,
+        alive: me.alive,
+        canBuy: phase === 'warmup' || phase === 'freeze' || (phase === 'live' && m.round.timer > ROUND.roundTime - 15),
+      });
+    }
+    this.hud.setRadar(
+      this.localPose(),
+      Object.values(m.players).filter((p) => p.id !== this.localId).map((p) => {
+        const bot = this.bots.get(p.id);
+        const pose = this.isHost && bot ? bot.pose : this.remotePoses.get(p.id) ? lerpPose(this.remotePoses.get(p.id)!.prev, this.remotePoses.get(p.id)!.next, this.remotePoses.get(p.id)!.t) : p.pose;
+        return { x: pose.x, z: pose.z, yaw: pose.yaw, team: p.team, alive: p.alive, id: p.id };
+      }),
+      me?.team ?? 'T',
+      this.bombPos,
+    );
+    if (this.hud.scoreboardVisible) this.hud.setScoreboard(m, this.localId);
+    // Interaktions-Hinweis: im Spot mit Bombe
+    if (me?.alive && me.team === 'T' && me.loadout.bomb && phase === 'live') {
+      const s = spotAt(this.player.motionX(), this.player.motionZ(), this.world.zones, BOT.spotRadius);
+      this.hud.setHint(s ? 'E halten: Bombe legen' : 'Bombenspot A/B aufsuchen (Radar)');
+    } else if (me?.alive && me.team === 'CT' && phase === 'bomb' && this.bombPos && Math.hypot(this.player.motionX() - this.bombPos.x, this.player.motionZ() - this.bombPos.z) <= BOT.spotRadius) {
+      this.hud.setHint(`E halten: Bombe entschärfen${me.loadout.defuseKit ? ' (Kit)' : ''}`);
+    } else this.hud.setHint(null);
+  }
+
+  /** Debug/Smoke: kompakter Zustand. */
+  debugState(): Record<string, unknown> {
+    const m = this.match;
+    return {
+      host: this.isHost,
+      phase: m.round.phase,
+      timer: Math.ceil(m.round.timer),
+      round: m.round.round,
+      score: `${m.round.tRounds}:${m.round.ctRounds}`,
+      bomb: m.round.bomb.phase,
+      players: Object.values(m.players).length,
+      bots: this.bots.size,
+      alive: aliveCounts(m),
+      money: this.local?.money.amount,
+      hp: this.local?.hp,
+      nades: this.nades.length,
+      smokes: this.smokes.length,
+    };
+  }
+
+  /** Debug/Smoke: alle Gegner-Bots töten (Rundenlogik testen). */
+  debugKillTeam(team: Team): void {
+    for (const p of Object.values(this.match.players)) {
+      if (p.team !== team || !p.alive) continue;
+      const r = applyHit(this.match, p.id, this.localId, WEAPONS['awp']!, 'head', 0);
+      if (r?.killed) this.onHostKill(p, this.localId, 'awp', true);
+    }
+  }
+
+  /** Debug/Smoke: Spieler teleportieren. */
+  debugTeleport(x: number, z: number, yaw = 0): void {
+    this.player.spawn(x, z, yaw);
+  }
+
+  /** Debug: Position eines Bots. */
+  debugBotPos(): { id: string; x: number; z: number; alive: boolean }[] {
+    return [...this.bots.values()].map((b) => ({ id: b.id, x: +b.pose.x.toFixed(2), z: +b.pose.z.toFixed(2), alive: !!this.match.players[b.id]?.alive }));
+  }
+}
+
+function buyReason(r: string): string {
+  return ({ money: 'Nicht genug Geld', team: 'Nicht für dein Team', unknown: 'Unbekannter Artikel', full: 'Maximum erreicht', owned: 'Bereits vorhanden' } as Record<string, string>)[r] ?? r;
+}
+
+function outcomeText(outcome: string, reason: string): string {
+  switch (outcome) {
+    case 'ct_win': return `Counter-Terroristen gewinnen — ${reason}`;
+    case 'ct_win_defuse': return 'Counter-Terroristen gewinnen — Bombe entschärft';
+    case 't_win': return `Terroristen gewinnen — ${reason}`;
+    case 't_win_explode': return 'Terroristen gewinnen — Ziel zerstört';
+    default: return 'Runde beendet';
+  }
+}
+
+function bombInfoText(m: MatchState, meActing: boolean): string {
+  const b = m.round.bomb;
+  switch (b.phase) {
+    case 'planting': return `${meActing ? 'Du legst die Bombe' : 'Bombe wird gelegt'}… ${Math.round(b.progress * 100)} %`;
+    case 'planted': return `Bombe aktiv — ${Math.ceil(b.fuseLeft)} s`;
+    case 'defusing': return `${meActing ? 'Du entschärfst' : 'Entschärfung'}… ${Math.round(b.progress * 100)} % (${Math.ceil(b.fuseLeft)} s)`;
+    case 'defused': return 'Bombe entschärft';
+    case 'exploded': return 'Bombe explodiert';
+    default: return '';
+  }
+}
+
+export type { WeaponDef };

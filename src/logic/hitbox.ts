@@ -5,8 +5,9 @@ export type Vec3 = { x: number; y: number; z: number };
 export type BodyPart = 'head' | 'body';
 export type PartBox = { part: BodyPart; box: Aabb };
 
-export const BODY = { w: 0.62, d: 0.34, h: 1.35 } as const;
-export const HEAD = { r: 0.2, h: 0.24 } as const;
+// Körperhöhe passend zur Augenhöhe (PLAYER.eye 1.65): Kopfoberkante ≈ 1.67 m.
+export const BODY = { w: 0.62, d: 0.34, h: 1.45 } as const;
+export const HEAD = { r: 0.2, h: 0.28 } as const;
 
 /**
  * Mensch-Proxy aus zwei Boxen, zentriert auf (feetX, feetZ), Fußpunkt feetY.

@@ -32,6 +32,11 @@ function tick(key: string): void {
 export class FpsPlayer extends Behaviour {
   /** Solide Level-Boxen, gegen die kollidiert wird. */
   solids: SolidBox[] = [];
+  /** Freeze-Phase: Umschauen erlaubt, keine Bewegung. */
+  frozen = false;
+  /** Eingaben komplett aus (Lobby/Menü offen). */
+  inputEnabled = true;
+  private deadFlag = false;
 
   private motion: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
   private yaw = 0;
@@ -144,7 +149,7 @@ export class FpsPlayer extends Behaviour {
     const crouched = !!this.keys['ControlLeft'] || !!this.keys['ControlRight'];
     this.crouchKey = crouched;
 
-    if (this.spawned) {
+    if (this.spawned && !this.frozen && !this.deadFlag && this.inputEnabled) {
       const wish = wishSpeed(
         {
           w: !!this.keys['KeyW'] || !!this.keys['ArrowUp'],
@@ -223,9 +228,16 @@ export class FpsPlayer extends Behaviour {
     return humanPartBoxes({ x: this.motion.x, y: 0, z: this.motion.z });
   }
 
-  /** true wenn tot. */
+  /** true wenn tot (vom Match gesetzt; Zuschauer-Modus). */
   get dead(): boolean {
-    return this.hp <= 0;
+    return this.deadFlag;
+  }
+  isDead(): boolean {
+    return this.deadFlag;
+  }
+  setDead(dead: boolean): void {
+    this.deadFlag = dead;
+    if (dead) this.keys = {};
   }
 
   private readonly onClick = (): void => {
@@ -274,12 +286,13 @@ export class FpsPlayer extends Behaviour {
   private lastY = 0;
 
   private lookBy(dx: number, dy: number): void {
-    if (!dx && !dy) return;
+    if (!dx && !dy || !this.inputEnabled) return;
     this.yaw -= dx * SENS;
     this.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch - dy * SENS));
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
+    if (!this.inputEnabled) return;
     this.keys[e.code] = true;
     // Klick-/Fokus-Komfort: Escape verlässt den Drag-Look
     if (e.code === 'Escape') this.dragging = false;
