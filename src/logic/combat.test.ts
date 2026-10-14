@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aimAt, dirToYawPitch, resolveRay, shotDirs, spreadDir, yawPitchToDir } from './combat';
+import { aimAt, dirToYawPitch, offsetDir, resolveRay, shotDirs, spreadDir, yawPitchToDir } from './combat';
 import { humanPartBoxes } from './hitbox';
 import { WEAPONS } from './weapons';
 
@@ -75,5 +75,25 @@ describe('Winkel-Helfer', () => {
       expect(back.yaw).toBeCloseTo(yaw!, 5);
       expect(back.pitch).toBeCloseTo(pitch!, 5);
     }
+  });
+});
+
+describe('offsetDir', () => {
+  it('kein Versatz = gleiche Richtung', () => {
+    const d = offsetDir({ x: 0, y: 0, z: -1 }, 0, 0);
+    expect(d.x).toBeCloseTo(0);
+    expect(d.z).toBeCloseTo(-1);
+  });
+  it('positiver Pitch hebt, positiver Yaw dreht nach rechts (+X bei Blick −Z)', () => {
+    const up = offsetDir({ x: 0, y: 0, z: -1 }, 0.1, 0);
+    expect(up.y).toBeCloseTo(Math.sin(0.1));
+    const right = offsetDir({ x: 0, y: 0, z: -1 }, 0, 0.1);
+    expect(right.x).toBeGreaterThan(0);
+    expect(Math.hypot(right.x, right.y, right.z)).toBeCloseTo(1);
+  });
+  it('Pitch wird an den Polen begrenzt', () => {
+    const d = offsetDir({ x: 0, y: 1, z: 0 }, 1, 0);
+    expect(Number.isFinite(d.x)).toBe(true);
+    expect(d.y).toBeLessThanOrEqual(1);
   });
 });

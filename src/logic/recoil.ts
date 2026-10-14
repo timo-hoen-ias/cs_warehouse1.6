@@ -73,3 +73,54 @@ export function tickRecoil(spec: RecoilSpec, st: RecoilState, dt: number, firing
   if (st.pitch < 0.0005) st.pitch = 0;
   if (Math.abs(st.yaw) < 0.0005) st.yaw = 0;
 }
+
+/**
+ * CS-artiges Spray-Muster (deterministisch, lernbar): die ersten `climbShots`
+ * Kugeln steigen gerade nach oben, danach pendelt das Muster seitlich mit
+ * `sway` (rad) Amplitude und `swayPeriod` Schüssen Periode. Die Kamera folgt
+ * nur zum Teil (VIEW_PUNCH_SHARE), der Rest muss mit der Maus gegengezogen werden.
+ */
+export type SprayShape = {
+  /** Steigung je Schuss (rad) in der Steigphase. */
+  climb: number;
+  /** Schüsse bis zum Ende der Steigphase. */
+  climbShots: number;
+  /** Seitliche Amplitude (rad) nach der Steigphase. */
+  sway: number;
+  /** Schüsse je voller Pendelbewegung. */
+  swayPeriod: number;
+  /** Erste Pendelrichtung: +1 rechts, −1 links. */
+  swayDir: 1 | -1;
+};
+
+/** Anteil des Musters, den die Kamera mitnimmt (Rest = Kugel weicht vom Fadenkreuz ab). */
+export const VIEW_PUNCH_SHARE = 0.5;
+
+/** Muster-Versatz (pitch nach oben, yaw seitlich) für den `shot`-ten Schuss (0-basiert). */
+export function sprayOffset(shape: SprayShape, shot: number): { pitch: number; yaw: number } {
+  const n = Math.max(0, Math.floor(shot));
+  const climbN = Math.min(n, shape.climbShots);
+  // Nach der Steigphase: nur noch schwaches Nachsteigen (25 %)
+  const pitch = shape.climb * climbN + Math.max(0, n - shape.climbShots) * shape.climb * 0.25;
+  let yaw = 0;
+  if (n > shape.climbShots) {
+    const t = (n - shape.climbShots) / Math.max(1, shape.swayPeriod);
+    yaw = shape.swayDir * shape.sway * Math.sin(t * Math.PI * 2);
+  } else {
+    // leichtes Driften in die erste Pendelrichtung während des Steigens
+    yaw = shape.swayDir * shape.sway * 0.15 * (climbN / Math.max(1, shape.climbShots));
+  }
+  return { pitch, yaw };
+}
+
+/** Standard-Muster je Waffentyp (Automatikwaffen); null = kein festes Muster. */
+export function defaultSpray(type: string, rpm: number): SprayShape | null {
+  if (rpm <= 0) return null;
+  switch (type) {
+    case 'rifle': return { climb: 0.0105, climbShots: 9, sway: 0.03, swayPeriod: 14, swayDir: -1 };
+    case 'smg': return { climb: 0.007, climbShots: 8, sway: 0.022, swayPeriod: 12, swayDir: 1 };
+    case 'mg': return { climb: 0.008, climbShots: 12, sway: 0.035, swayPeriod: 20, swayDir: 1 };
+    case 'pistol': return { climb: 0.009, climbShots: 6, sway: 0.015, swayPeriod: 8, swayDir: 1 };
+    default: return null;
+  }
+}

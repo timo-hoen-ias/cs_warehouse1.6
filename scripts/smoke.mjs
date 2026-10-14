@@ -7,7 +7,7 @@
 
 const BROWSER = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const CDP_PORT = 9223;
-const URL = process.env.URL ?? 'http://localhost:3000/?auto=1&fill=4';
+const URL = process.env.URL ?? 'http://localhost:3000/?auto=1&fill=4&quality=low';
 const TIMEOUT = 20000;
 
 function startBrowser() {
@@ -144,6 +144,12 @@ async function run() {
     const hpA = after?.find((p) => p.id === victim)?.hp;
     if (victim && hpA < hpB) ok(`Schuss trifft Bot ${victim}: HP ${hpB} → ${hpA}`);
     else fail(`Schuss ohne Treffer (${JSON.stringify(aimRes)}, ${hpB} → ${hpA})`);
+
+    // 7b) Zielfernrohr: AWP zoomt (FOV 40), Viewmodel unsichtbar
+    const z = JSON.parse((await ev('globalThis.__zoom?.("awp").then((v) => JSON.stringify(v))')) ?? 'null');
+    if (z?.zoom === 1 && z.fov < 45 && z.vm === false) ok(`Zielfernrohr: Stufe ${z.zoom}, FOV ${z.fov}`);
+    else fail('Zielfernrohr fehlerhaft: ' + JSON.stringify(z));
+    await evJson('globalThis.__unzoom?.()');
 
     // 8) Wand-Decal
     await evJson('globalThis.__wallShot?.()');

@@ -616,12 +616,18 @@ export class MatchDriver extends Behaviour {
   // ---------------------------------------------------------------- Frame
 
   update(): void {
-    const dt = Math.min(this.context.time.deltaTime, 0.1);
+    // Spielzeit läuft auch bei niedriger Bildrate in Echtzeit: große Frames in Teilschritte
+    // (≤ 0.1 s) zerlegen, damit Runde, Bomben-Timer, Bots und Granaten korrekt weiterlaufen.
+    const total = Math.min(this.context.time.deltaTime, 0.6);
+    const steps = Math.max(1, Math.ceil(total / 0.1));
+    const dt = total / steps;
     if (this.net.online && !this.helloSent && !this.isHost && this.net.id) this.sendHello();
-    if (this.isHost) this.hostTick(dt);
-    else this.clientTick(dt);
-    this.renderSoldiers(dt);
-    this.grenades.tick(dt, this.isHost ? this.nades.map((n) => ({ id: n.id, p: n.g.pos })) : null);
+    for (let i = 0; i < steps; i++) {
+      if (this.isHost) this.hostTick(dt);
+      else this.clientTick(dt);
+    }
+    this.renderSoldiers(total);
+    this.grenades.tick(total, this.isHost ? this.nades.map((n) => ({ id: n.id, p: n.g.pos })) : null);
     this.updateHud();
   }
 

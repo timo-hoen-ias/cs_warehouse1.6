@@ -46,8 +46,9 @@ export function tryShoot(s: GunState, def: WeaponDef): ShootResult {
   if (s.mag <= 0) return { ok: false, reason: 'empty' };
   s.mag -= 1;
   s.heat = Math.min(HEAT_CAP, s.heat + 1);
-  const interval = def.rpm > 0 ? 60 / def.rpm : 0;
-  s.cooldown = interval; // semi: 0 → Aufrufer begrenzt per Klick
+  // Automatik: 60/rpm; Semi: Repetier-/Abzugszeit (cycle), sonst Begrenzung per Klick
+  const interval = def.rpm > 0 ? 60 / def.rpm : (def.cycle ?? 0);
+  s.cooldown = interval;
   return { ok: true, emptyAfter: s.mag === 0 };
 }
 
@@ -72,9 +73,13 @@ export const CROUCH_SPREAD_MULT = 0.6;
 /** Restlicher Bewegungspenalty beim Ducken (0.25 = fast wie Stillstand). */
 export const CROUCH_MOVE_MULT = 0.25;
 
-/** Aktuelle Streuung (Radiant) aus Waffe + Wärme + Bewegung (+ Ducken). */
-export function fireSpread(def: WeaponDef, s: GunState, moving: boolean, crouched = false): number {
-  const base = def.spreadBase + s.heat * def.spreadPerShot;
+/** Zusatz-Streuung für Scharfschützengewehre ohne Zielfernrohr (CS: Noscope ist Glückssache). */
+export const NOSCOPE_SPREAD = 0.075;
+
+/** Aktuelle Streuung (Radiant) aus Waffe + Wärme + Bewegung (+ Ducken, + Zielfernrohr). */
+export function fireSpread(def: WeaponDef, s: GunState, moving: boolean, crouched = false, scoped = false): number {
+  const noscope = def.type === 'sniper' && !scoped ? NOSCOPE_SPREAD : 0;
+  const base = def.spreadBase + s.heat * def.spreadPerShot + noscope;
   if (!crouched) return base + (moving ? def.moveSpread : 0);
   // Geduckt: Waffe enger; Bewegung fast ohne Effekt (CS-Feeling).
   return (base + (moving ? def.moveSpread * CROUCH_MOVE_MULT : 0)) * CROUCH_SPREAD_MULT;

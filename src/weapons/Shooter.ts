@@ -1,9 +1,9 @@
 import { Behaviour, registerType } from '@needle-tools/engine';
 import * as THREE from 'three';
-import { WEAPONS, type GrenadeKind, type WeaponDef } from '../logic/weapons';
+import { WEAPONS, nextZoomLevel, zoomFov, type GrenadeKind, type WeaponDef } from '../logic/weapons';
 import { fireSpread, makeGun, startReload, tickGun, tryShoot, type GunState } from '../logic/fire';
-import { fireRecoil, makeRecoil, tickRecoil, type RecoilState } from '../logic/recoil';
-import { resolveRay, shotDirs } from '../logic/combat';
+import { VIEW_PUNCH_SHARE, defaultSpray, fireRecoil, makeRecoil, sprayOffset, tickRecoil, type RecoilState } from '../logic/recoil';
+import { offsetDir, resolveRay, shotDirs } from '../logic/combat';
 import { surfaceNormalOnBoxes, type Vec3 } from '../logic/hitbox';
 import type { SolidBox } from '../logic/level';
 import type { Loadout } from '../logic/loadout';
@@ -17,6 +17,8 @@ const MOUSE_FIRE = 0;
 const MOUSE_ALT = 2;
 
 export type HudState = {
+  /** Zoom-Stufe (0 = aus). */
+  zoom?: number;
   weaponName: string;
   weaponId: string;
   mag: number;
@@ -61,6 +63,18 @@ export class Shooter extends Behaviour {
 
   /** E gehalten (Bombe legen/entschärfen). */
   eHeld = false;
+
+  /** Normales Sichtfeld (aus den Einstellungen). */
+  baseFov = 75;
+  /** Zoom-Stufe des Zielfernrohrs (0 = aus). */
+  zoomLevel = 0;
+  /** Zielfernrohr an/aus (für HUD-Overlay). */
+  onZoom?: (level: number) => void;
+  /** Nach Repetieren automatisch wieder zoomen (CS-Verhalten bei AWP/Scout). */
+  private rezoomLevel = 0;
+  private rezoomAt = 0;
+  private time = 0;
+  private meleeCooldown = 0;
 
   private fireDown = false;
   private altDown = false;
@@ -133,12 +147,22 @@ export class Shooter extends Behaviour {
     this.reloadRequested = false;
     this.throwArmed = null;
     this.fireDown = false;
+    this.setZoom(0);
+    this.rezoomLevel = 0;
     this.viewModel?.show(id).catch(() => undefined);
   }
 
   private carries(lo: Loadout, id: string): boolean {
     return id === 'knife' || lo.primary === id || lo.secondary === id || (id === 'c4' && lo.bomb)
       || (id === 'hegrenade' && lo.grenades.he > 0) || (id === 'flashbang' && lo.grenades.flash > 0) || (id === 'smokegrenade' && lo.grenades.smoke > 0);
+  }
+
+  /** Zoom-Stufe setzen (Kamera-FOV, Empfindlichkeit, Viewmodel, HUD-Overlay). */
+  setZoom(level: number): void {
+    if (level === this.zoomLevel) return;
+    this.zoomLevel = level;
+    this.viewModel?.setVisible(level === 0);
+    this.onZoom?.(level);
   }
 
   /** Wechselt auf Slot (1 Primär, 2 Pistole, 3 Messer, 4 Granate, 5 C4). */
@@ -186,7 +210,26 @@ export class Shooter extends Behaviour {
     const def = this.def();
     const state = this.gunState();
     const dt = Math.min(this.context.time.deltaTime, 0.05);
+    this.time += dt;
+    this.meleeCooldown = Math.max(0, this.meleeCooldown - dt);
     if (state) tickGun(state, def, dt);
+    // Nachladen beendet den Zoom; nach dem Repetieren wieder heranzoomen
+    if (state && state.reloadLeft > 0 && this.zoomLevel > 0) this.setZoom(0);
+    if (this.rezoomLevel > 0 && this.time >= this.rezoomAt) {
+      if (state && state.reloadLeft === 0 && state.mag > 0 && !(this.blocked?.() ?? false)) this.setZoom(this.rezoomLevel);
+      this.rezoomLevel = 0;
+    }
+    // Kamera-FOV weich zur Zoom-Stufe; Mausempfindlichkeit skaliert mit (gleiches Gefühl pro Bildschirmweg)
+    const cam = this.context.mainCamera as THREE.PerspectiveCamera | undefined;
+    if (cam?.isPerspectiveCamera) {
+      const target = zoomFov(def, this.zoomLevel, this.baseFov);
+      if (Math.abs(cam.fov - target) > 0.05) {
+        // bildratenunabhängig (echte Frame-Zeit, nicht gedeckelt)
+        cam.fov += (target - cam.fov) * (1 - Math.exp(-18 * this.context.time.deltaTime));
+        cam.updateProjectionMatrix();
+      }
+      if (this.player) this.player.sensScale = cam.fov / this.baseFov;
+    }
 
     if (this.reloadRequested && state) {
       if (startReload(state, def)) {
@@ -212,12 +255,13 @@ export class Shooter extends Behaviour {
       reloading: (state?.reloadLeft ?? 0) > 0,
       hp: this.player?.hp ?? 100,
       spreadPx: state ? this.spreadPx(def, state) : 0,
+      zoom: this.zoomLevel,
       slots: lo ? [lo.primary, lo.secondary, 'knife', weaponInSlot(lo, 4), lo.bomb ? 'c4' : null] : [null, null, 'knife', null, null],
     });
   }
 
   private spreadPx(def: WeaponDef, state: GunState): number {
-    const spread = fireSpread(def, state, !!this.player?.moving(), !!this.player?.crouching());
+    const spread = fireSpread(def, state, !!this.player?.moving(), !!this.player?.crouching(), this.zoomLevel > 0);
     if (spread <= 0) return 0;
     const cam = this.context.mainCamera as THREE.PerspectiveCamera | undefined;
     const dom = this.context.renderer.domElement;
@@ -234,9 +278,20 @@ export class Shooter extends Behaviour {
     return { origin: { x: this.origin.x, y: this.origin.y, z: this.origin.z }, dir: { x: this.dir.x, y: this.dir.y, z: this.dir.z } };
   }
 
-  private fire(def: WeaponDef): void {
+  private fire(def: WeaponDef, alt = false): void {
     const ray = this.camRay();
     if (!ray) return;
+    // Messer: Hieb (links) oder schwerer Stich (rechts) mit eigener Ausholzeit
+    if (def.mode === 'melee') {
+      if (this.meleeCooldown > 0) return;
+      const used = alt ? (WEAPONS['knife_stab'] ?? def) : def;
+      this.meleeCooldown = used.cycle ?? 0.45;
+      this.viewModel?.kick(alt ? 0.1 : 0.05);
+      this.viewModel?.slash(alt);
+      this.onShotSfx?.(used.id);
+      this.onFire?.(used.id, ray.origin, [ray.dir]);
+      return;
+    }
     const state = this.gunState();
     if (state) {
       const res = tryShoot(state, def);
@@ -250,23 +305,45 @@ export class Shooter extends Behaviour {
       }
       if (res.emptyAfter) this.reloadRequested = true;
     }
-    const spread = state ? fireSpread(def, state, !!this.player?.moving(), !!this.player?.crouching()) : 0;
-    const dirs = def.mode === 'melee' ? [ray.dir] : shotDirs(def, ray.dir, spread);
+    const scoped = this.zoomLevel > 0;
+    const spread = state ? fireSpread(def, state, !!this.player?.moving(), !!this.player?.crouching(), scoped) : 0;
 
-    // Rückstoß + Viewmodel
+    // Rückstoß: Automatikwaffen folgen einem festen CS-Spray-Muster (Kugeln weichen um den
+    // nicht von der Kamera mitgenommenen Anteil ab → mit der Maus gegenziehen), Rest zufällig.
     const rec = this.recoilState();
-    const kick = fireRecoil(def.recoil, rec, Math.random);
-    const punch = def.type === 'sniper' ? 0.16 : def.type === 'shotgun' ? 0.14 : Math.min(0.12, kick.pitch * 9 + 0.018);
+    const shape = defaultSpray(def.type, def.rpm);
+    let aim = ray.dir;
+    let kickPitch: number;
+    if (shape) {
+      const off = sprayOffset(shape, rec.shots);
+      rec.shots += 1;
+      rec.idle = 0;
+      rec.pitch = off.pitch * VIEW_PUNCH_SHARE;
+      rec.yaw = -off.yaw * VIEW_PUNCH_SHARE;
+      aim = offsetDir(ray.dir, off.pitch * (1 - VIEW_PUNCH_SHARE), off.yaw * (1 - VIEW_PUNCH_SHARE));
+      kickPitch = shape.climb;
+    } else {
+      kickPitch = fireRecoil(def.recoil, rec, Math.random).pitch;
+    }
+    const dirs = shotDirs(def, aim, spread);
+    const punch = def.type === 'sniper' ? 0.16 : def.type === 'shotgun' ? 0.14 : Math.min(0.12, kickPitch * 9 + 0.018);
     this.viewModel?.kick(punch);
-    this.player?.shake(punch * 0.35);
+    this.player?.shake(punch * (scoped ? 0.15 : 0.35));
+
+    // Repetierer: nach dem Schuss raus aus dem Zielfernrohr, nach dem Repetieren wieder rein
+    if (scoped && def.type === 'sniper' && def.rpm === 0) {
+      this.rezoomLevel = this.zoomLevel;
+      this.rezoomAt = this.time + (def.cycle ?? 1.2) * 0.9;
+      this.setZoom(0);
+    }
 
     // Lokale Effekte: Mündung, Tracer bis Wand/Reichweite, Wand-Decal (Ziel-Treffer kommen vom Host)
     const muzzle = this.muzzlePoint(ray.dir);
     this.fx?.muzzleFlash(muzzle, ray.dir, def.type === 'sniper' ? 1.6 : def.type === 'shotgun' ? 1.4 : 1.1);
-    if (def.type !== 'knife') this.fx?.shell(muzzle, ray.dir);
+    this.fx?.shell(muzzle, ray.dir);
     for (const d of dirs) {
       const hit = resolveRay(ray.origin, d, def.range, this.aabbs, []);
-      if (def.mode === 'hit') this.fx?.tracer(muzzle, hit.point);
+      this.fx?.tracer(scoped ? ray.origin : muzzle, hit.point);
       if (hit.kind === 'wall') {
         const n = surfaceNormalOnBoxes(this.aabbs, hit.point) ?? { x: 0, y: 1, z: 0 };
         this.fx?.impact({ kind: 'wall', point: hit.point, normal: n }, d);
@@ -308,11 +385,19 @@ export class Shooter extends Behaviour {
       this.fireDown = true;
       this.semiLatch = false;
       if (def.mode === 'throw') this.throwArmed = def.grenadeKind ?? null;
-      else if (def.mode === 'melee') this.fire(def);
-      else if (def.rpm === 0 && def.mode === 'hit') this.fire(def);
+      else if (def.mode === 'melee') this.fire(def, false);
+      // Erster Schuss sofort beim Klick (auch Automatik) — kein Frame Eingabeverzögerung
+      else if (def.mode === 'hit') this.fire(def);
     } else if (e.button === MOUSE_ALT && def.mode === 'throw') {
       this.altDown = true;
       this.throwArmed = def.grenadeKind ?? null;
+    } else if (e.button === MOUSE_ALT && (this.player?.isLocked() ?? true)) {
+      // Rechte Maustaste (nur mit gefangener Maus, sonst ist sie Umschauen): Zoom bzw. Messerstich
+      if (def.mode === 'melee') this.fire(def, true);
+      else if (def.zoom?.length) {
+        this.rezoomLevel = 0;
+        this.setZoom(nextZoomLevel(def, this.zoomLevel));
+      }
     }
   };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUY_CATEGORIES, EQUIPMENT, WEAPONS, currentSpread, hitDamage, rangeFalloff, reloadAmount, reloadDuration, shotInterval, teamCanUse, weaponsInCategory } from './weapons';
+import { BUY_CATEGORIES, EQUIPMENT, WEAPONS, currentSpread, hitDamage, nextZoomLevel, rangeFalloff, reloadAmount, reloadDuration, shotInterval, teamCanUse, weaponsInCategory, zoomFov } from './weapons';
 
 const ak = WEAPONS['ak47']!;
 const awp = WEAPONS['awp']!;
@@ -23,9 +23,10 @@ describe('shotInterval', () => {
     expect(shotInterval(ak)).toBeCloseTo(0.1);
   });
 
-  it('semi/sniper ohne rpm → 0 (manueller Klick)', () => {
-    expect(shotInterval(usp)).toBe(0);
-    expect(shotInterval(awp)).toBe(0);
+  it('semi/sniper ohne rpm → Repetierzeit (cycle), sonst 0', () => {
+    expect(shotInterval(usp)).toBe(usp.cycle);
+    expect(shotInterval(awp)).toBeCloseTo(1.45);
+    expect(shotInterval(WEAPONS['m3']!)).toBeCloseTo(60 / 70);
   });
 });
 
@@ -165,5 +166,27 @@ describe('rangeFalloff', () => {
     expect(rangeFalloff(ak, 50)).toBeGreaterThan(rangeFalloff(usp, 50));
     expect(rangeFalloff(awp, 200)).toBe(1);
     expect(rangeFalloff(WEAPONS['m3']!, 20)).toBeLessThan(0.6);
+  });
+});
+
+describe('Zoom', () => {
+  it('AWP hat zwei Stufen, Gewehre ohne Zielfernrohr keine; Stufen zyklisch', () => {
+    const awpZ = WEAPONS['awp']!;
+    expect(nextZoomLevel(awpZ, 0)).toBe(1);
+    expect(nextZoomLevel(awpZ, 1)).toBe(2);
+    expect(nextZoomLevel(awpZ, 2)).toBe(0);
+    expect(nextZoomLevel(WEAPONS['ak47']!, 0)).toBe(0);
+    expect(nextZoomLevel(WEAPONS['aug']!, 0)).toBe(1);
+    expect(nextZoomLevel(WEAPONS['aug']!, 1)).toBe(0);
+  });
+  it('zoomFov liefert Ziel-FOV, Stufe 0 = Basis', () => {
+    expect(zoomFov(WEAPONS['awp']!, 0, 75)).toBe(75);
+    expect(zoomFov(WEAPONS['awp']!, 1, 75)).toBe(40);
+    expect(zoomFov(WEAPONS['awp']!, 2, 75)).toBe(15);
+    expect(zoomFov(WEAPONS['ak47']!, 1, 75)).toBe(75);
+  });
+  it('Messerstich ist stärker und kürzer als der normale Hieb', () => {
+    expect(WEAPONS['knife_stab']!.damage).toBeGreaterThan(WEAPONS['knife']!.damage);
+    expect(WEAPONS['knife_stab']!.range).toBeLessThanOrEqual(WEAPONS['knife']!.range);
   });
 });

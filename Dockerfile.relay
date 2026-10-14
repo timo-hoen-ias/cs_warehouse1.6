@@ -1,0 +1,20 @@
+# Relay-Server für LAN-/Self-Hosting-Spiele von CS Warehouse 1.6.
+#
+# Bauen:    docker build -f Dockerfile.relay -t csw-relay .
+# Starten:  docker run -p 9100:9100 csw-relay
+# Status:   curl http://localhost:9100/status
+# Clients:  Lobby-Feld „Server“ bzw. URL-Parameter ?server=ws://<host>:9100/socket
+#
+# Hinweis: Wird das Spiel selbst über https ausgeliefert (z. B. GitHub Pages), blockiert
+# der Browser unverschlüsseltes ws://. Dann muss ein TLS-terminierender Reverse-Proxy
+# (Caddy, nginx, Traefik …) vor den Relay geschaltet werden, und die Clients verwenden
+# ?server=wss://<domain>/socket.
+FROM oven/bun:1.4.2-alpine
+
+WORKDIR /app
+COPY scripts/relay-server.ts ./relay-server.ts
+
+ENV PORT=9100
+EXPOSE 9100
+
+CMD ["bun", "relay-server.ts"]

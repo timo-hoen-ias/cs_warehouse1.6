@@ -90,3 +90,11 @@ export function yawPitchToDir(yaw: number, pitch: number): Vec3 {
   const c = Math.cos(pitch);
   return { x: -Math.sin(yaw) * c, y: Math.sin(pitch), z: -Math.cos(yaw) * c };
 }
+
+/** Richtung um Winkel-Versatz drehen (pitch nach oben, yaw nach rechts positiv). */
+export function offsetDir(dir: Vec3, dPitch: number, dYaw: number): Vec3 {
+  const yp = dirToYawPitch(dir);
+  const pitch = Math.max(-Math.PI / 2 + 1e-4, Math.min(Math.PI / 2 - 1e-4, yp.pitch + dPitch));
+  // Kamera-Konvention: positiver Yaw dreht nach links → "rechts" = −Yaw
+  return yawPitchToDir(yp.yaw - dYaw, pitch);
+}

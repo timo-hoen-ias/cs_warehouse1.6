@@ -64,6 +64,10 @@ export type WeaponDef = {
   pellets: number;
   /** Granaten-Art (nur type 'grenade'). */
   grenadeKind?: GrenadeKind;
+  /** Mindestabstand (s) zwischen Schüssen bei Semi-Waffen (Repetierer, Pistolen-Abzug, Messer). */
+  cycle?: number;
+  /** Zoom-Stufen als Ziel-FOV in Grad (Rechtsklick schaltet durch, leer = kein Zielfernrohr). */
+  zoom?: number[];
   /** Dynamischer Rückstoß (Kamera + Viewmodel). */
   recoil: RecoilSpec;
   /** Sichtbares Modell + Viewmodel-Offset. */
@@ -154,7 +158,7 @@ export function hitDamage(def: WeaponDef, part: 'head' | 'body'): number {
 
 /** Sekunden zwischen zwei Schüssen (auto); bei semi 0 → manuell pro Klick. */
 export function shotInterval(def: WeaponDef): number {
-  if (def.rpm <= 0) return 0;
+  if (def.rpm <= 0) return def.cycle ?? 0;
   return 60 / def.rpm;
 }
 
@@ -173,6 +177,19 @@ export function reloadDuration(def: WeaponDef, magEmpty: boolean): number {
 export function reloadAmount(def: WeaponDef, magNow: number, reserveNow: number): number {
   const need = def.magSize - magNow;
   return Math.min(need, reserveNow);
+}
+
+/** Nächste Zoom-Stufe (0 = ungezoomt, 1..n = zoom[i-1]); wechselt zyklisch. */
+export function nextZoomLevel(def: WeaponDef, level: number): number {
+  const n = def.zoom?.length ?? 0;
+  if (n === 0) return 0;
+  return (Math.max(0, level) + 1) % (n + 1);
+}
+
+/** Ziel-FOV für eine Zoom-Stufe (base = normales FOV). */
+export function zoomFov(def: WeaponDef, level: number, base: number): number {
+  if (!def.zoom || level <= 0) return base;
+  return def.zoom[Math.min(level, def.zoom.length) - 1] ?? base;
 }
 
 /** Schussdistanz-Abfall (CS: Schaden sinkt mit der Entfernung; Sniper kaum). */

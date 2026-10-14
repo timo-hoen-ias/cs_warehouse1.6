@@ -73,7 +73,7 @@ async function run() {
   let b = null;
   try {
     const server = `ws://localhost:${RELAY_PORT}/socket`;
-    const url = (name, team) => `${BASE}?auto=1&room=${ROOM}&server=${encodeURIComponent(server)}&name=${name}&team=${team}&fill=4`;
+    const url = (name, team) => `${BASE}?auto=1&quality=low&room=${ROOM}&server=${encodeURIComponent(server)}&name=${name}&team=${team}&fill=4`;
     a = await browser(9231, 'A');
     b = await browser(9232, 'B');
     await a.navigate(url('Anna', 'T'));

@@ -83,10 +83,8 @@ export class ViewModel extends Behaviour {
     const cam = this.context.mainCamera;
     if (!cam) return;
     cam.add(this.root);
-    // Kleines Fülllicht an der Kamera: Waffe hat immer Glanzkanten, auch im Schatten.
-    this.gunLight = new THREE.PointLight(0xfff1dc, 0.9, 2.5, 1.5);
-    this.gunLight.position.set(-0.2, 0.35, 0.1);
-    this.root.add(this.gunLight);
+    // Kein eigenes Punktlicht: ein dauerhaftes Licht würde jeden Pixel der Szene verteuern.
+    // Die Waffe bekommt stattdessen eine leichte Eigenleuchtkraft (siehe Material-Upgrade).
   }
 
   onDestroy(): void {
@@ -127,7 +125,7 @@ export class ViewModel extends Behaviour {
         const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
         if (lum < 0.08) c.setRGB(0.07 + c.r * 2, 0.075 + c.g * 2, 0.085 + c.b * 2);
         const isWood = c.r > c.b * 1.3 && lum > 0.08;
-        return new THREE.MeshStandardMaterial({ color: c, metalness: isWood ? 0.1 : 0.6, roughness: isWood ? 0.7 : 0.42 });
+        return new THREE.MeshStandardMaterial({ color: c, metalness: isWood ? 0.1 : 0.6, roughness: isWood ? 0.7 : 0.42, emissive: c, emissiveIntensity: 0.12 });
       });
       m.material = upgraded.length === 1 ? upgraded[0]! : upgraded;
     });
@@ -172,6 +170,23 @@ export class ViewModel extends Behaviour {
     this.kickRoll = (Math.random() - 0.5) * amount * 4;
   }
 
+  /** Sichtbarkeit (aus beim Zoomen durchs Zielfernrohr). */
+  setVisible(on: boolean): void {
+    this.root.visible = on;
+  }
+
+  isVisible(): boolean {
+    return this.root.visible;
+  }
+
+  /** Messer-Animation: Hieb (seitlich) oder Stich (nach vorn). */
+  slash(heavy: boolean): void {
+    this.slashT = 1;
+    this.slashHeavy = heavy;
+  }
+  private slashT = 0;
+  private slashHeavy = false;
+
   /** Nachlade-Animation: Waffe kippt nach unten und kommt am Ende zurück. */
   reloadAnim(duration: number): void {
     this.reloadLeft = duration;
@@ -183,7 +198,7 @@ export class ViewModel extends Behaviour {
   private reloadTotal = 0;
   /** Zieh-Animation beim Wechsel (0..1, 1 = fertig gezogen). */
   private drawT = 1;
-  private gunLight?: THREE.PointLight;
+
 
   /** true, sobald ein Modell geladen/im Holder hängt. */
   hasModel(): boolean {
@@ -228,6 +243,7 @@ export class ViewModel extends Behaviour {
       }
     }
     if (this.drawT < 1) this.drawT = Math.min(1, this.drawT + dt / 0.22);
+    if (this.slashT > 0) this.slashT = Math.max(0, this.slashT - dt / (this.slashHeavy ? 0.5 : 0.28));
     if (this.reloadLeft > 0) this.reloadLeft = Math.max(0, this.reloadLeft - dt);
 
     // Sway: Drehgeschwindigkeit der Kamera lässt die Waffe subtil nachziehen.
@@ -281,8 +297,12 @@ export class ViewModel extends Behaviour {
       const x = v.pos.x * (1 - WALL_X_PUSH * eased) + this.swayX + (1 - draw) * 0.12;
       const y = v.pos.y + this.recoil * 0.9 + this.swayY + breathe - (1 - draw) * 0.28 - reload * 0.08;
       const z = v.pos.z * (1 - WALL_Z_PUSH * eased) + this.recoil * 0.9;
-      this.modelNode.position.set(x, y, z);
-      this.modelNode.rotation.set(this.recoil * 7 - (1 - draw) * 0.7 - reload * 0.55, this.swayRot + (1 - draw) * 0.3, this.recoil * 0.8 + this.kickRoll + reload * 0.25);
+      // Messer: Hieb schwingt von rechts nach links, Stich stößt nach vorn
+      const sl = Math.sin(Math.PI * (1 - this.slashT)) * (this.slashT > 0 ? 1 : 0);
+      const slashX = this.slashHeavy ? 0 : -sl * 0.18;
+      const slashZ = this.slashHeavy ? -sl * 0.25 : 0;
+      this.modelNode.position.set(x + slashX, y, z + slashZ);
+      this.modelNode.rotation.set(this.recoil * 7 - (1 - draw) * 0.7 - reload * 0.55, this.swayRot + (1 - draw) * 0.3, this.recoil * 0.8 + this.kickRoll + reload * 0.25 + (this.slashHeavy ? 0 : sl * 0.9));
     }
   }
 

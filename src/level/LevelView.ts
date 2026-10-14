@@ -36,7 +36,7 @@ class Instances {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.castShadow = this.shadow;
-    mesh.receiveShadow = this.shadow;
+    mesh.receiveShadow = true;
     return mesh;
   }
 }
@@ -93,10 +93,11 @@ function buildRacks(group: THREE.Group, racks: RackPlacement[]): void {
   const orange = new THREE.MeshStandardMaterial({ color: 0xe8601c, roughness: 0.5, metalness: 0.4 });
   const wood = new THREE.MeshStandardMaterial({ map: palletTexture(), roughness: 0.9 });
   const carton = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });
-  const posts = new Instances(new THREE.BoxGeometry(POST, 1, POST), steel);
-  const beams = new Instances(new THREE.BoxGeometry(1, BEAM_H, 0.07), orange);
-  const pallets = new Instances(new THREE.BoxGeometry(1, 1, 1), wood);
-  const cartons = new Instances(new THREE.BoxGeometry(1, 1, 1), carton);
+  // Kleinteile werfen keine Schatten (Schattenpass wäre sonst der teuerste Teil des Frames)
+  const posts = new Instances(new THREE.BoxGeometry(POST, 1, POST), steel, false);
+  const beams = new Instances(new THREE.BoxGeometry(1, BEAM_H, 0.07), orange, false);
+  const pallets = new Instances(new THREE.BoxGeometry(1, 1, 1), wood, false);
+  const cartons = new Instances(new THREE.BoxGeometry(1, 1, 1), carton, false);
   const backMat = new THREE.MeshStandardMaterial({ color: 0x1d2127, roughness: 1, side: THREE.DoubleSide });
   const shades = [0xb08a5a, 0xc39a67, 0x9c7a4c, 0xd1b48c, 0x8a6c45, 0xbfa37a];
 

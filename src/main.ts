@@ -13,6 +13,8 @@ import { showLobby, roomLink, type LobbyResult } from './ui/Lobby';
 import { LocalTransport, NeedleTransport, type NetTransport } from './multi/Transport';
 import { Sfx } from './audio/Sfx';
 import { mapById } from './logic/maps';
+import { SettingsMenu } from './ui/SettingsMenu';
+import type { Settings } from './logic/settings';
 import { WEAPONS } from './logic/weapons';
 
 /** Karten lazy laden (Vite bündelt jede als eigenes Chunk). */
@@ -46,8 +48,15 @@ onStart(async (context) => {
   sun.shadow.camera.top = 80;
   sun.shadow.camera.bottom = -80;
   scene.add(sun);
-  context.renderer.shadowMap.enabled = true;
+  // Grafikstufe: ?quality=low (oder Software-Rendering) → keine Schatten, Pixelratio 1
+  const quality = new URL(window.location.href).searchParams.get('quality') ?? 'high';
+  const low = quality === 'low';
+  context.renderer.shadowMap.enabled = !low;
   context.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  if (low) {
+    sun.castShadow = false;
+    context.renderer.setPixelRatio(0.6);
+  }
   context.renderer.toneMapping = THREE.ACESFilmicToneMapping;
   context.renderer.toneMappingExposure = 1.15;
 
@@ -76,6 +85,17 @@ onStart(async (context) => {
   await startGame(context, level, lobby);
 });
 
+/** localStorage, falls verfügbar (privater Modus/blockiert → null). */
+function safeStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+let settingsMenuOpen: () => boolean = () => false;
+
 async function startGame(context: Context, level: LevelFile, lobby: LobbyResult): Promise<void> {
   const scene = context.scene;
   const world = new World(level);
@@ -99,12 +119,37 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   shooter.aabbs = world.aabbs;
   shooter.player = player;
   shooter.onHud = (s) => hud.update(s);
-  shooter.menuOpen = () => hud.menuOpen();
+  shooter.menuOpen = () => hud.menuOpen() || settingsMenuOpen();
   shooter.blocked = () => player.isDead() || player.frozen;
   shooter.onShotSfx = (w) => sfx.shot(w, 0);
   shooter.onEmptyClick = () => sfx.play('empty');
   shooter.onReload = () => sfx.play('reload');
-  hud.onMenuChange = (open) => { player.inputEnabled = !open; };
+  // Einstellungen (O): live auf Spieler, Shooter, HUD und Sound anwenden
+  const settingsMenu = new SettingsMenu(safeStorage());
+  settingsMenu.mount();
+  let hudMenu = false;
+  const syncInput = (): void => { player.inputEnabled = !hudMenu && !settingsMenu.isOpen(); };
+  hud.onMenuChange = (open) => { hudMenu = open; syncInput(); };
+  settingsMenu.onOpenChange = () => syncInput();
+  settingsMenu.onLeave = () => {
+    const u = new URL(window.location.href);
+    u.searchParams.delete('room');
+    u.searchParams.delete('auto');
+    window.location.href = u.href;
+  };
+  const applySettings = (st: Settings): void => {
+    player.sensitivity = st.sensitivity;
+    player.invertY = st.invertY;
+    player.bobbing = st.bobbing;
+    shooter.baseFov = st.fov;
+    sfx.setVolume(st.volume);
+    hud.setCrosshair(st.crosshairColor, st.crosshairStyle, st.crosshairSize);
+    hud.showFps(st.showFps);
+  };
+  settingsMenu.onChange = applySettings;
+  settingsMenuOpen = () => settingsMenu.isOpen();
+  applySettings(settingsMenu.settings);
+  shooter.onZoom = (level) => hud.setScope(level > 0);
 
   const fx = playerRoot.addComponent(Fx);
   const viewModel = playerRoot.addComponent(ViewModel);
@@ -244,6 +289,22 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       return { ok: true };
     };
     g.__weapons = () => Object.keys(WEAPONS);
+    g.__zoom = (weapon = 'awp') => {
+      const me = driver.local;
+      if (me) { me.loadout.primary = weapon; me.loadout.guns[weapon] = { mag: 10, reserve: 30, cooldown: 0, reloadLeft: 0, heat: 0 }; }
+      shooter.setWeapon(weapon);
+      shooter.setZoom(1);
+      const cam = context.mainCamera as THREE.PerspectiveCamera;
+      return new Promise((r) => {
+        const t0 = performance.now();
+        const poll = (): void => {
+          if (cam.fov < 45 || performance.now() - t0 > 4000) r({ zoom: shooter.zoomLevel, fov: +cam.fov.toFixed(1), vm: viewModel.isVisible(), weapon: shooter.weaponId });
+          else setTimeout(poll, 100);
+        };
+        poll();
+      });
+    };
+    g.__unzoom = () => { shooter.setZoom(0); return true; };
   }
 
   // Hinweis bis PointerLock
@@ -252,7 +313,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     position: 'fixed', top: '44px', left: '50%', transform: 'translateX(-50%)', color: '#dfe6ee', font: '12px Consolas, monospace',
     background: 'rgba(10,13,18,.6)', padding: '4px 12px', borderRadius: '6px', pointerEvents: 'none', zIndex: '20',
   });
-  hint.textContent = 'Klick ins Spiel = Maus fangen · Esc = Maus frei · B kaufen · Tab Scoreboard';
+  hint.textContent = 'Klick ins Spiel = Maus fangen · Esc = Maus frei · B kaufen · Tab Scoreboard · O Einstellungen';
   document.body.appendChild(hint);
   document.addEventListener('pointerlockchange', () => {
     hint.style.display = document.pointerLockElement ? 'none' : 'block';

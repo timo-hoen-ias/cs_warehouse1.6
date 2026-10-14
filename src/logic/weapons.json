@@ -28,7 +28,8 @@
     },
     "visual": {
       "model": ""
-    }
+    },
+    "cycle": 0.45
   },
   "glock": {
     "id": "glock",
@@ -90,7 +91,8 @@
     },
     "visual": {
       "model": "Pistol_2"
-    }
+    },
+    "cycle": 0.15
   },
   "p228": {
     "id": "p228",
@@ -121,7 +123,8 @@
     },
     "visual": {
       "model": "Pistol_2"
-    }
+    },
+    "cycle": 0.15
   },
   "deagle": {
     "id": "deagle",
@@ -152,7 +155,8 @@
     },
     "visual": {
       "model": "Pistol_2"
-    }
+    },
+    "cycle": 0.25
   },
   "fiveseven": {
     "id": "fiveseven",
@@ -183,7 +187,8 @@
     },
     "visual": {
       "model": "Pistol_1"
-    }
+    },
+    "cycle": 0.15
   },
   "elite": {
     "id": "elite",
@@ -214,7 +219,8 @@
     },
     "visual": {
       "model": "Pistol_1"
-    }
+    },
+    "cycle": 0.12
   },
   "m3": {
     "id": "m3",
@@ -586,7 +592,10 @@
     },
     "visual": {
       "model": "AssaultRifle_1"
-    }
+    },
+    "zoom": [
+      55
+    ]
   },
   "aug": {
     "id": "aug",
@@ -617,7 +626,10 @@
     },
     "visual": {
       "model": "AssaultRifle_2"
-    }
+    },
+    "zoom": [
+      55
+    ]
   },
   "scout": {
     "id": "scout",
@@ -648,7 +660,12 @@
     },
     "visual": {
       "model": "SniperRifle_1"
-    }
+    },
+    "zoom": [
+      40,
+      15
+    ],
+    "cycle": 1.25
   },
   "awp": {
     "id": "awp",
@@ -679,7 +696,12 @@
     },
     "visual": {
       "model": "SniperRifle_1"
-    }
+    },
+    "zoom": [
+      40,
+      15
+    ],
+    "cycle": 1.45
   },
   "g3sg1": {
     "id": "g3sg1",
@@ -710,7 +732,11 @@
     },
     "visual": {
       "model": "SniperRifle_1"
-    }
+    },
+    "zoom": [
+      40,
+      20
+    ]
   },
   "sg550": {
     "id": "sg550",
@@ -741,7 +767,11 @@
     },
     "visual": {
       "model": "SniperRifle_1"
-    }
+    },
+    "zoom": [
+      40,
+      20
+    ]
   },
   "m249": {
     "id": "m249",
@@ -900,5 +930,37 @@
     "visual": {
       "model": ""
     }
+  },
+  "knife_stab": {
+    "id": "knife_stab",
+    "name": "Messer (Stich)",
+    "type": "knife",
+    "slot": 3,
+    "price": 0,
+    "team": "both",
+    "damage": 65,
+    "headFactor": 1,
+    "rpm": 0,
+    "magSize": null,
+    "reserve": null,
+    "reloadTime": 0,
+    "spreadBase": 0,
+    "spreadPerShot": 0,
+    "moveSpread": 0,
+    "range": 1.6,
+    "mode": "melee",
+    "armorPen": 0.85,
+    "pellets": 1,
+    "recoil": {
+      "up": 0,
+      "side": 0,
+      "ramp": 0,
+      "cap": 0,
+      "recovery": 0.2
+    },
+    "visual": {
+      "model": ""
+    },
+    "cycle": 1.0
   }
 }

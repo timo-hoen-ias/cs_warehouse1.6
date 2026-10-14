@@ -32,6 +32,13 @@ function tick(key: string): void {
 export class FpsPlayer extends Behaviour {
   /** Solide Level-Boxen, gegen die kollidiert wird. */
   solids: SolidBox[] = [];
+  /** Mausempfindlichkeit (rad/px) aus den Einstellungen. */
+  sensitivity = SENS;
+  /** Faktor beim Zoomen (FOV-Verhältnis). */
+  sensScale = 1;
+  invertY = false;
+  /** Kopfbewegung beim Laufen an/aus. */
+  bobbing = true;
   /** Freeze-Phase: Umschauen erlaubt, keine Bewegung. */
   frozen = false;
   /** Eingaben komplett aus (Lobby/Menü offen). */
@@ -190,7 +197,7 @@ export class FpsPlayer extends Behaviour {
       const speed = Math.hypot(this.motion.x - this.prevX, this.motion.z - this.prevZ) / Math.max(dt, 1e-4);
       this.bobPhase = advanceBob(this.bobPhase, speed, dt);
       const scale = bobScale(speed, crouched ? PLAYER.crouchSpeed : PLAYER.walkSpeed, crouched);
-      if (scale > 0) {
+      if (scale > 0 && this.bobbing) {
         const b = bobOffset(this.bobPhase, scale);
         bobX = b.x;
         bobY = b.y;
@@ -312,8 +319,9 @@ export class FpsPlayer extends Behaviour {
 
   private lookBy(dx: number, dy: number): void {
     if (!dx && !dy || !this.inputEnabled) return;
-    this.yaw -= dx * SENS;
-    this.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch - dy * SENS));
+    const k = this.sensitivity * this.sensScale;
+    this.yaw -= dx * k;
+    this.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch - (this.invertY ? -dy : dy) * k));
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {

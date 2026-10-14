@@ -80,6 +80,14 @@ export class Hud {
   private hintEl?: HTMLDivElement;
   private netEl?: HTMLDivElement;
   private flashEl?: HTMLDivElement;
+  private scopeEl?: HTMLDivElement;
+  private fpsEl?: HTMLDivElement;
+  private fpsFrames = 0;
+  private fpsTime = 0;
+  private crossDot?: HTMLDivElement;
+  private crossRing?: HTMLDivElement;
+  private crossStyle: 'classic' | 'dot' | 'circle' = 'classic';
+  private crossLen = 9;
   private dmgEl?: HTMLDivElement;
   private flashLevel = 0;
   private dmgLevel = 0;
@@ -100,8 +108,11 @@ export class Hud {
 
     // Fadenkreuz
     this.cross = mk({ top: '50%', left: '50%', width: '0', height: '0', opacity: '0.9' }) as HTMLDivElement;
-    const dot = mk({ left: '-1px', top: '-1px', width: '2px', height: '2px', background: '#9ff09f', borderRadius: '50%' });
+    const dot = mk({ left: '-1px', top: '-1px', width: '2px', height: '2px', background: '#9ff09f', borderRadius: '50%' }) as HTMLDivElement;
     this.cross.appendChild(dot);
+    this.crossDot = dot;
+    this.crossRing = mk({ left: '-9px', top: '-9px', width: '14px', height: '14px', border: '2px solid #9ff09f', borderRadius: '50%', display: 'none' }) as HTMLDivElement;
+    this.cross.appendChild(this.crossRing);
     const bar = (w: number, h: number): void => {
       const d = mk({ left: '0', top: '0', width: `${w}px`, height: `${h}px`, background: '#9ff09f', boxShadow: '0 0 2px #000' }) as HTMLDivElement;
       this.cross!.appendChild(d);
@@ -131,9 +142,15 @@ export class Hud {
     this.hintEl = mk({ top: '58%', left: '50%', transform: 'translateX(-50%)', background: PANEL, padding: '5px 12px', borderRadius: '6px', display: 'none', color: '#9ff09f' }) as HTMLDivElement;
     this.flashEl = mk({ inset: '0', background: '#fff', opacity: '0', zIndex: '15' }) as HTMLDivElement;
     this.dmgEl = mk({ inset: '0', opacity: '0', zIndex: '14', background: 'radial-gradient(ellipse at center, rgba(255,0,0,0) 45%, rgba(200,0,0,.7) 100%)' }) as HTMLDivElement;
+    // Zielfernrohr: schwarzer Rand mit rundem Sichtfeld + feines Fadenkreuz
+    this.scopeEl = mk({ inset: '0', zIndex: '13', display: 'none', background: 'radial-gradient(circle at center, rgba(0,0,0,0) 0, rgba(0,0,0,0) min(38vh, 38vw), #000 calc(min(38vh, 38vw) + 2px))' }) as HTMLDivElement;
+    const sl = (st: Partial<CSSStyleDeclaration>): void => { this.scopeEl!.appendChild(mk({ background: '#000', ...st })); };
+    sl({ left: '0', right: '0', top: '50%', height: '1px' });
+    sl({ top: '0', bottom: '0', left: '50%', width: '1px' });
+    this.fpsEl = mk({ top: '10px', right: '220px', fontSize: '11px', opacity: '0.7', display: 'none' }) as HTMLDivElement;
 
     this.root = document.createElement('div');
-    this.root.append(this.flashEl, this.dmgEl, this.cross, this.statusL, this.statusR, this.slotsEl, this.roundBar, this.banner, this.feed, this.radar, this.radarLabel, this.netEl, this.buy, this.score, this.chatBox, this.chatInput, this.teamBox, this.spectator, this.noticeEl, this.hintEl);
+    this.root.append(this.flashEl, this.dmgEl, this.scopeEl!, this.fpsEl!, this.cross, this.statusL, this.statusR, this.slotsEl, this.roundBar, this.banner, this.feed, this.radar, this.radarLabel, this.netEl, this.buy, this.score, this.chatBox, this.chatInput, this.teamBox, this.spectator, this.noticeEl, this.hintEl);
     host.appendChild(this.root);
 
     document.addEventListener('keydown', this.onKeyDown);
@@ -164,8 +181,47 @@ export class Hud {
     return this.buyOpen || this.chatOpen || this.teamOpen;
   }
 
+  /** Zielfernrohr-Overlay an/aus (Fadenkreuz aus, wenn gezoomt). */
+  setScope(on: boolean): void {
+    if (this.scopeEl) this.scopeEl.style.display = on ? 'block' : 'none';
+    if (this.cross) this.cross.style.display = on ? 'none' : 'block';
+  }
+
+  /** Fadenkreuz aus den Einstellungen (Farbe, Stil, Linienlänge). */
+  setCrosshair(color: string, style: 'classic' | 'dot' | 'circle', size: number): void {
+    this.crossStyle = style;
+    this.crossLen = size;
+    for (const l of this.crossLines) {
+      l.style.background = color;
+      l.style.display = style === 'classic' ? 'block' : 'none';
+    }
+    const [top, bottom, left, right] = this.crossLines;
+    for (const v of [top, bottom]) if (v) v.style.height = `${size}px`;
+    for (const h of [left, right]) if (h) h.style.width = `${size}px`;
+    if (this.crossDot) {
+      this.crossDot.style.background = color;
+      const d = style === 'dot' ? 4 : 2;
+      Object.assign(this.crossDot.style, { width: `${d}px`, height: `${d}px`, left: `-${d / 2}px`, top: `-${d / 2}px` });
+    }
+    if (this.crossRing) {
+      this.crossRing.style.display = style === 'circle' ? 'block' : 'none';
+      this.crossRing.style.borderColor = color;
+    }
+  }
+
+  showFps(on: boolean): void {
+    if (this.fpsEl) this.fpsEl.style.display = on ? 'block' : 'none';
+  }
+
   /** Pro Frame vom Aufrufer (Overlays abklingen). */
   tick(dt: number): void {
+    this.fpsFrames++;
+    this.fpsTime += dt;
+    if (this.fpsTime >= 0.5 && this.fpsEl) {
+      this.fpsEl.textContent = `${Math.round(this.fpsFrames / this.fpsTime)} FPS`;
+      this.fpsFrames = 0;
+      this.fpsTime = 0;
+    }
     if (this.flashLevel > 0) {
       this.flashLevel = Math.max(0, this.flashLevel - dt * 0.45);
       this.flashEl!.style.opacity = String(Math.min(1, this.flashLevel));
@@ -194,6 +250,10 @@ export class Hud {
     this.lastShooter = s;
     if (!this.crossLines.length) return;
     const gap = Math.max(1.5, s.spreadPx ?? 0);
+    if (this.crossRing && this.crossStyle === 'circle') {
+      const r = Math.max(6, gap + 2);
+      Object.assign(this.crossRing.style, { width: `${r * 2}px`, height: `${r * 2}px`, left: `-${r + 2}px`, top: `-${r + 2}px` });
+    }
     const [top, bottom, left, right] = this.crossLines;
     top!.style.transform = `translate(-1px, calc(-100% - ${gap}px))`;
     bottom!.style.transform = `translate(-1px, ${gap}px)`;

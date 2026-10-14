@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WEAPONS } from './weapons';
-import { CROUCH_SPREAD_MULT, finishReload, fireSpread, makeGun, startReload, tickGun, tryShoot } from './fire';
+import { CROUCH_SPREAD_MULT, NOSCOPE_SPREAD, finishReload, fireSpread, makeGun, startReload, tickGun, tryShoot } from './fire';
 
 const ak = WEAPONS['ak47']!;
 const usp = WEAPONS['usp']!;
@@ -14,11 +14,15 @@ describe('tryShoot', () => {
     expect(s.cooldown).toBeGreaterThan(0);
   });
 
-  it('semi-Waffe feuert ohne Cooldown (Klickbegrenzung durch Aufrufer)', () => {
+  it('semi-Waffe: Cooldown = Abzugszeit (cycle), ohne cycle 0', () => {
     const s = makeGun(usp);
     const r = tryShoot(s, usp);
     expect(r.ok).toBe(true);
-    expect(s.cooldown).toBe(0);
+    expect(s.cooldown).toBe(usp.cycle);
+    const plain = { ...usp, cycle: undefined };
+    const s2 = makeGun(plain);
+    tryShoot(s2, plain);
+    expect(s2.cooldown).toBe(0);
   });
 
   it('leeres Magazin → empty', () => {
@@ -130,5 +134,30 @@ describe('fireSpread', () => {
     s.heat = 2;
     expect(fireSpread(ak, s, false)).toBe(ak.spreadBase + 2 * ak.spreadPerShot);
     expect(fireSpread(ak, s, true)).toBe(ak.spreadBase + 2 * ak.spreadPerShot + ak.moveSpread);
+  });
+});
+
+describe('Zielfernrohr (Noscope-Streuung)', () => {
+  it('Sniper ungezoomt deutlich ungenauer als gezoomt; andere Waffen unbeeinflusst', () => {
+    const awp = WEAPONS['awp']!;
+    const g = makeGun(awp);
+    expect(fireSpread(awp, g, false, false, false)).toBeCloseTo(awp.spreadBase + NOSCOPE_SPREAD, 10);
+    expect(fireSpread(awp, g, false, false, true)).toBeCloseTo(awp.spreadBase, 10);
+    const ak = WEAPONS['ak47']!;
+    const ga = makeGun(ak);
+    expect(fireSpread(ak, ga, false, false, false)).toBe(fireSpread(ak, ga, false, false, true));
+  });
+});
+
+describe('Repetierzeit (cycle)', () => {
+  it('AWP kann erst nach der Repetierzeit erneut feuern', () => {
+    const awp = WEAPONS['awp']!;
+    const g = makeGun(awp);
+    expect(tryShoot(g, awp).ok).toBe(true);
+    expect(tryShoot(g, awp)).toEqual({ ok: false, reason: 'cooldown' });
+    tickGun(g, awp, 1.0);
+    expect(tryShoot(g, awp).ok).toBe(false);
+    tickGun(g, awp, 0.5);
+    expect(tryShoot(g, awp).ok).toBe(true);
   });
 });
