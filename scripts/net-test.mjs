@@ -100,10 +100,15 @@ async function run() {
     else fail('Client-Spiegel fehlt: ' + JSON.stringify(sc));
 
     // 3) Runde live auf beiden
-    const lh = await host.waitFor('globalThis.__state?.()', (v) => v.phase === 'live', 60000);
-    const lc = await client.waitFor('globalThis.__state?.()', (v) => v.phase === 'live', 20000);
-    if (lh?.phase === 'live' && lc?.phase === 'live') ok('Runde live auf Host und Client');
-    else fail(`Runde nicht live: Host=${lh?.phase} Client=${lc?.phase}`);
+    // Bots können eine Runde schnell beenden → „live erreicht“ heißt: live oder bereits eine spätere Runde.
+    const reached = (v) => v.phase === 'live' || v.phase === 'bomb' || v.round >= 2;
+    const lh = await host.waitFor('globalThis.__state?.()', reached, 60000);
+    const lc = await client.waitFor('globalThis.__state?.()', reached, 20000);
+    // Client spiegelt Rundennummer und Spielstand des Hosts
+    const hs = await host.evJson('globalThis.__state?.()');
+    const cs = await client.waitFor('globalThis.__state?.()', (v) => v.round === hs?.round && v.score === hs?.score, 5000, 250);
+    if (lh && reached(lh) && lc && reached(lc) && cs?.round === hs?.round) ok(`Runde läuft auf Host und Client (Runde ${hs.round}, ${hs.score})`);
+    else fail(`Runde nicht synchron: lh=${JSON.stringify(lh)} lc=${JSON.stringify(lc)} Host=${JSON.stringify(hs)} Client=${JSON.stringify(cs)}`);
 
     // 4) Client schießt auf einen Gegner-Bot → Host verrechnet Schaden, Client sieht ihn im Snapshot
     const aim = await client.evJson('globalThis.__aimAtBot?.(true)');

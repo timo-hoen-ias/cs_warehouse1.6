@@ -99,6 +99,7 @@ export class MatchDriver extends Behaviour {
   private chatLines: { who: string; text: string; team: Team | null }[] = [];
   private pendingHandled = false;
   private botIndex = 0;
+  private lastNow = 0;
   /** Debug-Zähler (Smoke/Netztest). */
   readonly counters = { firesSent: 0, firesHandled: 0, hitsApplied: 0, snapsApplied: 0, posesIn: 0 };
 
@@ -618,7 +619,12 @@ export class MatchDriver extends Behaviour {
   update(): void {
     // Spielzeit läuft auch bei niedriger Bildrate in Echtzeit: große Frames in Teilschritte
     // (≤ 0.1 s) zerlegen, damit Runde, Bomben-Timer, Bots und Granaten korrekt weiterlaufen.
-    const total = Math.min(this.context.time.deltaTime, 0.6);
+    // Eigene Uhr: Needle deckelt deltaTime auf 0.1 s (Tab-Wechsel-Schutz) → wir messen selbst
+    // und begrenzen erst bei 0.6 s, damit Runden-Timer auch bei 2–5 FPS in Echtzeit laufen.
+    const now = performance.now();
+    const real = this.lastNow > 0 ? (now - this.lastNow) / 1000 : this.context.time.deltaTime;
+    this.lastNow = now;
+    const total = Math.min(Math.max(real, 0), 0.6);
     const steps = Math.max(1, Math.ceil(total / 0.1));
     const dt = total / steps;
     if (this.net.online && !this.helloSent && !this.isHost && this.net.id) this.sendHello();
