@@ -10,6 +10,8 @@ export type LobbyResult = {
   room: string;
   fillTo: number;
   botSkill: number;
+  /** Eigener Relay-Server (ws://…/socket), leer = Needle-Backend. */
+  server: string;
 };
 
 const STORE_KEY = 'csw16.lobby';
@@ -25,6 +27,7 @@ export function showLobby(): Promise<LobbyResult> {
     const saved = load();
     const urlRoom = url.searchParams.get('room')?.toUpperCase() ?? '';
     const urlMap = url.searchParams.get('map') ?? '';
+    const urlServer = url.searchParams.get('server') ?? saved.server ?? '';
 
     const overlay = document.createElement('div');
     Object.assign(overlay.style, {
@@ -53,6 +56,7 @@ export function showLobby(): Promise<LobbyResult> {
           <option value="0.9" ${saved.botSkill === 0.9 ? 'selected' : ''}>Schwer</option>
         </select>
         <label>Raumcode</label><div><input id="lb-room" maxlength="12" placeholder="z. B. K7Q2M" value="${esc(urlRoom)}" style="${inp()};width:160px;text-transform:uppercase"> <span style="opacity:.6;font-size:11px">zum Beitreten</span></div>
+        <label>Server (optional)</label><input id="lb-server" placeholder="leer = Needle-Backend · LAN: ws://host:9100/socket" value="${esc(urlServer)}" style="${inp()}">
       </div>
       <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
         <button id="lb-offline" style="${btn('#3a7d44')}">▶ Offline gegen Bots</button>
@@ -79,6 +83,7 @@ export function showLobby(): Promise<LobbyResult> {
       const team = q<HTMLSelectElement>('lb-team').value as Team | 'auto';
       const fillTo = Number(q<HTMLSelectElement>('lb-fill').value);
       const botSkill = Number(q<HTMLSelectElement>('lb-skill').value);
+      const server = q<HTMLInputElement>('lb-server').value.trim();
       let room = q<HTMLInputElement>('lb-room').value.trim().toUpperCase();
       if (mode === 'host') room = roomCode();
       if (mode === 'join' && !room) {
@@ -86,9 +91,9 @@ export function showLobby(): Promise<LobbyResult> {
         q<HTMLInputElement>('lb-room').style.borderColor = '#ff6a5a';
         return;
       }
-      save({ name, mapId, team, fillTo, botSkill });
+      save({ name, mapId, team, fillTo, botSkill, server });
       overlay.remove();
-      resolve({ name, mapId, team, mode, room, fillTo, botSkill });
+      resolve({ name, mapId, team, mode, room, fillTo, botSkill, server });
     };
     q('lb-offline').addEventListener('click', () => finish('offline'));
     q('lb-host').addEventListener('click', () => finish('host'));
@@ -99,17 +104,20 @@ export function showLobby(): Promise<LobbyResult> {
 }
 
 /** Teilbarer Link für einen Raum (Karte inklusive). */
-export function roomLink(room: string, mapId: string): string {
+export function roomLink(room: string, mapId: string, server = ''): string {
   const url = new URL(window.location.href);
   url.searchParams.set('room', room);
   url.searchParams.set('map', mapId);
+  if (server) url.searchParams.set('server', server);
+  else url.searchParams.delete('server');
+  url.searchParams.delete('auto');
   return url.href;
 }
 
-type Saved = { name: string; mapId: string; team: Team | 'auto'; fillTo: number; botSkill: number };
+type Saved = { name: string; mapId: string; team: Team | 'auto'; fillTo: number; botSkill: number; server: string };
 
 function load(): Saved {
-  const def: Saved = { name: 'Spieler', mapId: MAPS[0]!.id, team: 'auto', fillTo: 6, botSkill: 0.6 };
+  const def: Saved = { name: 'Spieler', mapId: MAPS[0]!.id, team: 'auto', fillTo: 6, botSkill: 0.6, server: '' };
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (!raw) return def;

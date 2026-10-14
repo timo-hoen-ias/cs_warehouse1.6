@@ -58,7 +58,16 @@ onStart(async (context) => {
   const url = new URL(window.location.href);
   const auto = url.searchParams.get('auto');
   const lobby: LobbyResult = auto
-    ? { name: 'Smoke', mapId: url.searchParams.get('map') ?? mapById(undefined).id, team: 'T', mode: 'offline', room: '', fillTo: Number(url.searchParams.get('fill') ?? 4), botSkill: 0.6 }
+    ? {
+        name: url.searchParams.get('name') ?? 'Smoke',
+        mapId: url.searchParams.get('map') ?? mapById(undefined).id,
+        team: (url.searchParams.get('team') as 'T' | 'CT' | null) ?? 'T',
+        mode: url.searchParams.get('room') ? 'join' : 'offline',
+        room: url.searchParams.get('room')?.toUpperCase() ?? '',
+        fillTo: Number(url.searchParams.get('fill') ?? 4),
+        botSkill: 0.6,
+        server: url.searchParams.get('server') ?? '',
+      }
     : await showLobby();
 
   const level = await loadLevel(lobby.mapId);
@@ -105,7 +114,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
 
   let net: NetTransport;
   if (lobby.mode === 'offline') net = new LocalTransport();
-  else net = new NeedleTransport(context, `csw16-${lobby.room}`);
+  else net = new NeedleTransport(context, `csw16-${lobby.room}`, lobby.server || undefined);
 
   const driver = playerRoot.addComponent(MatchDriver);
   driver.world = world;
@@ -127,9 +136,9 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   playerRoot.addComponent(HudTicker).hud = hud;
 
   if (lobby.mode !== 'offline') {
-    const link = roomLink(lobby.room, lobby.mapId);
+    const link = roomLink(lobby.room, lobby.mapId, lobby.server);
     hud.notice(`Raumcode ${lobby.room} — Link in der Adressleiste teilen`);
-    history.replaceState(null, '', link);
+    if (!new URL(window.location.href).searchParams.get('auto')) history.replaceState(null, '', link);
     hud.setNetInfo(`Verbinde mit Raum ${lobby.room}…`);
   }
 
@@ -147,6 +156,9 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       return info ? { calls: info.calls, triangles: info.triangles } : null;
     };
     g.__state = () => driver.debugState();
+    g.__players = () => Object.values(driver.match.players).map((p) => ({ id: p.id, name: p.name, team: p.team, bot: p.bot, hp: p.hp, alive: p.alive }));
+    g.__playerPose = (id: string) => { const p = driver.match.players[id]; return p ? { x: +p.pose.x.toFixed(2), z: +p.pose.z.toFixed(2) } : null; };
+    g.__netId = () => ({ id: net.id, host: net.hostId, peers: [...net.peers], online: net.online });
     g.__bots = () => driver.debugBotPos();
     g.__pos = () => ({ x: +player.motionX().toFixed(2), z: +player.motionZ().toFixed(2), yaw: +player.yawNow().toFixed(2), hp: player.hp, dead: player.isDead() });
     g.__killTeam = (team: 'T' | 'CT') => { driver.debugKillTeam(team); return driver.debugState(); };
@@ -165,11 +177,11 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     g.__nades = () => grenades.count();
     g.__teleport = (x: number, z: number, yaw = 0) => { driver.debugTeleport(x, z, yaw); return g.__pos; };
     g.__zones = () => world.zones;
-    g.__aimAtBot = () => {
-      // Deterministisch auf den nächsten lebenden Gegner-Bot zielen (Körpermitte) und AWP-Schuss
+    g.__aimAtBot = (botsOnly = false) => {
+      // Deterministisch auf den nächsten lebenden Gegner zielen (Körpermitte, 4 m) und mit der Pistole schießen
       const me = driver.local;
-      const enemies = Object.values(driver.match.players).filter((p) => p.alive && p.team !== me?.team);
-      if (!enemies.length) return { error: 'kein Gegner' };
+      const enemies = Object.values(driver.match.players).filter((p) => p.alive && p.team !== me?.team && (!botsOnly || p.bot));
+      if (!enemies.length || !me) return { error: 'kein Gegner' };
       const e = enemies[0]!;
       const px = e.pose.x - 4;
       const pz = e.pose.z;
@@ -181,14 +193,14 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       const yaw = Math.atan2(-dx, -dz);
       const pitch = Math.asin((1.0 - 1.65) / dist);
       player.setLook(yaw, pitch);
-      if (me && !me.loadout.primary) { me.loadout.primary = 'awp'; me.loadout.guns['awp'] = { mag: 10, reserve: 30, cooldown: 0, reloadLeft: 0, heat: 0 }; }
-      shooter.setWeapon('awp');
+      shooter.setWeapon(me.loadout.secondary ?? 'knife');
       setTimeout(() => {
         document.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
         setTimeout(() => document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })), 60);
       }, 250);
-      return { ok: true, target: e.id, hp: e.hp, dist: +dist.toFixed(2) };
+      return { ok: true, target: e.id, hp: e.hp, dist: +dist.toFixed(2), weapon: shooter.weaponId };
     };
+    g.__counters = () => driver.debugCounters();
     g.__enemyHp = () => Object.values(driver.match.players).filter((p) => p.team !== driver.local?.team).map((p) => ({ id: p.id, hp: p.hp, alive: p.alive }));
     g.__wallShot = () => {
       const wall = world.solids.find((s) => s.kind === 'wall' && s.label === 'wand-ost');

@@ -50,7 +50,7 @@ export class NeedleTransport implements NetTransport {
   private _host = '';
   private readonly unsubs: (() => void)[] = [];
 
-  constructor(private readonly context: Context, readonly roomName: string) {
+  constructor(private readonly context: Context, readonly roomName: string, serverUrl?: string) {
     const c = context.connection;
     this.unsubs.push(c.beginListen(KEY, (data: NetMsg) => this.onMessage?.(data, null)));
     this.unsubs.push(c.beginListen(RoomEvents.JoinedRoom, () => this.refresh()));
@@ -59,6 +59,8 @@ export class NeedleTransport implements NetTransport {
       this.onPeerLeft?.(evt.userId);
       this.refresh();
     }));
+    // Eigener Relay-Server (LAN) oder Needle-Backend (Standard)
+    if (serverUrl) c.connect(serverUrl).catch((e: unknown) => console.error('[net] Verbindung fehlgeschlagen', e));
     c.joinRoom(roomName);
   }
 

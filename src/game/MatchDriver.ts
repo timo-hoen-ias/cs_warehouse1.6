@@ -99,6 +99,8 @@ export class MatchDriver extends Behaviour {
   private chatLines: { who: string; text: string; team: Team | null }[] = [];
   private pendingHandled = false;
   private botIndex = 0;
+  /** Debug-Zähler (Smoke/Netztest). */
+  readonly counters = { firesSent: 0, firesHandled: 0, hitsApplied: 0, snapsApplied: 0, posesIn: 0 };
 
   get localId(): string {
     return this.net.id;
@@ -219,6 +221,7 @@ export class MatchDriver extends Behaviour {
 
   private applyRemotePose(p: PoseMsg): void {
     if (p.id === this.localId) return;
+    this.counters.posesIn += 1;
     const pose: Pose = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch };
     const r = this.remotePoses.get(p.id);
     if (r) {
@@ -233,12 +236,12 @@ export class MatchDriver extends Behaviour {
     } else {
       this.remotePoses.set(p.id, { prev: pose, next: pose, t: 1, w: p.w, c: p.c, m: p.m, e: p.e, age: 0 });
     }
-    if (this.isHost) {
-      const mp = this.match.players[p.id];
-      if (mp && !mp.bot) {
-        mp.pose = pose;
-        mp.weapon = p.w;
-      }
+    // Match-Pose nachführen: Host für Menschen (autoritativ für Treffer), Client für alle
+    // (Spiegel; Bots kommen per 'poses' vom Host, lokal zielen/Radar brauchen aktuelle Werte).
+    const mp = this.match.players[p.id];
+    if (mp && (!this.isHost || !mp.bot)) {
+      mp.pose = pose;
+      mp.weapon = p.w;
     }
   }
 
@@ -359,6 +362,7 @@ export class MatchDriver extends Behaviour {
   private hostFire(shooterId: string, weaponId: string, origin: Vec3, dirs: Vec3[]): void {
     const shooter = this.match.players[shooterId];
     const def = WEAPONS[weaponId];
+    this.counters.firesHandled += 1;
     if (!shooter || !shooter.alive || !def) return;
     if (this.match.round.phase === 'freeze' || this.match.round.phase === 'warmup' && false) return;
     const targets = this.targetsFor(shooterId);
@@ -373,6 +377,7 @@ export class MatchDriver extends Behaviour {
         if (!victim) continue;
         const r = applyHit(this.match, hit.id, shooterId, def, hit.part, hit.dist);
         if (!r) continue;
+        this.counters.hitsApplied += 1;
         this.emit({ k: 'hit', victim: hit.id, attacker: shooterId, dmg: r.dmg, part: hit.part, from: [origin.x, origin.y, origin.z], at: [hit.point.x, hit.point.y, hit.point.z] });
         if (r.killed) this.onHostKill(victim, shooterId, def.id, hit.part === 'head');
         if (def.pellets === 1 && hit.part === 'head' && def.type !== 'shotgun') { /* ein Kopftreffer reicht */ }
@@ -426,6 +431,7 @@ export class MatchDriver extends Behaviour {
   // ---------------------------------------------------------------- Lokale Aktionen
 
   private localFire(weaponId: string, origin: Vec3, dirs: Vec3[]): void {
+    this.counters.firesSent += 1;
     if (this.isHost) this.hostFire(this.localId, weaponId, origin, dirs);
     else this.net.send({ t: 'fire', id: this.localId, w: weaponId, o: [origin.x, origin.y, origin.z], d: dirs.map((d) => [d.x, d.y, d.z]), seq: this.fireSeq++ });
   }
@@ -586,6 +592,7 @@ export class MatchDriver extends Behaviour {
   private applySnap(s: Snapshot): void {
     if (s.seq <= this.lastSnapSeq && s.seq > 0) return;
     this.lastSnapSeq = s.seq;
+    this.counters.snapsApplied += 1;
     const prevPhase = this.match.round.phase;
     const prevRound = this.match.round.round;
     applySnapshot(this.match, s);
@@ -1077,6 +1084,10 @@ export class MatchDriver extends Behaviour {
       nades: this.nades.length,
       smokes: this.smokes.length,
     };
+  }
+
+  debugCounters(): Record<string, number> {
+    return { ...this.counters };
   }
 
   /** Debug/Smoke: alle Gegner-Bots töten (Rundenlogik testen). */

@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "bake": "bun scripts/bake-map.ts",
-    "smoke": "bun scripts/smoke.mjs"
+    "smoke": "bun scripts/smoke.mjs",
+    "relay": "bun scripts/relay-server.ts",
+    "nettest": "bun scripts/net-test.mjs"
   },
   "dependencies": {
     "@needle-tools/engine": "5.1.2",
