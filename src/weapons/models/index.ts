@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { stretchMap } from '../../logic/stretch';
+import { weaponGeom } from '../../logic/weaponGeom';
 import { Builder, type Built, type Rig } from './builder';
 import { c4, flashbang, hegrenade, knife, smokegrenade } from './gear';
 import { awp, g3sg1, m249, m3, mac10, mp5, p90, scout, sg550, tmp, ump45, xm1014 } from './longguns';
@@ -30,13 +32,19 @@ export function hasWeaponModel(id: string): boolean {
   return id in BUILDERS;
 }
 
+/** Baukasten mit Tabellen-Daten (Anker) und Längsstauchung des Modells (logic/weaponGeom.ts). */
+function makeBuilder(lod: 'view' | 'world', id: string): Builder {
+  const geom = weaponGeom(id);
+  return new Builder(lod, { geom, stretch: geom?.fit ? stretchMap(geom.fit) : undefined });
+}
+
 export type ViewWeapon = Built & { id: string; rig: Rig };
 
 /** Baut ein Viewmodel neu (ohne Cache; für Tests/Vorlagen). */
 export function buildViewWeapon(id: string): ViewWeapon | null {
   const fn = BUILDERS[id];
   if (!fn) return null;
-  const b = new Builder('view');
+  const b = makeBuilder('view', id);
   const rig = fn(b);
   return { ...b.build(), id, rig };
 }
@@ -45,7 +53,7 @@ export function buildViewWeapon(id: string): ViewWeapon | null {
 export function buildWorldGeometry(id: string): THREE.BufferGeometry | null {
   const fn = BUILDERS[id];
   if (!fn) return null;
-  const b = new Builder('world');
+  const b = makeBuilder('world', id);
   fn(b);
   const g = b.buildWorld();
   g.userData.shared = true;

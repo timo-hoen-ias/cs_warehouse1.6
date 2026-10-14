@@ -202,6 +202,12 @@ export class ViewModel extends Behaviour {
     this.onReady?.();
   }
 
+  /** Laufende Animation verwerfen und Ruhepose setzen (Labor/Sichtprüfung). */
+  settle(): void {
+    this.anim.clear();
+    this.applyPose(0);
+  }
+
   /** Teamfarben der Arme (T: Wüsten-Tarn, CT: Navy). */
   setTeam(team: Team): void {
     if (team !== 'T' && team !== 'CT') return;
@@ -316,6 +322,11 @@ export class ViewModel extends Behaviour {
   /** true, sobald ein Modell im Halter hängt. */
   hasModel(): boolean {
     return !!this.weapon;
+  }
+
+  /** Modell-Id der gezeigten Waffe (Debug/Labor). */
+  modelId(): string {
+    return this.weapon?.id ?? '';
   }
 
   /** Name der laufenden Animation (Debug/Tests), null = Ruhe. */

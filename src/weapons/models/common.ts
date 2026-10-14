@@ -102,6 +102,37 @@ export function scope(b: Builder, f0: number, f1: number, y: number, r: number, 
   }
 }
 
+/**
+ * Rundet die Ecken eines Seitenprofils (Polygon [f, y]): jede Ecke wird durch einen quadratischen
+ * Bézier-Bogen mit Abstand `r` (m) vom Eckpunkt ersetzt (r darf je Ecke als Liste angegeben werden;
+ * 0 = scharfe Ecke). Für organische Formen (P90-Gehäuse, Schäfte) statt vieler Handpunkte.
+ */
+export function roundPoly(pts: readonly P2[], r: number | readonly number[], seg = 3): P2[] {
+  const n = pts.length;
+  const out: P2[] = [];
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!;
+    const a = pts[(i + n - 1) % n]!;
+    const c = pts[(i + 1) % n]!;
+    const ri = typeof r === 'number' ? r : (r[i] ?? 0);
+    const la = Math.hypot(a[0] - p[0], a[1] - p[1]);
+    const lc = Math.hypot(c[0] - p[0], c[1] - p[1]);
+    const k = Math.min(ri, la * 0.5, lc * 0.5);
+    if (k <= 1e-6) {
+      out.push(p);
+      continue;
+    }
+    const s: P2 = [p[0] + ((a[0] - p[0]) / la) * k, p[1] + ((a[1] - p[1]) / la) * k];
+    const e: P2 = [p[0] + ((c[0] - p[0]) / lc) * k, p[1] + ((c[1] - p[1]) / lc) * k];
+    for (let j = 0; j <= seg; j++) {
+      const t = j / seg;
+      const u = 1 - t;
+      out.push([u * u * s[0] + 2 * u * t * p[0] + t * t * e[0], u * u * s[1] + 2 * u * t * p[1] + t * t * e[1]]);
+    }
+  }
+  return out;
+}
+
 /** AK-artiges gebogenes Magazin als Profil (oben an fTop, Breite w). */
 export function curvedMag(f0: number, f1: number, yTop: number, len: number, curve: number): P2[] {
   const n = 5;
