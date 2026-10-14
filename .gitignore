@@ -26,3 +26,6 @@ custom-elements.json
 .edge-smoke
 .edge-*
 smoke.png
+
+# Vom Needle-Tooling angelegter Symlink auf .agents/skills
+.github/skills/
