@@ -26,6 +26,7 @@ from scipy import signal
 
 SR = 44100
 AMB_SR = 32000
+LOOP_PAD = 0.1  # s, muss zu LOOP_PAD in src/logic/soundBank.ts passen
 SRC = sys.argv[1] if len(sys.argv) > 1 else '/tmp/re-sounds'
 OUT = sys.argv[2] if len(sys.argv) > 2 else 'assets/audio'
 ONLY = sys.argv[3] if len(sys.argv) > 3 else ''
@@ -239,14 +240,32 @@ def seamless_loop(x: np.ndarray, length: float, xfade: float, start: float = 0.0
 
 # ----------------------------------------------------------------------------- Ausgabe
 
+def _decoded_peak(path: str) -> float:
+    raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-f', 'f32le', '-'], capture_output=True, check=True).stdout
+    d = np.frombuffer(raw, dtype=np.float32)
+    return float(np.max(np.abs(d))) if len(d) else 0.0
+
+
 def write(name: str, x: np.ndarray, kind: str = 'sfx', peak_db: float = -1.5) -> None:
-    sr = AMB_SR if kind == 'amb' else SR
-    y = norm(x, peak_db) if kind != 'amb-raw' else x
+    """Kodiert Ogg Vorbis + AAC. Überschwinger des Codecs (> −0,5 dBFS nach dem Dekodieren) werden nachgeregelt."""
+    sr = AMB_SR if kind.startswith('amb') else SR
     if kind == 'amb-raw':
-        sr = AMB_SR
+        # Schleife: Naht immer überblenden (Filter-Einschwingen am Anfang, nicht ganz runde Vorlagen)
+        xf = secs(min(0.3, len(x) / sr / 8), sr)
+        pad = secs(LOOP_PAD, sr)
+        # Schleifenlänge + Polster = Vielfaches von 1024 (AAC-Rahmen) → AAC hängt am Ende nichts an
+        body = ((len(x) - xf - 1 + pad) // 1024) * 1024 - pad
+        x = seamless_loop(x, body / sr, xf / sr, 0.0, sr)
+        # Codecs verfälschen die letzten Samples → Anfang als Polster anhängen; das Spiel
+        # schleift nur bis Dauer − LOOP_PAD (src/logic/soundBank.ts)
+        x = np.concatenate([x, x[:pad]])
+        # Ambience ist RMS-normiert: Spitzen trotzdem unter −3 dBFS halten
+        p = np.max(np.abs(x)) + 1e-12
+        y = x * min(1.0, 10 ** (-3 / 20) / p)
+    else:
+        y = norm(x, peak_db)
     if kind == 'sfx':
         y = fade(y, 0.0005, 0.01)
-    pcm = np.clip(y, -1, 1).astype('<f4').tobytes()
     path = os.path.join(OUT, name)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if kind.startswith('amb'):
@@ -256,8 +275,15 @@ def write(name: str, x: np.ndarray, kind: str = 'sfx', peak_db: float = -1.5) ->
         ogg = ['-c:a', 'libvorbis', '-q:a', '3']
         aac = ['-c:a', 'aac', '-b:a', '80k']
     base = ['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ar', str(sr), '-ac', '1', '-i', '-', '-map_metadata', '-1']
-    subprocess.run(base + ogg + [path + '.ogg'], input=pcm, check=True)
-    subprocess.run(base + aac + ['-movflags', '+faststart', path + '.m4a'], input=pcm, check=True)
+    limit = 10 ** (-0.5 / 20)
+    for _ in range(4):
+        pcm = np.clip(y, -1, 1).astype('<f4').tobytes()
+        subprocess.run(base + ogg + [path + '.ogg'], input=pcm, check=True)
+        subprocess.run(base + aac + ['-movflags', '+faststart', path + '.m4a'], input=pcm, check=True)
+        over = max(_decoded_peak(path + '.ogg'), _decoded_peak(path + '.m4a'))
+        if over <= limit:
+            break
+        y = y * (limit / over) * 0.94
     print(f'{name:34s} {len(y) / sr:6.2f}s')
 
 
@@ -740,7 +766,7 @@ def build_ambience() -> None:
     native('forklift', 'ambience/engine_slow1.ogg', gain_db=-15)
     native('compressor', 'ambience/pump_majig.ogg', gain_db=-16)
     native('buzz', 'ambience/electro.ogg', hp_hz=80, gain_db=-20)
-    native('drip', 'ambience/leak_metalic.ogg', gain_db=-22)
+    native('drip', 'ambience/leak_metalic.ogg', lp_hz=8000, gain_db=-24)
     native('alarmfar', 'ambience/alarm_far.ogg', gain_db=-18)
     native('rain', 'ambience/morph/rain.ogg', gain_db=-18)
     native('cold', 'ambience/hum.ogg', p=0.85, lp_hz=1200, gain_db=-17)

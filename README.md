@@ -145,4 +145,9 @@ Für `wss://` muss ein TLS-terminierender Reverse-Proxy (z. B. Caddy oder nginx)
 
 - **Needle Engine:** Die kostenlose Variante blendet ein „made with Needle“-Label ein und ist für nicht-kommerzielle Nutzung gedacht. Für kommerzielle oder öffentliche Nutzung kann eine Needle-Lizenz nötig sein: <https://needle.tools/pricing>.
 - **Waffenmodelle:** prozedural im Code (`src/weapons/models/`). Das Quaternius „Ultimate Gun Pack“ (CC0) unter `assets/weapons/` liegt nur noch als Referenz bei.
+- **Sounds (Credits):** bearbeitete Aufnahmen aus dem [Red-Eclipse-Soundpaket](https://github.com/redeclipse/sounds)
+  (Red Eclipse Team, Quinton „quin“ Reeves, Alex „blackshoe“ Anguix, Q009, Therac-25, fresco, WIM, Dob „dobroide“ Roide,
+  bart) unter CC-BY-SA 4.0 / CC-BY-SA 3.0 / CC-BY 3.0 / CC0 sowie eigene Synthese; die bearbeiteten Dateien in
+  `assets/audio/` stehen unter CC-BY-SA 4.0. Vollständige Liste (Datei, Urheber, Lizenz, Änderungen):
+  [`assets/audio/CREDITS.md`](assets/audio/CREDITS.md). Keine Valve-/Counter-Strike-Assets.
 - Dieses Projekt ist von Counter-Strike 1.6 inspiriert, aber ein eigenständiges Fan-Projekt ohne Bezug zu Valve.

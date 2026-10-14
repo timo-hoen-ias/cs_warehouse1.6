@@ -28,7 +28,7 @@ Economy, Granaten, Zielfernrohr, Spray-Mustern und mehreren Lager-Karten mit Ver
 | 9 | Waffen-/Spieldaten als Tabellen (`weapons.json`, `ECONOMY`, `ROUND`, `BOMB`, `GRENADE`, `BOT`). |
 | 10 | Lizenz: Needle-Basic-Label (nicht-kommerziell); öffentliche/kommerzielle Nutzung → Needle-Lizenz prüfen. |
 | 11 | Sprache: Nutzertexte/UI/Kommentare deutsch, Bezeichner englisch. |
-| 12 | Keine neuen Abhängigkeiten für Standardlösungen (Sounds per WebAudio synthetisiert, Texturen per Canvas). |
+| 12 | Keine neuen Abhängigkeiten für Standardlösungen (Texturen per Canvas). Sounds: bearbeitete freie Aufnahmen (`assets/audio/`, Quellen in `CREDITS.md`) über eigene WebAudio-Engine, Synthese als Rückfall — keine Valve-/CS-Assets. |
 | 13 | Online ohne Internet: `scripts/relay-server.ts` spricht das Needle-Raum-Protokoll (Lobby-Feld „Server“ bzw. `?server=ws://host:9100/socket`). |
 
 ## Repo-Struktur (Ist)
@@ -54,7 +54,10 @@ src/weapons/models/          # Prozedurale Waffenmodelle (Builder, Materialien, 
 src/entities/Soldier.ts      # Spielfiguren (Bots + entfernte Spieler)
 src/level/                   # LevelView (Regale instanziert, Strukturen, Schilder), Canvas-Texturen
 src/ui/                      # Lobby, Hud (Kaufmenü, Scoreboard, Radar, Feed, Chat, Scope), SettingsMenu
-src/audio/Sfx.ts             # WebAudio-Synthese (Schüsse, Schritte, Piepen, Treffer …)
+src/audio/                   # Sfx (Fassade), AudioEngine (Lader, 3D, Hall, Verdeckung), Ambience,
+                             # MatchAudio (Schritte/Bombe/Treffer für den Driver), SynthFallback, worldHooks
+src/logic/{audioMix,reverb,soundBank,ambientFallback}.ts  # Audio-Entscheidungen, Hall-IRs, Klang-Katalog
+assets/audio/                # Ogg Vorbis + AAC (gebaut von scripts/audio/build_audio.py), CREDITS.md
 .github/workflows/pages.yml  # Test + Build + Deploy auf GitHub Pages
 ```
 
@@ -101,6 +104,36 @@ Runden-/Bomben-/Economy-Logik, erste Bots, HUD.
 - Die Dachplatte steckt nur in `World.aabbs` (Schüsse, Sicht, Granaten), nicht in `World.solids` — sonst blockierte sie Radar, Wegpunkte und den Waffen-Wandabstand (XZ-Tests).
 - `lightMap` addiert Licht (physikalisch skaliert): nur die Lichtflecken backen, Intensität klein halten, sonst bleicht der Boden aus.
 - Waffen sind prozedural (`weapons/models/`): kein Asset-Laden, bewegliche Teile als benannte Knoten, Animationszeiten aus `reload`/`cycle` der Waffendaten. Die Quaternius-OBJs unter `assets/weapons/` werden nicht mehr geladen.
+
+### M4 — Overhaul · Audio ✅ (Okt 2026)
+- [x] **Echte Aufnahmen** statt reiner Synthese: 200 Dateien (Ogg Vorbis + AAC-Fallback für Safari, zusammen 5,5 MB)
+  aus dem Red-Eclipse-Soundpaket (CC-BY-SA 4.0 / CC-BY 3.0 / CC0), reproduzierbar gebaut mit
+  `scripts/audio/build_audio.py` (numpy/scipy + ffmpeg; Quelle → Ausgabe in `scripts/audio/sources-used.txt`).
+- [x] **Eigener Klang je Waffe** (Tonhöhe, EQ, Hall-Länge, Tiefton-Punch, Knall-Transiente, Mechanik-Klick):
+  AK tief/rau, M4 hell, AWP sehr laut + Kammerstängel, Scout trocken, Deagle schwer, P90/MAC-10 hell/schnarrend,
+  M3 + Pumpe, XM1014; Schalldämpfer: USP (Standard gedämpft), M4A1 (umschaltbar über `Sfx.silenced`), TMP.
+  Fernklang-Ebene je Klasse, Nah/Fern-Überblendung (`nearFarMix`), Hülsenfall, Nachladen je Klasse
+  (Schrot: Patrone für Patrone), Ziehen, Trockenklick.
+- [x] **3D-Audio**: Hörer = Kamera (`AudioListener`), PannerNode (HRTF hoch / equalpower niedrig), eigene
+  Abstandskurve (Schüsse ~120–260 m hörbar), Luft-Tiefpass, Verdeckung per Welt-Raycast (`segmentBlocked`),
+  Stimmen-Limit 48, Limiter am Master.
+- [x] **Raumhall**: prozedurale Impulsantworten je `RoomKind` (`logic/reverb.ts`: draußen Slapback, Halle lang,
+  Raum kurz, Tunnel Flatterecho, Kühlraum gedämpft), zwei Convolver mit Überblendung beim Raumwechsel.
+- [x] **Ambience**: Emitter-Schleifen (`AmbientEmitter`, Pegel `emitterGain`), Raum-Grundteppich je `RoomKind`,
+  zufällige Leben-Ereignisse (Rückfahrwarner, Klappern, Palette, Gong, Tauben, Lkw-Hupe, Tür). Karten ohne
+  Akustik-Daten bekommen `fallbackAcoustics` (Lüftung, Leuchten, Maschine, Kompressor, Stapler, Radio).
+- [x] **Ereignisse**: Einschläge je Material + Querschläger, Vorbeiflug (`flybyCheck`), Schritte je Oberfläche
+  (`World.surfaceAt`, sonst Beton; geduckt/schleichend lautlos), Sprung/Landung (`trackVertical`), Schmerz/Tod,
+  Kopftreffer-„Dink“, Granaten (Wurf, Abpraller, HE nah/fern, Blitz, Rauch-Zischen), Tinnitus + dumpfe Welt nach
+  Blendung (`earRing`), C4-Tastenfeld beim Legen, Piepen (am Ende höher), Entschärfen, Explosion nah/fern.
+- [x] **Lautstärke-Kanäle** Gesamt/Effekte/Umgebung/Oberfläche im Einstellungsmenü (`settings.ts`, quadratische Kurve).
+- [x] Bugfix: Bot-Schüsse klangen auf dem Host doppelt; Nachladeklang wurde vom Driver überschrieben.
+- Schnittstelle für Karte/Bots: `sfx.setAcoustics(zones, emitters)`, `setSurfaceLookup`, `setOcclusion`,
+  `shotAt(w, origin, ends, walls)`, `footstep(surface, pos|null, speed, crouch)`, `explosion(kind, pos)`,
+  `flashed(s)`, `c4(event, pos)`, `beep(pos, fuseLeft)`; `connectWorldAudio(sfx, world)` nutzt
+  `World.surfaceAt`/`World.acoustics` automatisch, sobald die Welt sie anbietet.
+- Debug: `__audio()` (geladen/Stimmen/Raum/gespielt je Gruppe), `__audioProbe()` (alle Pfade), `__sfx`.
+- Offen: Nachladen/Ziehen entfernter Spieler (keine Netz-Ereignisse), Messer gegen Wand, Funk-Sprachsamples.
 
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON

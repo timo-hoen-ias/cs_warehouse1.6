@@ -66,10 +66,7 @@ export class Ambience {
     for (const [key, b] of this.bed) {
       if (!b.voice && b.target > 0) {
         b.voice = this.engine.play(key, { gain: 1 });
-        if (b.voice) {
-          b.voice.gain.gain.value = 0;
-          b.voice.src.loopStart = 0;
-        }
+        if (b.voice) b.voice.gain.gain.value = 0;
       }
       if (!b.voice) continue;
       const def = SAMPLES[key]!;

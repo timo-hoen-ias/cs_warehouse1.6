@@ -32,6 +32,13 @@ export type SampleDef = {
   lazy?: boolean;
 };
 
+/**
+ * Schleifen-Dateien tragen am Ende LOOP_PAD Sekunden Polster (Wiederholung des Anfangs),
+ * weil Codecs die letzten Samples verfälschen: abgespielt wird nur bis Dauer − LOOP_PAD.
+ * Muss zu `LOOP_PAD` in scripts/audio/build_audio.py passen.
+ */
+export const LOOP_PAD = 0.1;
+
 const P_NONE = [1, 1] as const;
 const P_GUN = [0.96, 1.04] as const;
 const P_SMALL = [0.92, 1.08] as const;

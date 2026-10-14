@@ -7,7 +7,7 @@
  * Mischentscheidungen kommen aus `src/logic/audioMix.ts`, Daten aus `src/logic/soundBank.ts`,
  * Hall-Impulsantworten aus `src/logic/reverb.ts`.
  */
-import { SAMPLES, sampleFiles, type AudioBus, type SampleDef } from '../logic/soundBank';
+import { LOOP_PAD, SAMPLES, sampleFiles, type AudioBus, type SampleDef } from '../logic/soundBank';
 import {
   OCCLUSION, airLowpass, busGains, dist, distanceGain, pickVariant, randomPitch, reverbSend, type BusGains, type V3,
 } from '../logic/audioMix';
@@ -144,6 +144,10 @@ export class AudioEngine {
       }
       this.applyGains();
       this.setRoom(this.room, true);
+      // Übrige Impulsantworten gestaffelt vorberechnen (kein Ruckler beim ersten Raumwechsel)
+      (Object.keys(REVERB) as RoomKind[]).forEach((r, i) => setTimeout(() => {
+        if (this.ctx) this.impulse(r);
+      }, 800 + i * 250));
       // Alle nicht-lazy Samples im Hintergrund laden
       for (const [key, def] of Object.entries(SAMPLES)) if (!def.lazy) this.request(key);
     } catch {
@@ -345,6 +349,10 @@ export class AudioEngine {
     src.buffer = buf;
     src.playbackRate.value = opts.rate ?? randomPitch(def.pitch, this.rnd);
     src.loop = !!def.loop;
+    if (def.loop && buf.duration > LOOP_PAD * 3) {
+      src.loopStart = 0;
+      src.loopEnd = buf.duration - LOOP_PAD;
+    }
     const gain = ctx.createGain();
     gain.gain.value = level;
     let node: AudioNode = src;
