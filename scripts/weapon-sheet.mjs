@@ -9,6 +9,9 @@ const URL = process.env.URL ?? 'http://localhost:3103/?auto=1&fill=4&quality=low
 const OUT = process.argv[2] ?? '.';
 const ONLY = process.argv[3] ? process.argv[3].split(',') : null;
 const WAIT = Number(process.argv[4] ?? 2600);
+// Optional: Clip einfrieren, z. B. PREVIEW=reload:0.45 (reload | reloadEmpty | draw | inspect | cycle); PREFIX = Dateipräfix
+const PREVIEW = process.env.PREVIEW ?? '';
+const PREFIX = process.env.PREFIX ?? 'fp';
 
 const { spawn } = require('child_process');
 const { writeFileSync, rmSync, mkdirSync } = require('fs');
@@ -58,14 +61,19 @@ async function run() {
       for (let tries = 0; tries < 6; tries++) {
         await ev(`__vmShow(${JSON.stringify(wid)}, ${JSON.stringify(TEAM)})`);
         await sleep(WAIT);
+        if (PREVIEW) {
+          const [kind, frac] = PREVIEW.split(':');
+          await ev(`__vmPreview(${JSON.stringify(kind)}, ${Number(frac ?? 0.5)})`);
+          await sleep(900);
+        }
         meta[wid] = JSON.parse((await ev('JSON.stringify(__vmAim())')) ?? 'null');
         const shot = await send('Page.captureScreenshot', { format: 'png' });
-        writeFileSync(`${OUT}/fp-${wid}.png`, Buffer.from(shot.data, 'base64'));
+        writeFileSync(`${OUT}/${PREFIX}-${wid}.png`, Buffer.from(shot.data, 'base64'));
         if ((await ev('__vm().model')) === wid) break;
       }
       console.log('fp', wid, JSON.stringify(meta[wid]));
     }
-    writeFileSync(`${OUT}/fp-meta.json`, JSON.stringify(meta, null, 1));
+    writeFileSync(`${OUT}/${PREFIX}-meta.json`, JSON.stringify(meta, null, 1));
     if (logs.length) console.log('Konsole:\n' + logs.filter((l) => !/DRACOLoader|KTX2Loader/.test(l)).join('\n'));
     ws.close();
   } finally {

@@ -641,10 +641,11 @@ export class MatchDriver extends Behaviour {
       }
       case 'shot': {
         if (e.id === this.localId || !e.ends.length) break;
-        const o = { x: e.o[0], y: e.o[1], z: e.o[2] };
+        // Mündung des fremden Soldaten (Tabellenpunkt der Waffe) statt Augenhöhe; Leuchtspur und Feuer starten dort
+        const o = this.soldierMuzzle(e.id) ?? { x: e.o[0], y: e.o[1] - 0.1, z: e.o[2] };
         for (const end of e.ends) this.grenades.fx.tracer(o, { x: end[0], y: end[1], z: end[2] });
         for (const w of e.walls) this.grenades.fx.impact({ kind: 'wall', point: { x: w[0], y: w[1], z: w[2] }, normal: { x: 0, y: 1, z: 0 } }, { x: 0, y: -1, z: 0 });
-        this.grenades.fx.muzzleFlash({ x: o.x, y: o.y - 0.1, z: o.z }, { x: e.ends[0]![0] - o.x, y: e.ends[0]![1] - o.y, z: e.ends[0]![2] - o.z }, 0.8);
+        this.grenades.fx.muzzleFlash(o, { x: e.ends[0]![0] - o.x, y: e.ends[0]![1] - o.y, z: e.ends[0]![2] - o.z }, 0.8);
         const d = Math.hypot(o.x - this.player.motionX(), o.z - this.player.motionZ());
         this.sfx?.shot(e.w, d);
         break;
@@ -1099,10 +1100,18 @@ export class MatchDriver extends Behaviour {
       const spread = gun ? fireSpread(def, gun, b.path.length > 0, false) : def.spreadBase;
       const dirs = shotDirs(def, base, spread, b.rnd);
       this.hostFire(b.id, def.id, eye, dirs);
-      this.grenades.fx.muzzleFlash({ x: eye.x + aim.dir.x * 0.5, y: eye.y - 0.1, z: eye.z + aim.dir.z * 0.5 }, aim.dir, 0.8);
+      this.grenades.fx.muzzleFlash(this.soldierMuzzle(b.id) ?? { x: eye.x + aim.dir.x * 0.5, y: eye.y - 0.1, z: eye.z + aim.dir.z * 0.5 }, aim.dir, 0.8);
       const d = Math.hypot(eye.x - this.player.motionX(), eye.z - this.player.motionZ());
       this.sfx?.shot(def.id, d);
     }
+  }
+
+  /** Mündung des sichtbaren Soldaten (Weltraum) oder null, wenn keiner existiert. */
+  private soldierMuzzle(id: string): Vec3 | null {
+    const sol = this.soldiers.get(id);
+    if (!sol) return null;
+    const v = sol.shotMuzzleWorld(new THREE.Vector3());
+    return { x: v.x, y: v.y, z: v.z };
   }
 
   private botMove(b: BotRuntime, target: { x: number; z: number }, dt: number): void {

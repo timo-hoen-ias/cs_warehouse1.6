@@ -172,16 +172,15 @@ export class Fx extends Behaviour {
     if (hit.kind === 'target') this.onHitmarker?.(hit.killed);
   }
 
-  /** Hülsenauswurf: kleine Messing-Box fliegt nach rechts/oben, dreht sich, fällt. */
-  shell(muzzle: Vec3, dir: Vec3): void {
-    const cam = this.context.mainCamera;
-    if (!cam) return;
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
-    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
-    const start = new THREE.Vector3(muzzle.x, muzzle.y, muzzle.z).addScaledVector(new THREE.Vector3(dir.x, dir.y, dir.z), -0.35).addScaledVector(up, -0.05);
+  /** Hülsenauswurf: kleine Messing-Box startet am Auswurffenster und fliegt in Auswurfrichtung, dreht sich, fällt. */
+  shell(port: Vec3, dir: Vec3): void {
+    const start = new THREE.Vector3(port.x, port.y, port.z);
     const shell = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.03), new THREE.MeshStandardMaterial({ color: 0xd8b24a, metalness: 0.8, roughness: 0.3 }));
     shell.position.copy(start);
-    const vel = right.clone().multiplyScalar(1.6 + Math.random() * 0.8).addScaledVector(up, 1.4 + Math.random() * 0.6);
+    const vel = new THREE.Vector3(dir.x, dir.y, dir.z).normalize().multiplyScalar(2.2 + Math.random() * 0.9);
+    vel.x += (Math.random() - 0.5) * 0.4;
+    vel.y += (Math.random() - 0.5) * 0.4;
+    vel.z += (Math.random() - 0.5) * 0.4;
     const spin = new THREE.Vector3(Math.random() * 20, Math.random() * 20, Math.random() * 20);
     this.root.add(shell);
     this.addFx(shell, 0.9, (dt) => {

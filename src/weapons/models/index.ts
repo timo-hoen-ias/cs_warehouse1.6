@@ -74,6 +74,50 @@ export function worldGeometry(id: string): THREE.BufferGeometry | null {
   return g;
 }
 
+const partsCache = new Map<string, THREE.BufferGeometry[]>();
+
+/**
+ * Teilgeometrien der Welt-LOD für liegende Waffen: normalerweise die eine Geometrie; bei Doppelwaffen
+ * (Elites) je eine Pistole (die zweite um ihren Seitenversatz zurückverschoben, also wie eine normale
+ * Pistole mit Griff bei x = 0). Gecacht und geteilt (nicht entsorgen).
+ */
+export function worldGeometryParts(id: string): THREE.BufferGeometry[] {
+  const hit = partsCache.get(id);
+  if (hit) return hit;
+  const geo = worldGeometry(id);
+  if (!geo) return [];
+  const second = weaponGeom(id)?.muzzle2;
+  let parts: THREE.BufferGeometry[] = [geo];
+  if (second) {
+    const pos = geo.getAttribute('position');
+    const names = Object.keys(geo.attributes);
+    const split = second[0] / 2;
+    const halves = [[] as number[], [] as number[]];
+    for (let t = 0; t < pos.count; t += 3) {
+      const cx = (pos.getX(t) + pos.getX(t + 1) + pos.getX(t + 2)) / 3;
+      halves[cx < split ? 1 : 0]!.push(t, t + 1, t + 2);
+    }
+    parts = halves.map((idx, k) => {
+      const g = new THREE.BufferGeometry();
+      for (const name of names) {
+        const a = geo.getAttribute(name) as THREE.BufferAttribute;
+        const out = new Float32Array(idx.length * a.itemSize);
+        idx.forEach((v, i) => {
+          for (let c = 0; c < a.itemSize; c++) out[i * a.itemSize + c] = a.array[v * a.itemSize + c]!;
+        });
+        g.setAttribute(name, new THREE.BufferAttribute(out, a.itemSize));
+      }
+      if (k === 1) g.translate(-second[0], 0, 0);
+      g.computeBoundingBox();
+      g.computeBoundingSphere();
+      g.userData.shared = true;
+      return g;
+    });
+  }
+  partsCache.set(id, parts);
+  return parts;
+}
+
 const VIEW_CACHE_MAX = 6;
 const viewCache = new Map<string, ViewWeapon>();
 

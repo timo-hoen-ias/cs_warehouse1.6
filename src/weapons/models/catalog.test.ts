@@ -4,9 +4,11 @@ import { VIEW_SCALE } from '../../logic/viewAnim';
 import { viewPoint } from '../../logic/viewPlace';
 import { WEAPONS } from '../../logic/weapons';
 import { WEAPON_GEOM, weaponGeom } from '../../logic/weaponGeom';
+import { TORSO_PIVOT_Y, holdPlan, holdPoint } from '../../entities/soldierHold';
 import { forearmGeometry, handGeometry } from './arms';
 import { frameQuat } from './builder';
-import { MODEL_IDS, acquireView, buildViewWeapon, buildWorldGeometry, hasWeaponModel, worldGeometry } from './index';
+import { MODEL_IDS, acquireView, buildViewWeapon, buildWorldGeometry, hasWeaponModel, worldGeometry, worldGeometryParts } from './index';
+import { dropRest, restedBounds, DROP_CLEARANCE, type Lay } from '../../logic/dropRest';
 
 /** Budgets aus der Aufgabe: Viewmodel inkl. Arme ≤ 12 Draw-Calls / ~8k Dreiecke, Welt ≤ 2 / 600. */
 const ARM_MESHES = 4;
@@ -325,6 +327,107 @@ describe('Modelle passen zur Geometrie-Tabelle (logic/weaponGeom.ts)', () => {
       const r = viewPoint(place, g.gripR);
       const l = viewPoint(place, g.gripL);
       expect(Math.hypot(l.x - r.x, l.y - r.y, l.z - r.z), w.id).toBeLessThan(0.5);
+    }
+  });
+});
+
+describe('Dritte Person: Knotenkette des Soldaten entspricht der reinen Haltungsrechnung', () => {
+  /** Baut dieselbe Kette wie Soldier.ts: Oberkörper → Waffenknoten → Waffen-Mesh (um 180° um y). */
+  function chain(id: string): THREE.Object3D {
+    const plan = holdPlan(WEAPON_GEOM[id]!);
+    const torso = new THREE.Group();
+    torso.position.y = TORSO_PIVOT_Y;
+    const node = new THREE.Group();
+    node.position.set(plan.origin.x, plan.origin.y - TORSO_PIVOT_Y, plan.origin.z);
+    node.rotation.x = -plan.pitch;
+    const gun = new THREE.Object3D();
+    gun.rotation.y = Math.PI;
+    node.add(gun);
+    torso.add(node);
+    torso.updateMatrixWorld(true);
+    return gun;
+  }
+
+  it('Modellpunkte (Mündung, Hände, Schaftkappe) landen dort, wo holdPoint sie erwartet', () => {
+    for (const id of ['knife', 'glock', 'elite', 'ak47', 'awp', 'm249', 'p90', 'c4', 'hegrenade']) {
+      const g = WEAPON_GEOM[id]!;
+      const plan = holdPlan(g);
+      const gun = chain(id);
+      for (const p of [g.muzzle, g.gripR, g.gripL, ...(g.butt ? [g.butt] : [])]) {
+        const want = holdPoint(plan, p);
+        const got = gun.localToWorld(new THREE.Vector3(p[0], p[1], -p[2]));
+        expect(got.x, `${id} x`).toBeCloseTo(want.x, 6);
+        expect(got.y, `${id} y`).toBeCloseTo(want.y, 6);
+        expect(got.z, `${id} z`).toBeCloseTo(want.z, 6);
+      }
+    }
+  });
+
+  it('Welt-Modell: Mündung liegt am vordersten Punkt der Geometrie (±2 cm), Länge stimmt', () => {
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      if (g.hold === 'grenade' || g.hold === 'bomb') continue;
+      const bb = worldGeometry(id)!.boundingBox!;
+      expect(Math.abs(-bb.min.z - g.muzzle[2]), `${id} Mündung`).toBeLessThan(0.02);
+    }
+  });
+
+  it('Schusshand und Stützhand liegen an der Welt-Geometrie (≤ 3,5 cm von der Oberfläche)', () => {
+    const tri = new THREE.Triangle();
+    const c = new THREE.Vector3();
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      if (g.hold === 'grenade' || g.hold === 'bomb' || g.hold === 'knife') continue;
+      const pos = worldGeometry(id)!.getAttribute('position');
+      for (const [name, grip] of [['gripR', g.gripR], ['gripL', g.gripL]] as const) {
+        const target = new THREE.Vector3(grip[0], grip[1], -grip[2]);
+        let d = Infinity;
+        for (let i = 0; i < pos.count; i += 3) {
+          tri.a.fromBufferAttribute(pos, i);
+          tri.b.fromBufferAttribute(pos, i + 1);
+          tri.c.fromBufferAttribute(pos, i + 2);
+          d = Math.min(d, tri.closestPointToPoint(target, c).distanceTo(target));
+        }
+        expect(d, `${id}.${name}`).toBeLessThan(0.035);
+      }
+    }
+  });
+});
+
+describe('Liegende Waffen (Welt-LOD)', () => {
+  const triCount = (g: THREE.BufferGeometry): number => g.getAttribute('position').count / 3;
+
+  it('Doppelwaffen werden in zwei vollständige Pistolen geteilt, alle anderen bleiben ganz', () => {
+    for (const id of MODEL_IDS) {
+      const parts = worldGeometryParts(id);
+      const whole = worldGeometry(id)!;
+      expect(parts.length, id).toBe(WEAPON_GEOM[id]!.muzzle2 ? 2 : 1);
+      expect(parts.reduce((n, g) => n + triCount(g), 0), id).toBe(triCount(whole));
+    }
+    const [a, b] = worldGeometryParts('elite') as [THREE.BufferGeometry, THREE.BufferGeometry];
+    for (const g of [a, b]) {
+      expect(g.boundingBox!.min.x).toBeGreaterThan(-0.03);
+      expect(g.boundingBox!.max.x).toBeLessThan(0.03);
+      expect(g.boundingBox!.max.z - g.boundingBox!.min.z).toBeGreaterThan(0.19); // Länge einer Pistole
+    }
+    expect(triCount(a)).toBeGreaterThan(40);
+    expect(Math.abs(triCount(a) - triCount(b))).toBeLessThan(triCount(a) * 0.2);
+    expect(worldGeometryParts('elite')).toBe(worldGeometryParts('elite')); // gecacht
+    expect(worldGeometryParts('gibtsnicht')).toEqual([]);
+  });
+
+  it('jede Waffe liegt mit der Unterkante auf dem Boden und flach (stehende Granaten ≤ 13 cm, liegende Waffen ≤ 10 cm hoch)', () => {
+    for (const [id, g] of Object.entries(WEAPON_GEOM)) {
+      const lay: Lay = g.hold === 'grenade' ? 'upright' : g.hold === 'bomb' ? 'flat' : 'side';
+      for (const geo of worldGeometryParts(id)) {
+        const bb = geo.boundingBox!;
+        const bounds = { min: [bb.min.x, bb.min.y, bb.min.z] as const, max: [bb.max.x, bb.max.y, bb.max.z] as const };
+        const r = restedBounds(bounds, dropRest(bounds, lay));
+        expect(r.min[1], id).toBeCloseTo(DROP_CLEARANCE, 9);
+        const h = r.max[1] - r.min[1];
+        expect(h, id).toBeLessThan(0.13);
+        if (lay === 'side') expect(h, `${id} liegt nicht flach`).toBeLessThan(0.1);
+        // Mitte der Grundfläche auf dem Haltepunkt
+        expect((r.min[0] + r.max[0]) / 2, id).toBeCloseTo(0, 9);
+      }
     }
   });
 });

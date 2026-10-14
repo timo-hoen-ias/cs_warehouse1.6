@@ -196,6 +196,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     g.__weapon = (id: string) => { shooter.setWeapon(id); return { weapon: shooter.weaponId }; };
     // Waffen-Labor: beliebiges Modell ins Viewmodel (ohne Inventar), Welt ausblenden (neutraler Hintergrund)
     g.__vmShow = async (id: string, team: 'T' | 'CT' = 'T') => { viewModel.setTeam(team); await viewModel.show(id); viewModel.settle(); return viewModel.hasModel(); };
+    g.__vmPreview = (kind: 'reload' | 'reloadEmpty' | 'draw' | 'inspect' | 'cycle', frac: number) => { viewModel.preview(kind, frac); return viewModel.animName(); };
     g.__lab = (on: boolean) => { world.group.visible = !on; (scene.background as THREE.Color).setHex(on ? 0x7d858d : 0x0e1014); return on; };
     g.__vm = () => ({ loaded: viewModel.hasModel(), model: viewModel.modelId(), meshes: viewModel.meshCount(), verts: viewModel.vertexCount() });
     g.__vmAim = () => {

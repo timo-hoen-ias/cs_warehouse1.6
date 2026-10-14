@@ -244,7 +244,7 @@ export const WEAPON_GEOM: Record<string, WeaponGeom> = {
     muzzle: [0, 0.082, 0.555],
     eject: [0.023, 0.075, 0.09],
     gripR: [0, 0, 0],
-    gripL: [0, 0.073, 0.31],
+    gripL: [0, 0.073, 0.285],
     sightRear: [0, 0.169, -0.02],
     sightFront: [0, 0.172, 0.17],
     butt: [0, 0.023, -0.443],
