@@ -105,7 +105,7 @@ export function decorGeometry(kind: DecorKind, low = false): THREE.BufferGeometr
       ]);
       break;
     case 'serverRack':
-      g = build([box(0.6, 2.0, 1.0, 0, 1.0, 0, 0x1c1d20), box(0.56, 0.06, 0.96, 0, 2.03, 0, 0x2a2c30), box(0.62, 0.08, 1.02, 0, 0.04, 0, 0x0e0e0e)]);
+      g = build([box(0.6, 2.0, 1.0, 0, 1.0, 0, 0x34383e), box(0.56, 0.06, 0.96, 0, 2.03, 0, 0x50555c), box(0.62, 0.08, 1.02, 0, 0.04, 0, 0x16171a), box(0.05, 1.9, 0.02, 0.26, 1.0, 0.51, 0x8a9096), box(0.05, 1.9, 0.02, -0.26, 1.0, -0.51, 0x8a9096)]);
       break;
     case 'serverLeds':
       g = new THREE.PlaneGeometry(0.56, 1.9).translate(0, 1.0, 0.505);

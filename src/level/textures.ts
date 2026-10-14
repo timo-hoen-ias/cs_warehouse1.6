@@ -143,7 +143,7 @@ const DRAW: Record<MaterialId, Draw> = {
       const off = row % 2 ? bw / 2 : 0;
       for (let x = -bw; x < s + bw; x += bw) {
         const v = r();
-        const R = 128 + v * 40, G = 66 + v * 22, B = 50 + v * 16;
+        const R = 118 + v * 34, G = 70 + v * 18, B = 56 + v * 12;
         c.fillStyle = `rgb(${R | 0},${G | 0},${B | 0})`;
         c.fillRect(x + off + 1, row * bh + 1, bw - 2, bh - 2);
       }
@@ -440,6 +440,54 @@ const DRAW: Record<MaterialId, Draw> = {
   sky: (c, s) => {
     c.fillStyle = '#8ab';
     c.fillRect(0, 0, s, s);
+  },
+  window: (c, s, r) => {
+    // Rahmen + 2×2 Scheiben mit Himmelsspiegelung und Schmutz
+    c.fillStyle = '#5d6266';
+    c.fillRect(0, 0, s, s);
+    const pane = (x: number, y: number, w: number, h: number): void => {
+      const g = c.createLinearGradient(x, y, x + w * 0.4, y + h);
+      g.addColorStop(0, '#8fa6b8');
+      g.addColorStop(0.45, '#3b4a58');
+      g.addColorStop(1, '#1f2830');
+      c.fillStyle = g;
+      c.fillRect(x, y, w, h);
+      c.fillStyle = 'rgba(255,255,255,0.18)';
+      c.beginPath();
+      c.moveTo(x + w * 0.1, y + h);
+      c.lineTo(x + w * 0.35, y);
+      c.lineTo(x + w * 0.5, y);
+      c.lineTo(x + w * 0.25, y + h);
+      c.closePath();
+      c.fill();
+      for (let i = 0; i < 40; i++) {
+        c.fillStyle = `rgba(150,130,100,${r() * 0.12})`;
+        c.fillRect(x + r() * w, y + h * (0.6 + r() * 0.4), 2 + r() * 6, 1 + r() * 3);
+      }
+    };
+    pane(12, 12, 108, 108);
+    pane(136, 12, 108, 108);
+    pane(12, 136, 108, 108);
+    pane(136, 136, 108, 108);
+  },
+  skylight: (c, s, r) => {
+    c.fillStyle = '#e8eef2';
+    c.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x += 32) {
+      c.fillStyle = 'rgba(80,90,100,0.35)';
+      c.fillRect(x, 0, 4, s);
+    }
+    noise(c, s, r, 600, 0.08, 120, 200, 3);
+  },
+  vent: (c, s) => {
+    c.fillStyle = '#8a9096';
+    c.fillRect(0, 0, s, s);
+    for (let y = 10; y < s; y += 18) {
+      c.fillStyle = '#2a2e32';
+      c.fillRect(12, y, s - 24, 9);
+      c.fillStyle = 'rgba(255,255,255,0.2)';
+      c.fillRect(12, y + 9, s - 24, 2);
+    }
   },
 };
 

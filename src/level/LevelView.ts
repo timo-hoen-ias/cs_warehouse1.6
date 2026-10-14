@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { DecorKind, Facing, MapData, MaterialId } from '../logic/mapkit';
 import { LEVEL_HIGH, LEVEL_LOW, buildLevelMesh, sampleLight, type LevelBake } from '../logic/levelmesh';
 import { luminance, type RGB } from '../logic/bake';
@@ -78,7 +79,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
       m4.compose(new THREE.Vector3(...d.pos), q, new THREE.Vector3(s[0], s[1], s[2]));
       mesh.setMatrixAt(i, m4);
       tmpC.set(d.tint ?? 0xffffff).convertSRGBToLinear();
-      const L = glow ? ([1, 1, 1] as RGB) : light(d.pos[0], d.pos[1] + 0.5, d.pos[2]);
+      const L = glow ? ([1, 1, 1] as RGB) : decorLight(d);
       mesh.setColorAt(i, new THREE.Color(tmpC.r * L[0], tmpC.g * L[1], tmpC.b * L[2]));
     });
     mesh.instanceMatrix.needsUpdate = true;
@@ -88,14 +89,31 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
     group.add(mesh);
     stats.instances += list.length;
   };
+  /** Licht für eine Deko-Instanz: Mittel aus Oben- und Seitenproben knapp über dem Objekt (nicht im eigenen Kollisionskörper). */
+  const decorLight = (d: (typeof map.decor)[number]): RGB => {
+    const h = (DECOR_HEIGHT[d.kind] ?? 1) * (d.scale?.[1] ?? 1);
+    const y = d.pos[1] + (d.kind.startsWith('pipe') || d.kind.startsWith('cable') ? Math.min(h, 4) / 2 : h + 0.25);
+    let r = 0, g = 0, bb = 0;
+    for (const n of [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]] as [number, number, number][]) {
+      const c = light(d.pos[0] + n[0] * 0.6, y, d.pos[2] + n[2] * 0.6, n);
+      r += c[0]; g += c[1]; bb += c[2];
+    }
+    return [r / 5, g / 5, bb / 5];
+  };
   const decorMat = new THREE.MeshBasicMaterial({ vertexColors: true });
   for (const [kind, list] of byKind) {
     instanced(kind, decorGeometry(kind, quality === 'low'), decorMat, list, decorGlows(kind));
     if (kind === 'serverRack') {
-      const front = new THREE.MeshBasicMaterial({ map: serverFrontTexture() });
-      instanced('serverLeds', new THREE.PlaneGeometry(0.56, 1.9).translate(0, 1.0, 0.505), front, list, false);
+      // Front- und Rückseite mit Einschüben + additive Status-LEDs (leuchten auch im Dunkeln)
+      const panel = (z: number, flip: boolean): THREE.BufferGeometry => {
+        const g = new THREE.PlaneGeometry(0.54, 1.88);
+        if (flip) g.rotateY(Math.PI);
+        return g.translate(0, 1.0, z);
+      };
+      const front = new THREE.MeshBasicMaterial({ map: serverFrontTexture(), color: 0xd0d8e0 });
+      instanced('serverLeds', mergeGeometries([panel(0.505, false), panel(-0.505, true)])!, front, list.map((d) => ({ ...d, tint: 0xffffff })), false);
       const leds = new THREE.MeshBasicMaterial({ map: serverLedTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-      instanced('serverLeds', new THREE.PlaneGeometry(0.56, 1.9).translate(0, 1.0, 0.51), leds, list.map((d) => ({ ...d, tint: 0xffffff })), true);
+      instanced('serverLeds', mergeGeometries([panel(0.512, false), panel(-0.512, true)])!, leds, list.map((d) => ({ ...d, tint: 0xffffff })), true);
     }
   }
 
@@ -151,7 +169,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
     const cols = new Float32Array(coneGeo.getAttribute('position').count * 3);
     const pos = coneGeo.getAttribute('position');
     for (let i = 0; i < pos.count; i++) {
-      const k = Math.max(0, 1 + pos.getY(i) / 5.5) * 0.05;
+      const k = Math.max(0, 1 + pos.getY(i) / 5.5) ** 2 * 0.035;
       cols[i * 3] = k;
       cols[i * 3 + 1] = k * 0.92;
       cols[i * 3 + 2] = k * 0.78;
@@ -196,6 +214,9 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
   stats.ms = performance.now() - t0;
   return { group, bake, probe, stats };
 }
+
+/** Ungefähre Höhe der Deko-Formen (für Lichtproben über dem Objekt). */
+const DECOR_HEIGHT: Partial<Record<DecorKind, number>> = { barrel: 0.9, drum: 0.8, forklift: 2.3, serverRack: 2.1, ibc: 1.2, wheel: 0.6, fanUnit: 0.4, cone: 0.6, extinguisher: 0.6, fencePost: 1, pipeY: 1 };
 
 /** Himmelskuppel mit Verlauf, Sonnenscheibe und Industrie-Skyline (folgt der Kamera). */
 function buildSky(map: MapData): THREE.Object3D {

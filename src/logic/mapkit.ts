@@ -19,7 +19,7 @@ export type MaterialId =
   | 'concrete' | 'concreteDark' | 'asphalt' | 'paving' | 'plaster' | 'brick' | 'wallPaint' | 'wallTile'
   | 'corrugated' | 'corrugatedDark' | 'metal' | 'steel' | 'grating' | 'wood' | 'crate' | 'pallet' | 'wrap'
   | 'carton' | 'hazard' | 'tile' | 'roof' | 'container' | 'rubber' | 'cage' | 'server' | 'door' | 'gate'
-  | 'epoxy' | 'gravel' | 'black' | 'white' | 'emissive' | 'sky';
+  | 'epoxy' | 'gravel' | 'black' | 'white' | 'emissive' | 'sky' | 'window' | 'skylight' | 'vent';
 
 /** Standard-Oberfläche (Schrittklang) und Texturmaßstab je Material. */
 export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
@@ -56,6 +56,9 @@ export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
   white: { surface: 'metal', uv: 2 },
   emissive: { surface: 'metal', uv: 1 },
   sky: { surface: 'concrete', uv: 8 },
+  window: { surface: 'metal', uv: 2 },
+  skylight: { surface: 'metal', uv: 2 },
+  vent: { surface: 'metal', uv: 1 },
 };
 
 /** Kollision eines Brushes: alles, nur Bewegung (Clip/Geländer), nur Strahlen, oder nichts (Deko). */
@@ -83,6 +86,8 @@ export type Brush = {
   tag?: string;
   /** Texturmaßstab (m je Kachel), Standard aus MATERIALS. */
   uv?: number;
+  /** Textur je Fläche einpassen statt in Weltkoordinaten kacheln (Fenster, Tore, Schilder). */
+  uvFit?: boolean;
 };
 
 /** Instanzierte Deko-Form (Zylinder, Leuchten, Fahrzeuge …), nur Darstellung. */

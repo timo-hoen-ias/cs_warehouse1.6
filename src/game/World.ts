@@ -6,7 +6,7 @@ import type { MapData, Site, Spawn } from '../logic/mapkit';
 import type { AcousticZone, AmbientEmitter, Surface } from '../logic/acoustics';
 import { COL, type Collider } from '../logic/collision';
 import { compileMap, inBuyZoneBox, siteAt, type CompiledMap, type P3 } from '../logic/mapcompile';
-import { areaAt, findPath, nearestNode, type NavArea, type NavGraph, type NavPath, type PathOpts, type XYZ } from '../logic/nav';
+import { areaAt, findPath, forNodesNear, nearestNode, type NavArea, type NavGraph, type NavPath, type PathOpts, type XYZ } from '../logic/nav';
 import { renderOverview, type Raster } from '../logic/overview';
 import { PLAYER } from '../logic/move';
 import { buildLevelView, type LevelBuild } from '../level/LevelView';
@@ -78,9 +78,11 @@ export class World {
    */
   groundAt(x: number, z: number, yHint?: number): number {
     if (yHint !== undefined) return this.collider.groundHeight(x, z, yHint, PLAYER.radius, 0.1);
-    const n = nearestNode(this.nav, x, -100, z, 3);
-    if (n >= 0) return this.collider.groundHeight(x, z, this.nav.y[n]! + 0.3, PLAYER.radius, 0.1);
-    return this.collider.groundHeight(x, z, 40, PLAYER.radius, 0.1);
+    let lowest = Infinity;
+    forNodesNear(this.nav, x, z, 0.8, (i) => {
+      lowest = Math.min(lowest, this.nav.y[i]!);
+    });
+    return this.collider.groundHeight(x, z, (lowest === Infinity ? 40 : lowest) + 0.3, PLAYER.radius, 0.1);
   }
 
   /** Weg für Bots (A*, geglättet). */

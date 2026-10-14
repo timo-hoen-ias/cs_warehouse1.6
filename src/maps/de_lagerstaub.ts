@@ -1,5 +1,5 @@
 import { MapBuilder, type MapData } from '../logic/mapkit';
-import { CellPlan, type CellKind } from '../logic/mapplan';
+import { CellPlan, type CellKind, type FacadeStyle } from '../logic/mapplan';
 import { prop } from '../logic/mapprops';
 
 /**
@@ -22,8 +22,8 @@ export function buildLagerstaub(): MapData {
       sunDir: [-0.42, 0.55, 0.72],
       sunColor: 0xffc890,
       sunIntensity: 1.55,
-      skyTop: 0x6f8fb8,
-      skyHorizon: 0xe8c9a0,
+      skyTop: 0x4a74b0,
+      skyHorizon: 0xf0cfa0,
       skyIntensity: 0.55,
       ambient: 0.11,
       fogColor: 0xc9b393,
@@ -34,8 +34,12 @@ export function buildLagerstaub(): MapData {
 
   // ------------------------------------------------------------------ Grundriss (2-m-Raster)
   const plan = new CellPlan(-80, -94, 80, 68, 2, '#');
-  // Hallenmantel (Wellblech) um Lang-Halle und Serverhalle
+  // Gebäudearten: Hallenmantel (Wellblech) um Lang-Halle und Serverhalle, alter Klinker-Speicher
+  // (Spedition, Mitte-West), hohes Verwaltungsgebäude hinter CT, niedrige Hofmauern am Rand
   plan.rect('H', 26, -48, 76, 8).rect('H', -80, -80, -42, -34);
+  plan.rect('R', -80, 60, 80, 68).rect('R', -46, -34, -10, 8).rect('R', 40, 8, 80, 60);
+  plan.rect('Q', -10, -94, 34, -90).rect('Q', 30, -94, 80, -80);
+  plan.rect('W', -80, -94, -10, -88).rect('W', -80, 0, -60, 60);
   plan
     .rect('t', -16, 34, 22, 62) // T-Hof
     .rect('t', 22, 40, 38, 62) // Außen Lang (oben)
@@ -78,7 +82,10 @@ export function buildLagerstaub(): MapData {
     .rect('#', -22, 36, -16, 46);
 
   const legend: Record<string, CellKind> = {
-    '#': { building: { h: 9, mat: 'brick' } },
+    '#': { building: { h: 9, mat: 'plaster', tint: 0xe2d2b0 } },
+    R: { building: { h: 10, mat: 'brick' } },
+    Q: { building: { h: 14, mat: 'plaster', tint: 0xd0c8bc } },
+    W: { building: { h: 4.2, mat: 'concrete', tint: 0xb8b0a0 } },
     H: { building: { h: 12, mat: 'corrugated' } },
     X: { building: { h: 12, mat: 'corrugated' }, window: { sill: 1.1, lintel: 2.5 } },
     t: { floor: 2, mat: 'asphalt', room: 'outdoor' },
@@ -91,22 +98,63 @@ export function buildLagerstaub(): MapData {
     s: { floor: 2, mat: 'concrete', top: 'grating', room: 'outdoor' },
     '^': { floor: 0, mat: 'asphalt', ramp: true },
     r: { floor: 0.8, mat: 'paving', ramp: true },
-    G: { floor: 0, mat: 'concrete', roof: 4.6, room: 'hall' },
+    G: { floor: 0, mat: 'concrete', roof: 4.6, roofMat: 'concreteDark', room: 'hall' },
     L: { floor: 0, mat: 'concrete', roof: 10, roofMat: 'roof', room: 'hall' },
     g: { floor: -1.6, mat: 'concreteDark', roof: 10, room: 'hall' },
     P: { floor: -1.6, mat: 'concreteDark', roof: 10, ramp: true },
     B: { floor: 0, mat: 'epoxy', roof: 8, room: 'hall' },
     b: { floor: 1.2, mat: 'epoxy', roof: 8 },
-    F: { floor: 0, mat: 'tile', roof: 3.6, room: 'room' },
-    u: { floor: 0, mat: 'concreteDark', roof: 4.5, room: 'tunnel' },
-    V: { floor: 0, mat: 'concreteDark', roof: 5.5, ramp: true, room: 'tunnel' },
-    U: { floor: 2, mat: 'concreteDark', roof: 5.5, room: 'tunnel' },
-    K: { floor: 2, mat: 'concrete', roof: 6.5, room: 'hall' },
-    S: { floor: -1.2, mat: 'concreteDark', roof: 6.5, ramp: true },
-    l: { floor: -1.2, mat: 'concreteDark', roof: 2.4, roofTop: 9, tunnel: true, room: 'tunnel' },
-    T: { floor: -1.2, mat: 'concreteDark', roof: 2.4, roofTop: 9, tunnel: true, ramp: true },
+    F: { floor: 0, mat: 'tile', roof: 3.6, roofMat: 'white', room: 'room' },
+    u: { floor: 0, mat: 'concreteDark', roof: 4.5, roofMat: 'concrete', room: 'tunnel' },
+    V: { floor: 0, mat: 'concreteDark', roof: 5.5, roofMat: 'concrete', ramp: true, room: 'tunnel' },
+    U: { floor: 2, mat: 'concreteDark', roof: 5.5, roofMat: 'concrete', room: 'tunnel' },
+    K: { floor: 2, mat: 'concrete', roof: 6.5, roofMat: 'corrugatedDark', room: 'hall' },
+    S: { floor: -1.2, mat: 'concreteDark', roof: 6.5, roofMat: 'corrugatedDark', ramp: true },
+    l: { floor: -1.2, mat: 'concreteDark', roof: 2.4, roofTop: 9, roofMat: 'concreteDark', tunnel: true, room: 'tunnel' },
+    T: { floor: -1.2, mat: 'concreteDark', roof: 2.4, roofTop: 9, roofMat: 'concreteDark', tunnel: true, ramp: true },
   };
-  plan.build(b, legend, { floorBottom: -4, lintelTop: 9 });
+  const outdoorPlaster: FacadeStyle = {
+    mat: 'plaster', tint: 0xe2d2b0, plinth: { h: 0.9, mat: 'concrete', tint: 0x9a958c }, cornice: { h: 0.35, mat: 'concrete', tint: 0xc4baa8 },
+    windows: { y: 3.6, h: 1.5, w: 2.2, every: 7 }, pipes: 15,
+  };
+  const facades: Record<string, FacadeStyle> = {
+    '@#': outdoorPlaster,
+    '@Q': { ...outdoorPlaster, tint: 0xd0c8bc, windows: { y: 3.4, h: 1.6, w: 2.6, every: 4.5 }, band: { y: 3.0, h: 0.2, mat: 'concrete', tint: 0xa8a090 } },
+    '@R': { mat: 'brick', plinth: { h: 0.7, mat: 'concreteDark', tint: 0x8a8580 }, cornice: { h: 0.5, mat: 'brick', tint: 0x9a7a6a }, windows: { y: 3.8, h: 2.0, w: 1.6, every: 5 }, pipes: 12 },
+    '@W': { mat: 'concrete', tint: 0xb8b0a0, cornice: { h: 0.25, mat: 'concrete', tint: 0x9a948a } },
+    '@H': {
+      mat: 'corrugated', tint: 0xb4bcc2, plinth: { h: 1.2, mat: 'concrete', tint: 0x9a968e }, band: { y: 4.2, h: 0.35, mat: 'metal', tint: 0x2f5f9e },
+      cornice: { h: 0.4, mat: 'metal', tint: 0x6a7480 }, windows: { y: 6.6, h: 1.1, w: 4.5, every: 7 }, pipes: 18,
+    },
+    '@X': { mat: 'corrugated', tint: 0xb4bcc2, plinth: { h: 1.1, mat: 'concrete', tint: 0x9a968e } },
+    // Innenräume
+    L: {
+      mat: 'corrugated', tint: 0xd4d8da, plinth: { h: 1.6, mat: 'wallPaint', tint: 0x58706a }, band: { y: 0.0, h: 0.3, mat: 'hazard' },
+      pilasters: { every: 8, w: 0.5, mat: 'steel', tint: 0x2f5f9e }, windows: { y: 6.6, h: 1.6, w: 5, every: 8, mat: 'skylight', tint: 0xd8e4ee },
+    },
+    g: { mat: 'concrete', tint: 0xa8a49c, band: { y: 1.0, h: 0.35, mat: 'hazard' } },
+    P: { mat: 'concrete', tint: 0xa8a49c },
+    G: { mat: 'concreteDark', tint: 0xb0aca4, band: { y: 1.4, h: 0.3, mat: 'hazard' } },
+    B: { mat: 'wallPaint', tint: 0xdfe3e2, plinth: { h: 1.2, mat: 'wallPaint', tint: 0x3f5f7f }, pilasters: { every: 7, w: 0.45, mat: 'steel', tint: 0x8a9298 } },
+    b: { mat: 'wallPaint', tint: 0xdfe3e2, plinth: { h: 1.2, mat: 'wallPaint', tint: 0x3f5f7f } },
+    F: { mat: 'wallPaint', tint: 0xe4ddd0, plinth: { h: 1.0, mat: 'wallTile', tint: 0xb8c4c8 } },
+    u: { mat: 'concrete', tint: 0x9a968e, plinth: { h: 1.0, mat: 'concreteDark' }, band: { y: 1.3, h: 0.12, mat: 'metal', tint: 0xd8b020 } },
+    V: { mat: 'concrete', tint: 0x9a968e, plinth: { h: 1.0, mat: 'concreteDark' } },
+    U: { mat: 'concrete', tint: 0x9a968e, plinth: { h: 1.0, mat: 'concreteDark' }, band: { y: 1.3, h: 0.12, mat: 'metal', tint: 0xd8b020 } },
+    K: { mat: 'corrugatedDark', tint: 0xc0c4c8, plinth: { h: 1.2, mat: 'concrete' }, band: { y: 1.2, h: 0.25, mat: 'hazard' } },
+    S: { mat: 'concreteDark', tint: 0xa8a8a0 },
+    l: { mat: 'concreteDark', tint: 0xa8aca0, band: { y: 1.0, h: 0.15, mat: 'metal', tint: 0x3a8a5a } },
+    T: { mat: 'concreteDark', tint: 0xa8aca0 },
+  };
+  plan.build(b, legend, { floorBottom: -4, lintelTop: 9, facades });
+
+  // Hallendecken: Stahlträger und Lichtbänder (Lang-Halle, Serverhalle)
+  for (let z = -44; z <= -8; z += 6) b.box([46, 9.3, z - 0.15], [74, 9.95, z + 0.15], 'steel', { collide: 'none', tint: 0x4a5a6a, noNav: true, occlude: false });
+  for (const x of [52.5, 67.5]) b.box([x - 1.2, 9.96, -45], [x + 1.2, 9.99, -7], 'skylight', { collide: 'none', tint: 0xdde8f0, noNav: true, occlude: false });
+  for (let x = -74; x <= -50; x += 6) b.box([x - 0.15, 7.3, -78], [x + 0.15, 7.95, -36], 'steel', { collide: 'none', tint: 0x6a7480, noNav: true, occlude: false });
+  b.box([-64, 7.96, -76], [-60, 7.99, -38], 'skylight', { collide: 'none', tint: 0xdde8f0, noNav: true, occlude: false });
+  // Stützen in der Lang-Halle (Deckung)
+  for (const z of [-34, -18]) b.box([59.7, 0, z - 0.3], [60.3, 9.3, z + 0.3], 'steel', { tint: 0x2f5f9e, tag: 'pillar' });
 
   // ------------------------------------------------------------------ Rampen & Treppen
   b.ramp(28, 28, 38, 40, 0, 2, 'pz', 'concrete', { tag: 'ramp' }); // T-Rampe
@@ -116,10 +164,10 @@ export function buildLagerstaub(): MapData {
   b.ramp(-6, -66, 8, -60, 0, 0.8, 'nz', 'paving', { tag: 'ramp' }); // CT-Mitte
   b.ramp(54, -6, 60, 0, -1.6, 0, 'nx', 'concreteDark', { tag: 'ramp' }); // Grube
   b.ramp(-52, -20, -46, -6, 0, 2, 'pz', 'concreteDark', { tag: 'ramp' }); // Tunnelrampe
-  b.stairs(6, -8, 12, -4, 0, 2, 'px', 'steel', { top: 'grating' }); // Steg-Treppe
+  b.stairs(6, -8, 12, -4, 0, 2, 'px', 'steel', { top: 'grating', tint: 0x6a7480 }); // Steg-Treppe
   b.stairs(-38, 22, -30, 30, -1.2, 2, 'nx', 'concrete'); // hinab in den Unteren Tunnel
   b.stairs(-18, 8, -10, 14, -1.2, 0, 'px', 'concrete'); // hinauf zur Mitte
-  b.stairs(-66, -76, -62, -70, 0, 1.2, 'nx', 'steel', { top: 'grating' }); // Hintere Plattform
+  b.stairs(-66, -76, -62, -70, 0, 1.2, 'nx', 'steel', { top: 'grating', tint: 0x6a7480 }); // Hintere Plattform
 
   // Gelb-schwarze Kanten an Rampen und Absätzen
   const edge = (x0: number, z0: number, x1: number, z1: number, y: number): void => {
@@ -142,7 +190,8 @@ export function buildLagerstaub(): MapData {
   b.box([28, 0, 10.8], [32.8, 2.9, 11.2], 'gate', { tint: 0x8a96a2, tag: 'door' });
   b.box([32.8, 2.75, 10.7], [38, 2.9, 11.3], 'hazard', { collide: 'none', noNav: true });
   // Mitteltür: Brandschutztor, ein Flügel halb zu
-  b.box([-6, 3.2, -42], [2, 9, -40], 'brick', { tag: 'wall' });
+  b.box([-6, 3.2, -42], [2, 9, -40], 'plaster', { tag: 'wall', tint: 0xe2d2b0 });
+  b.box([-6.2, 3.0, -42.15], [2.2, 3.25, -39.85], 'concrete', { tag: 'wall', tint: 0xb0aaa0 });
   b.box([-1.6, 0, -41.15], [2, 3.2, -40.85], 'door', { tint: 0xb83a2a, tag: 'door' });
   b.box([-5.9, 0, -40.0], [-5.6, 3.2, -37.4], 'door', { tint: 0xb83a2a, tag: 'door', collide: 'all' });
   // B-Tür: Doppeltür offen, Sturz
@@ -162,7 +211,7 @@ export function buildLagerstaub(): MapData {
   // ------------------------------------------------------------------ Emporen (Vertikalität)
   // Lang-Empore: Stahlbühne an der Westwand der Lang-Halle, Treppe von Süden
   b.floor(46, -40, 52, -16, 3.6, 'steel', { thick: 0.3, top: 'grating', tag: 'platform' });
-  b.stairs(46, -16, 50, -8, 0, 3.6, 'nz', 'steel', { top: 'grating', solid: false });
+  b.stairs(46, -16, 50, -8, 0, 3.6, 'nz', 'steel', { top: 'grating', solid: false, tint: 0x5a6a7a });
   b.rail(52.05, -40, 52.05, -16, 3.6);
   b.rail(50.05, -16, 52, -16, 3.6);
   b.rail(46, -40.05, 52, -40.05, 3.6);
@@ -170,7 +219,7 @@ export function buildLagerstaub(): MapData {
   // B-Empore: Galerie an der Nordwand der Serverhalle, Treppe aus der Halle
   b.floor(-78, -78, -56, -75, 4.4, 'steel', { thick: 0.3, top: 'grating', tag: 'platform' });
   b.floor(-62, -75, -56, -72, 4.4, 'steel', { thick: 0.3, top: 'grating', tag: 'platform' });
-  b.stairs(-56, -75, -47, -72, 0, 4.4, 'nx', 'steel', { top: 'grating', solid: false });
+  b.stairs(-56, -75, -47, -72, 0, 4.4, 'nx', 'steel', { top: 'grating', solid: false, tint: 0x5a6a7a });
   b.rail(-78, -74.95, -62, -74.95, 4.4);
   b.rail(-62, -71.95, -56, -71.95, 4.4);
   b.rail(-61.95, -75, -61.95, -72, 4.4);
@@ -230,9 +279,14 @@ export function buildLagerstaub(): MapData {
   prop(b, 'crate', 48, 3.6, -38.5, { h: 1.0 });
   prop(b, 'cartons', 49, 3.6, -24);
   // A-Plattform: Serverschränke der IT („Serverschrank A“) + Zubehör
-  prop(b, 'serverRow', 52, 2, -70.2, { rot: 0, n: 5 });
-  prop(b, 'ups', 47.6, 2, -70.2);
-  prop(b, 'cooler', 56.6, 2, -70.2);
+  prop(b, 'serverRow', 52, 2, -70.6, { rot: 0, n: 5 });
+  prop(b, 'ups', 47.6, 2, -70.6);
+  prop(b, 'cooler', 56.6, 2, -70.6);
+  prop(b, 'serverRow', 46.4, 2, -61.6, { rot: 1, n: 2 }); // „Default“-Deckung
+  prop(b, 'palletGoods', 57.8, 2, -66.8, { tint: 0xe8e8e8, h: 1.1 });
+  prop(b, 'ibc', 60.5, 2, -72.5);
+  hangSign(b, 'SERVERSCHRANK A', 52, 5.8, -69.6, 0xff5a4a, 'IT-UMZUG · BITTE NICHT STAPELN');
+  tape(b, 44, -73.4, 60, -73.4, 2);
   prop(b, 'drum', 45, 2, -64, { rot: 1 });
   prop(b, 'palletGoods', 58, 2, -62.5, { tint: 0xd8d8d0, h: 1.0 });
   prop(b, 'palletGoods', 59.4, 2, -62.5, { tint: 0xd8d8d0, h: 1.0 });
@@ -291,12 +345,17 @@ export function buildLagerstaub(): MapData {
   b.decor('pipeZ', [-29.5, 2.1, 19], 0, [0.7, 0.7, 22]);
   prop(b, 'cableTray', -51.6, 4.9, -27, { rot: 1, len: 18 });
   // Serverhalle B: Serverreihen („Serverschrank B“), Kühlung, USV, „B-Auto“ (Stapler)
-  prop(b, 'serverRow', -62, 0, -61, { rot: 0, n: 6 });
+  prop(b, 'serverRow', -60, 0, -61.2, { rot: 0, n: 6 });
+  prop(b, 'serverRow', -60, 0, -48.6, { rot: 2, n: 5 });
   prop(b, 'serverRow', -70, 0, -52, { rot: 1, n: 4 });
-  prop(b, 'serverRow', -56, 0, -45, { rot: 2, n: 4 });
-  prop(b, 'cooler', -57.2, 0, -61);
-  prop(b, 'ups', -66.6, 0, -61);
-  prop(b, 'ups', -66.6, 0, -60);
+  prop(b, 'cooler', -55.2, 0, -61.2);
+  prop(b, 'ups', -64.6, 0, -61.2);
+  prop(b, 'ups', -64.6, 0, -60.2);
+  for (const z of [-46, -42.5]) prop(b, 'cooler', -77.2, 0, z, { rot: 1 });
+  prop(b, 'palletGoods', -66, 0, -43, { tint: 0xe8e8e8, h: 1.2 });
+  prop(b, 'palletGoods', -64.6, 0, -43, { tint: 0xe8e8e8, h: 0.9 });
+  hangSign(b, 'SERVERSCHRANK B', -60, 5.6, -54.8, 0xffb13a, 'RECHENZENTRUM · KÜHLUNG AN');
+  tape(b, -66, -57.4, -54, -57.4, 0);
   prop(b, 'drum', -52, 0, -40, { rot: 0 });
   prop(b, 'forklift', -50, 0, -42, { rot: 2 });
   prop(b, 'palletGoods', -74, 1.2, -76.6, {});
@@ -318,6 +377,31 @@ export function buildLagerstaub(): MapData {
   prop(b, 'palletGoods', -30, 0, -47.5, {});
   prop(b, 'barrel', -42.6, 0, -47);
 
+  // ------------------------------------------------------------------ Fassaden-Details (Tore, Türen, Technik)
+  const F = 0.12; // Fassadenverkleidung + Sockel
+  for (const x of [-12, -4, 9.2, 16.5, 26]) prop(b, 'rollerDoor', x, 2, 62 - F, { rot: 2, len: 3.4, h: 3.8 });
+  for (const x of [-8, 3, 12.8, 21.5]) b.wallLamp(x, 6.4, 62 - F - 0.05, 'nz', { intensity: 0.7, range: 10 });
+  prop(b, 'rollerDoor', 38 - F, 0, 18.5, { rot: 1, len: 3.4, h: 4 });
+  prop(b, 'doorSteel', -10 + F, 0, 0, { rot: 3 });
+  prop(b, 'rollerDoor', -10 + F, 0, -24, { rot: 3, len: 4, h: 4.2 });
+  prop(b, 'rollerDoor', 12 - F, 0, 6, { rot: 1, len: 4, h: 4.2 });
+  prop(b, 'electricBox', 12 - F, 0, 12, { rot: 1 });
+  prop(b, 'electricBox', -10 + F, 0, -14, { rot: 3, tint: 0x8a9aa0 });
+  prop(b, 'doorSteel', -28 + F, 0, -50, { rot: 3 });
+  prop(b, 'electricBox', 12 - F, 0, -52, { rot: 1 });
+  prop(b, 'rollerDoor', -44 + F, 2, 52, { rot: 3, len: 3.4, h: 3.6 });
+  prop(b, 'doorSteel', -22 - F, 2, 41, { rot: 1 });
+  prop(b, 'rollerDoor', 26 - F, 0.8, -84, { rot: 1, len: 3.6, h: 4 });
+  prop(b, 'doorSteel', 6, 0.8, -90 + F, { rot: 0 });
+  prop(b, 'doorSteel', 9, 0.8, -90 + F, { rot: 0, tint: 0x2f5f9e });
+  prop(b, 'cones', 4, 0, -36);
+  prop(b, 'cones', 30, 0, 26, { rot: 1 });
+  prop(b, 'cones', 62, 2, -60, { rot: 2 });
+  // Dachaufbauten (Silhouette)
+  for (const [x, y, z] of [[20, 9, 10], [24, 9, -2], [-20, 10, -10], [-30, 10, 2], [-24, 10, -26], [-20, 10, 64.5], [14, 10, 65], [42, 10, 30], [10, 14, -92], [50, 14, -86], [-26, 9, 45], [-34, 9, 64], [3, 9, -72]] as const) prop(b, 'acUnit', x, y, z, { rot: (Math.abs(x) % 2) as 0 | 1 });
+  b.sign('LAGERSTAUB LOGISTIK', [8, 9, -90 + F + 0.02], 'pz', 9, 1.6, { color: 0xf0f0f0, bg: 0x2f5f9e, sub: 'VERWALTUNG · IT-ABTEILUNG' });
+  b.sign('SPEDITION', [26, 7.6, 62 - F - 0.02], 'nz', 5, 1.1, { color: 0xf0f0f0, bg: 0x8a2a20, sub: 'TOR 1–5' });
+
   // ------------------------------------------------------------------ Licht
   for (const x of [51, 60, 69]) for (const z of [-40, -31, -22, -13]) b.hallLamp(x, 9.6, z, { intensity: 1.15, range: 15 });
   for (const x of [34, 43, 52, 66]) b.hallLamp(x, 9.6, 0, { intensity: 1.1, range: 14 });
@@ -327,8 +411,8 @@ export function buildLagerstaub(): MapData {
   for (const [x, z] of [[-62, -60.2], [-70, -52], [-56, -45.8], [52, -69.4]] as const) b.light({ kind: 'lamp', pos: [x, z === -69.4 ? 3.2 : 1.2, z + 0.9], color: 0x40c8ff, intensity: 0.35, range: 5 });
   for (const z of [-30, -22, -14, -6, 2, 10, 17]) b.tubeLamp(-49, z > -20 ? 5.3 : 4.3, z, false, { intensity: 0.75, range: 9 });
   for (const [x, z] of [[-50, 24], [-42, 24], [-50, 32], [-42, 32]] as const) b.tubeLamp(x, 6.3, z, true, { intensity: 0.8, range: 10 });
-  for (const z of [12, 18, 24, 28]) b.tubeLamp(-26, 2.25, z, false, { color: 0xbfe0c0, intensity: 0.55, range: 7 });
-  b.tubeLamp(-16, 2.25, 11, true, { color: 0xbfe0c0, intensity: 0.55, range: 7 });
+  for (const z of [10, 15, 20, 25, 29]) b.tubeLamp(-26, 2.25, z, false, { color: 0xc8f0d0, intensity: 0.95, range: 8 });
+  for (const x of [-21, -15]) b.tubeLamp(x, 2.25, 11, true, { color: 0xc8f0d0, intensity: 0.9, range: 8 });
   for (const [x, z] of [[-40, -70], [-32, -70], [-36, -63]] as const) b.tubeLamp(x, 3.45, z, true, { intensity: 0.7, range: 8 });
   for (const x of [38, 50, 62, 71]) b.hallLamp(x, 7.15, -75, { color: 0xffd8a0, intensity: 0.9, range: 12 });
   b.wallLamp(-6.2, 4.5, -39.6, 'pz', { intensity: 0.8 });
@@ -364,11 +448,11 @@ export function buildLagerstaub(): MapData {
   b.sign('A', [63, 5, -6.3], 'pz', 1.4, 1.4, { color: 0xff5a4a, sub: '↑' });
   b.sign('SERVERSCHRANK A', [52, 4.6, -79.7], 'pz', 5, 1, { color: 0xff5a4a, sub: 'IT · NICHT BERÜHREN' });
   b.sign('SERVERRAUM B', [-62, 5.5, -77.7], 'pz', 5, 1, { color: 0xffb13a, sub: 'ZUTRITT NUR FÜR IT' });
-  b.sign('B', [-45.8, 4.6, -53], 'px', 1.4, 1.4, { color: 0xffb13a });
-  b.sign('B', [-28.2, 4, -52], 'nx', 1.4, 1.4, { color: 0xffb13a, sub: '←' });
-  b.sign('MITTE', [-10.2, 4, -20], 'px', 3, 0.8, { color: 0xe8e8e8 });
-  b.sign('KURZ A', [12.2, 5, -20], 'px', 3, 0.8, { color: 0xff5a4a, sub: 'STEG' });
-  b.sign('CT', [-6.2, 4.4, -64], 'px', 1.4, 1.4, { color: 0x8fc0ff });
+  b.sign('B', [-43.85, 4.0, -53], 'px', 1.4, 1.4, { color: 0xffb13a });
+  b.sign('B ←', [-20, 4.2, -59.85], 'pz', 2.2, 1.0, { color: 0xffb13a, sub: 'SERVERRAUM' });
+  b.sign('MITTE', [-9.85, 4, -20], 'px', 3, 0.8, { color: 0xe8e8e8 });
+  b.sign('KURZ A', [17.85, 5, -22], 'nx', 3, 0.8, { color: 0xff5a4a, sub: 'STEG' });
+  b.sign('CT', [-5.85, 4.4, -63], 'px', 1.4, 1.4, { color: 0x8fc0ff });
   b.sign('TUNNEL', [-41, 5, 36.25], 'pz', 3.5, 0.8, { color: 0xffb13a, sub: '→ B' });
   b.sign('T-HOF', [3, 6.5, 61.75], 'nz', 4, 1, { color: 0xffb070, sub: 'SPEDITION · RAMPE 1–4' });
   b.sign('GRUBE', [73.75, 3, 0], 'nx', 3, 0.8, { color: 0xffd040 });
@@ -427,4 +511,17 @@ export function buildLagerstaub(): MapData {
   b.ambient('machine', [64, 1, 0], 16, 0.4);
 
   return b.data;
+}
+
+/** Abgehängtes, beidseitiges Schild mit zwei Aufhängungen. */
+function hangSign(b: MapBuilder, text: string, x: number, y: number, z: number, color: number, sub?: string): void {
+  b.sign(text, [x, y, z + 0.03], 'pz', 4.2, 1.0, { color, sub });
+  b.sign(text, [x, y, z - 0.03], 'nz', 4.2, 1.0, { color, sub });
+  for (const dx of [-1.6, 1.6]) b.box([x + dx - 0.02, y + 0.5, z - 0.02], [x + dx + 0.02, y + 2.2, z + 0.02], 'metal', { collide: 'none', tint: 0x404448, noNav: true, occlude: false });
+}
+
+/** Absperrband zwischen zwei Pfosten (rot-weiß, nur Optik). */
+function tape(b: MapBuilder, x0: number, z0: number, x1: number, z1: number, y: number): void {
+  for (const [x, z] of [[x0, z0], [x1, z1]] as const) b.box([x - 0.04, y, z - 0.04], [x + 0.04, y + 1.0, z + 0.04], 'metal', { collide: 'none', tint: 0xd8d8d8, noNav: true, occlude: false });
+  b.box([Math.min(x0, x1), y + 0.92, Math.min(z0, z1) - 0.01], [Math.max(x0, x1), y + 0.97, Math.max(z0, z1) + 0.01], 'hazard', { collide: 'none', tint: 0xff4040, noNav: true, occlude: false });
 }

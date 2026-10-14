@@ -10,7 +10,7 @@ export type PropKind =
   | 'pallet' | 'palletStack' | 'palletGoods' | 'crate' | 'crateStack' | 'gitterbox' | 'container' | 'container40'
   | 'trailer' | 'truck' | 'forklift' | 'barrel' | 'barrelGroup' | 'drum' | 'rack' | 'shelf' | 'serverRack'
   | 'serverRow' | 'ups' | 'cooler' | 'conveyor' | 'cartons' | 'ibc' | 'desk' | 'bumper' | 'lampPost' | 'fence'
-  | 'handTruck' | 'cableTray' | 'locker' | 'generator';
+  | 'handTruck' | 'cableTray' | 'locker' | 'generator' | 'rollerDoor' | 'acUnit' | 'electricBox' | 'cones' | 'doorSteel';
 
 export type PropOpts = { rot?: 0 | 1 | 2 | 3; tint?: number; h?: number; n?: number; len?: number; seed?: number; levels?: number };
 
@@ -269,6 +269,36 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
     }
     case 'locker':
       box(-0.45, 0, -0.25, 0.45, 1.9, 0.25, 'metal', { tint: 0x8a9aa8 });
+      break;
+    case 'rollerDoor': {
+      // Rolltor in einer Fassade: Rückseite an der Wand (lokal z = 0), Front +Z; w = len, h = h
+      const w = o.len ?? 3.6;
+      const h = o.h ?? 4;
+      box(-w / 2, 0, 0, w / 2, h, 0.1, 'gate', { collide: 'none', tint: o.tint ?? 0xb8c0c8, uvFit: true, noNav: true, occlude: false });
+      box(-w / 2 - 0.18, 0, 0, -w / 2, h + 0.3, 0.2, 'hazard', { collide: 'none', noNav: true, occlude: false });
+      box(w / 2, 0, 0, w / 2 + 0.18, h + 0.3, 0.2, 'hazard', { collide: 'none', noNav: true, occlude: false });
+      box(-w / 2 - 0.2, h, 0, w / 2 + 0.2, h + 0.55, 0.32, 'metal', { collide: 'none', tint: 0x6a7480, noNav: true, occlude: false });
+      break;
+    }
+    case 'doorSteel': {
+      const w = o.len ?? 1.2;
+      box(-w / 2, 0, 0, w / 2, 2.2, 0.08, 'door', { collide: 'none', tint: o.tint ?? 0x7a8a9a, uvFit: true, noNav: true, occlude: false });
+      box(-w / 2 - 0.08, 0, 0, w / 2 + 0.08, 2.3, 0.04, 'metal', { collide: 'none', tint: 0x4a4e52, noNav: true, occlude: false });
+      break;
+    }
+    case 'acUnit':
+      box(-0.9, 0, -0.6, 0.9, 1.1, 0.6, 'vent', { collide: 'none', tint: 0xc0c6ca, noNav: true });
+      b.decor('fanUnit', [x, y + 1.1, z], yawRot);
+      break;
+    case 'electricBox':
+      box(-0.45, 0, 0, 0.45, 1.3, 0.32, 'metal', { collide: 'none', tint: o.tint ?? 0xa8b0a0, noNav: true, occlude: false });
+      box(-0.3, 0.9, 0.32, -0.05, 1.05, 0.34, 'hazard', { collide: 'none', noNav: true, occlude: false });
+      break;
+    case 'cones':
+      for (const [lx, lz] of [[0, 0], [0.7, 0.3], [-0.5, 0.6]] as const) {
+        const [cx, cz] = place(x, z, rot, lx, lz, lx, lz);
+        b.decor('cone', [cx, y, cz]);
+      }
       break;
     case 'generator':
       box(-1.4, 0, -0.7, 1.4, 1.7, 0.7, 'metal', { tint: 0x3a6a3a });

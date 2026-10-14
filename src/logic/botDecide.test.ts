@@ -163,3 +163,22 @@ describe('aimError / reactionTime / Namen', () => {
     expect(BOT_NAMES.length).toBeGreaterThanOrEqual(10);
   });
 });
+
+describe('Höhenebenen', () => {
+  it('Sichtlinie nutzt die Fußhöhe: Gegner über einer Decke ist unsichtbar, auf gleicher Ebene sichtbar', () => {
+    const slab = { minX: -20, maxX: 20, minY: 3.5, maxY: 4, minZ: -20, maxZ: 20 };
+    const upstairs = world({ solids: [slab], enemies: [{ id: 'up', pos: { x: 5, y: 4, z: 0 } }] }, { pos: { x: 0, y: 0, z: 0 } });
+    expect(visibleEnemy(upstairs)).toBeNull();
+    const same = world({ solids: [slab], enemies: [{ id: 'up', pos: { x: 5, y: 4, z: 0 } }] }, { pos: { x: 0, y: 4, z: 0 } });
+    expect(visibleEnemy(same)!.id).toBe('up');
+  });
+
+  it('Spot auf anderer Ebene gilt nicht als erreicht (Höhenunterschied zählt beim Pflanzen)', () => {
+    const zones = { a: { x: 0, y: 4, z: 0 }, b: { x: 30, y: 0, z: 0 }, t: { x: 0, z: -40 }, ct: { x: 0, z: 40 } };
+    const below = decideBot(world({ zones, solids: [] }, { hasBomb: true, pos: { x: 0, y: 0, z: 0 } }), newBotMemory(rnd), 0.016, rnd);
+    expect(below.plant).toBe(false);
+    expect(below.moveTo).toEqual({ x: 0, y: 4, z: 0 });
+    const onTop = decideBot(world({ zones, solids: [] }, { hasBomb: true, pos: { x: 0, y: 4, z: 0 } }), newBotMemory(rnd), 0.016, rnd);
+    expect(onTop.plant).toBe(true);
+  });
+});

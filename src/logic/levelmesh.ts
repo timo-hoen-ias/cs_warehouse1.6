@@ -103,7 +103,10 @@ export function buildLevelMesh(map: MapData, opts: LevelMeshOpts = LEVEL_HIGH, b
    * Viereck-Gitter: Ecke o, Kanten eu (Länge lu) und ev (Länge lv), Normale n.
    * hv(u) = Höhenfunktion für Rampen-Seiten (Anteil 0..1 der v-Kante je u).
    */
-  const quadGrid = (br: Brush, mat: MaterialId, o: V3, eu: V3, lu: number, ev: V3, lv: number, n: V3, uvOf: (p: V3) => [number, number], hv?: (fu: number) => number): void => {
+  const quadGrid = (br: Brush, mat: MaterialId, o: V3, eu: V3, lu: number, ev: V3, lv: number, n: V3, uvWorld: (p: V3) => [number, number], hv?: (fu: number) => number): void => {
+    // Eingepasste UVs (Fenster, Tore): Textur genau einmal je Fläche; Spiegelung je nach Blickseite ausgleichen
+    const fitFlip = eu[0] * n[2] - eu[2] * n[0] < 0;
+    const uvOf = br.uvFit ? (_p: V3, fu = 0, fv = 0): [number, number] => [fitFlip ? 1 - fu : fu, fv] : (p: V3): [number, number] => uvWorld(p);
     stats.faces++;
     const nu = Math.max(1, Math.min(64, Math.ceil(lu / opts.seg)));
     const nv = Math.max(1, Math.min(64, Math.ceil(lv / opts.seg)));
@@ -142,7 +145,7 @@ export function buildLevelMesh(map: MapData, opts: LevelMeshOpts = LEVEL_HIGH, b
     const B = get(mat, cx, cz);
     const base = B.pos.length / 3;
     const tint = tintOf(br.tint);
-    const glow = mat === 'emissive';
+    const glow = mat === 'emissive' || mat === 'skylight';
     const used = new Uint8Array((nu + 1) * (nv + 1));
     for (let iv = 0; iv < nv; iv++) {
       for (let iu = 0; iu < nu; iu++) {
@@ -156,7 +159,7 @@ export function buildLevelMesh(map: MapData, opts: LevelMeshOpts = LEVEL_HIGH, b
         const p = P(iu, iv);
         B.pos.push(p[0], p[1], p[2]);
         B.nor.push(n[0], n[1], n[2]);
-        const [u, v] = uvOf(p);
+        const [u, v] = uvOf(p, iu / nu, iv / nv);
         B.uv.push(u, v);
         const L = !used[iv * (nu + 1) + iu] ? ([0, 0, 0] as RGB) : glow ? ([1.6, 1.6, 1.6] as RGB) : bakePoint(bake.voxels, bake.grid, bake.env, p, n, bake.q);
         B.col.push(L[0] * tint[0], L[1] * tint[1], L[2] * tint[2]);
