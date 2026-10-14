@@ -78,3 +78,24 @@ describe('defusen', () => {
     expect(b.phase).not.toBe('defused');
   });
 });
+
+describe('Zünder während des Entschärfens', () => {
+  it('läuft weiter: zu spät begonnenes Entschärfen ohne Kit endet in der Explosion', () => {
+    const b = newBomb();
+    for (let i = 0; i < 40; i++) tickBomb(b, 0.1, { plant: true, defuse: false }, { inSpot: 'a', hasKit: false });
+    expect(b.phase).toBe('planted');
+    // bis 3 s vor Ablauf warten
+    while (b.fuseLeft > 3) tickBomb(b, 0.1, { plant: false, defuse: false }, { inSpot: null, hasKit: false });
+    for (let i = 0; i < 200 && b.phase !== 'exploded' && b.phase !== 'defused'; i++) tickBomb(b, 0.1, { plant: false, defuse: true }, { inSpot: 'a', hasKit: false });
+    expect(b.phase).toBe('exploded');
+  });
+
+  it('rechtzeitig mit Kit: entschärft, Restzeit wurde dabei verbraucht', () => {
+    const b = newBomb();
+    for (let i = 0; i < 40; i++) tickBomb(b, 0.1, { plant: true, defuse: false }, { inSpot: 'a', hasKit: true });
+    const before = b.fuseLeft;
+    for (let i = 0; i < 70 && b.phase !== 'defused'; i++) tickBomb(b, 0.1, { plant: false, defuse: true }, { inSpot: 'a', hasKit: true });
+    expect(b.phase).toBe('defused');
+    expect(before).toBeGreaterThan(BOMB.defuseKitTime);
+  });
+});

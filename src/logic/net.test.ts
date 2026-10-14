@@ -4,9 +4,12 @@ import { addPlayer, beginRound, newMatch } from './match';
 import { applySnapshot, electHost, lerpPose, packSnapshot, poseMsg, roomCode, sanitizeName } from './net';
 
 describe('electHost', () => {
-  it('kleinste ID gewinnt, unabhängig von der Reihenfolge; leer → null', () => {
-    expect(electHost(['zeta', 'alpha', 'mid'])).toBe('alpha');
-    expect(electHost(['b', 'a'])).toBe(electHost(['a', 'b']));
+  it('wer am längsten im Raum ist (erste ID in Beitrittsreihenfolge) wird Host; leer → null', () => {
+    expect(electHost(['zeta', 'alpha', 'mid'])).toBe('zeta');
+    // Neuzugang mit „kleinerer“ ID übernimmt nicht
+    expect(electHost(['m', 'n', 'a'])).toBe('m');
+    // Host verlässt den Raum → nächster in der Reihenfolge
+    expect(electHost(['n', 'a'])).toBe('n');
     expect(electHost([])).toBeNull();
   });
 });

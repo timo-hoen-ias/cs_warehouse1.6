@@ -124,3 +124,27 @@ describe('Match-Sieg', () => {
     expect(matchWon(s)).toBe('CT');
   });
 });
+
+describe('CS-Regeln nach dem Plant', () => {
+  const planted = (): RoundState => {
+    const s = newRoundState();
+    s.phase = 'live';
+    s.timer = ROUND.roundTime;
+    advance(s, { ...idle, bombAction: { plant: true, defuse: false }, inSpot: 'a' }, 4);
+    expect(s.phase).toBe('bomb');
+    return s;
+  };
+
+  it('alle T tot → Runde läuft weiter, bis die Bombe explodiert oder entschärft wird', () => {
+    const s = planted();
+    const r = tickRound(s, { ...idle, alive: { T: 0, CT: 3 } }, 0.1);
+    expect(r).toBeNull();
+    expect(s.phase).toBe('bomb');
+  });
+
+  it('alle CT tot nach dem Plant → normaler T-Sieg (nicht „Ziel zerstört“)', () => {
+    const s = planted();
+    const r = tickRound(s, { ...idle, alive: { T: 1, CT: 0 } }, 0.1);
+    expect(r?.outcome).toBe('t_win');
+  });
+});

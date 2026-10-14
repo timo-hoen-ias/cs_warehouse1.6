@@ -95,8 +95,9 @@ export function tickRound(s: RoundState, input: RoundInput, dt: number): RoundRe
     }
 
     case 'bomb': {
-      if (input.alive.CT === 0) return finish(s, { outcome: 't_win_explode', reason: 'CT eliminiert' });
-      if (input.alive.T === 0) return finish(s, { outcome: 'ct_win', reason: 'T eliminiert' });
+      // CS-Regel: nach dem Plant zählt nur noch die Bombe — tote T beenden die Runde nicht,
+      // tote CT (niemand kann mehr entschärfen) schon (als normaler T-Sieg).
+      if (input.alive.CT === 0) return finish(s, { outcome: 't_win', reason: 'Counter-Terroristen eliminiert' });
       if (s.bomb.phase === 'exploded') return finish(s, { outcome: 't_win_explode', reason: 'Bombe explodiert' });
       if (s.bomb.phase === 'defused') return finish(s, { outcome: 'ct_win_defuse', reason: 'Bombe entschärft' });
       break;

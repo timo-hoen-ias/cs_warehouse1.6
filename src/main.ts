@@ -250,6 +250,8 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       return { ok: true, target: e.id, hp: e.hp, dist: +dist.toFixed(2), weapon: shooter.weaponId };
     };
     g.__counters = () => driver.debugCounters();
+    g.__pauseBots = (ms = 3000) => { driver.botsPaused = true; setTimeout(() => { driver.botsPaused = false; }, ms); return true; };
+    g.__reviveId = (id: string) => driver.debugReviveId(id);
     g.__enemyHp = () => Object.values(driver.match.players).filter((p) => p.team !== driver.local?.team).map((p) => ({ id: p.id, hp: p.hp, alive: p.alive }));
     g.__wallShot = () => {
       const wall = world.solids.find((s) => s.kind === 'wall' && s.label === 'wand-ost');

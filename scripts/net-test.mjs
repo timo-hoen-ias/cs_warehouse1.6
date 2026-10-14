@@ -111,6 +111,11 @@ async function run() {
     else fail(`Runde nicht synchron: lh=${JSON.stringify(lh)} lc=${JSON.stringify(lc)} Host=${JSON.stringify(hs)} Client=${JSON.stringify(cs)}`);
 
     // 4) Client schießt auf einen Gegner-Bot → Host verrechnet Schaden, Client sieht ihn im Snapshot
+    // Auf dem Host: Client sicher am Leben und Bots kurz angehalten (deterministischer Treffer)
+    const clientId = (await client.evJson('globalThis.__netId?.()'))?.id;
+    await host.evJson(`globalThis.__reviveId?.(${JSON.stringify(clientId)})`);
+    await host.evJson('globalThis.__pauseBots?.(6000)');
+    await sleep(1500); // Snapshot mit den angehaltenen Bot-Posen beim Client abwarten
     const aim = await client.evJson('globalThis.__aimAtBot?.(true)');
     const victim = aim?.target;
     const hv = await host.waitFor('globalThis.__players?.()', (v) => v.find((p) => p.id === victim)?.hp < 100, 8000, 300);
@@ -132,6 +137,11 @@ async function run() {
     const mig = await client.waitFor('globalThis.__state?.()', (v) => v.host === true, 30000);
     if (mig?.host === true && mig.players >= 1) ok(`Host-Migration: Client ist jetzt Host (${mig.players} Spieler, Phase ${mig.phase})`);
     else fail('Host-Migration fehlgeschlagen: ' + JSON.stringify(mig));
+    // Alter Host darf nicht als Geisterspieler zurückbleiben
+    const oldHostId = hostIsA ? na.id : nb.id;
+    const left = await client.waitFor('globalThis.__players?.()', (v) => !v.some((p) => p.id === oldHostId), 8000, 300);
+    if (left && !left.some((p) => p.id === oldHostId)) ok(`Alter Host entfernt (${left.filter((p) => !p.bot).length} Mensch, ${left.filter((p) => p.bot).length} Bots)`);
+    else fail('Alter Host noch im Match: ' + JSON.stringify(left));
 
     const errs = [...a.errors, ...b.errors].filter((e) => !/DRACOLoader|KTX2Loader|Websocket connection closed/.test(e));
     if (errs.length) fail('Fehler:\n' + errs.join('\n'));

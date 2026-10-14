@@ -372,9 +372,9 @@ export class Shooter extends Behaviour {
     this.onThrow?.(kind, ray.origin, ray.dir, strength);
     this.viewModel?.kick(0.08);
     // Danach beste Waffe (Host nimmt die Granate aus dem Inventar; Spiegel folgt)
+    // Den Bestand verringert der Host (offline: derselbe Loadout, sofort; online: per Snapshot)
     const lo = this.loadout?.();
     if (lo) {
-      lo.grenades[kind] = Math.max(0, lo.grenades[kind] - 1);
       this.weaponId = '';
       this.setWeapon(this.carries(lo, def.id) ? def.id : bestWeapon(lo));
     }

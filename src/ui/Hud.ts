@@ -368,7 +368,7 @@ export class Hud {
   }
 
   pushKill(e: Extract<GameEvent, { k: 'kill' }>, m: MatchState): void {
-    const name = (id: string | null): string => (id ? (m.players[id]?.name ?? id) : 'Welt');
+    const name = (id: string | null): string => esc(id ? (m.players[id]?.name ?? id) : 'Welt');
     const color = (id: string | null): string => (id && m.players[id]?.team === 'T' ? '#ffb070' : '#8fc0ff');
     const w = WEAPONS[e.weapon]?.name ?? e.weapon;
     const html = `<span style="color:${color(e.killer)}">${name(e.killer)}</span> <span style="opacity:.7">[${w}${e.hs ? ' ☠' : ''}]</span> <span style="color:${color(e.victim)}">${name(e.victim)}</span>`;

@@ -147,8 +147,13 @@ export function beginRound(m: MatchState, spawnAt: SpawnProvider, rnd: () => num
   const ts: MatchPlayer[] = [];
   for (const p of Object.values(m.players)) {
     const firstRound = m.round.round <= 1;
-    p.loadout = carryOver(p.loadout, p.survived && !firstRound, p.team);
-    if (firstRound) p.loadout = defaultLoadout(p.team);
+    // Wer nach Rundenende noch starb (alive=false), verliert sein Inventar ebenfalls
+    p.loadout = carryOver(p.loadout, p.survived && p.alive && !firstRound, p.team);
+    if (firstRound) {
+      // Aufwärmrunde zählt nicht: Inventar und Startgeld zurücksetzen (Warmup-Käufe verfallen)
+      p.loadout = defaultLoadout(p.team);
+      p.money = newMoney();
+    }
     p.hp = 100;
     p.alive = true;
     p.survived = false;

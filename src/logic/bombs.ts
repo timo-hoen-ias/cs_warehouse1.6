@@ -75,6 +75,13 @@ export function tickBomb(
   }
 
   if (b.phase === 'defusing') {
+    // Der Zünder läuft auch während des Entschärfens weiter (CS: zu spät angefangen = Explosion)
+    b.fuseLeft = Math.max(0, b.fuseLeft - dt);
+    if (b.fuseLeft <= 0) {
+      b.phase = 'exploded';
+      b.progress = 0;
+      return;
+    }
     // Defuse nur auf dem Spot der Bombe; Abbruch wenn losgelassen/weg
     if (!action.defuse || ctx.inSpot !== b.spot) {
       b.phase = 'planted';

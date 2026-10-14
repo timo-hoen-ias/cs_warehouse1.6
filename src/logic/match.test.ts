@@ -225,3 +225,29 @@ describe('scoreboard', () => {
     expect(sb.CT).toHaveLength(2);
   });
 });
+
+describe('Aufwärmrunde und späte Tode', () => {
+  it('Runde 1 setzt Geld und Inventar zurück (Warmup-Käufe verfallen)', () => {
+    const m = newMatch();
+    const p = addPlayer(m, 'a', 'A', { team: 'T' });
+    buyItem(p.loadout, p.money, 'kevlar', 'T');
+    expect(p.money.amount).toBe(ECONOMY.startMoney - 650);
+    m.round.round = 1;
+    beginRound(m, spawn, () => 0);
+    expect(p.money.amount).toBe(ECONOMY.startMoney);
+    expect(p.loadout.armor).toBe(0);
+  });
+
+  it('wer nach Rundenende noch stirbt, verliert seine Waffen', () => {
+    const m = setup();
+    const h = m.players['h1']!;
+    h.money.amount = 5000;
+    buyItem(h.loadout, h.money, 'ak47', 'T');
+    finishRound(m, 't_win', false);
+    expect(h.survived).toBe(true);
+    applyHit(m, 'h1', 'b1', WEAPONS['awp']!, 'head'); // stirbt in der Rundenend-Anzeige
+    m.round.round = 2;
+    beginRound(m, spawn, () => 0);
+    expect(h.loadout.primary).toBeNull();
+  });
+});

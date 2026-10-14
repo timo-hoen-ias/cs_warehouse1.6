@@ -27,8 +27,9 @@ export type TeamMsg = { t: 'team'; id: string; team: Team };
 export type ChatMsg = { t: 'chat'; id: string; name: string; text: string; team: Team | null };
 export type ReloadMsg = { t: 'reload'; id: string; w: string };
 export type DropMsg = { t: 'dropreq'; id: string; w: string };
-export type SnapMsg = { t: 'snap'; s: Snapshot };
-export type EventMsg = { t: 'ev'; e: GameEvent };
+/** `h` = Absender-Host-ID: Clients verwerfen Snapshots/Ereignisse von Nicht-Hosts. */
+export type SnapMsg = { t: 'snap'; s: Snapshot; h?: string };
+export type EventMsg = { t: 'ev'; e: GameEvent; h?: string };
 export type PosesMsg = { t: 'poses'; p: PoseMsg[] };
 
 export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg | TeamMsg | ChatMsg | ReloadMsg | DropMsg | SnapMsg | EventMsg | PosesMsg;
@@ -37,7 +38,7 @@ export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg 
 export type GameEvent =
   | { k: 'kill'; killer: string | null; victim: string; weapon: string; hs: boolean }
   | { k: 'hit'; victim: string; attacker: string | null; dmg: number; part: 'head' | 'body'; from: [number, number, number]; at: [number, number, number] }
-  | { k: 'spawn'; id: string; x: number; z: number; yaw: number }
+  | { k: 'spawn'; id: string; x: number; z: number; yaw: number; fresh?: boolean }
   | { k: 'shot'; id: string; w: string; o: [number, number, number]; ends: [number, number, number][]; walls: [number, number, number][] }
   | { k: 'nade'; id: number; kind: GrenadeKind; owner: string; o: [number, number, number]; v: [number, number, number] }
   | { k: 'boom'; id: number; kind: GrenadeKind; at: [number, number, number] }
@@ -70,6 +71,8 @@ export type PlayerSnap = {
   secondary: string | null;
   nades: [number, number, number];
   ping: number;
+  /** Hat die letzte Runde überlebt (für Host-Migration: Inventar-Übertrag). */
+  survived?: boolean;
 };
 
 export type Snapshot = {
@@ -87,10 +90,13 @@ export type Snapshot = {
   drops?: { id: number; weapon: string; p: [number, number, number] }[];
 };
 
-/** Host = kleinste ID (String-Vergleich) aller Nutzer im Raum. */
+/**
+ * Host = wer am längsten im Raum ist. `ids` muss in Beitrittsreihenfolge vorliegen
+ * (so liefert sie der Raum-Server; alle Clients sehen dieselbe Reihenfolge). Damit wird
+ * ein neu Beitretender nie Host und übernimmt kein leeres Match.
+ */
 export function electHost(ids: readonly string[]): string | null {
-  if (!ids.length) return null;
-  return [...ids].sort()[0]!;
+  return ids.length ? ids[0]! : null;
 }
 
 export function packPlayer(p: MatchPlayer): PlayerSnap {
@@ -113,6 +119,7 @@ export function packPlayer(p: MatchPlayer): PlayerSnap {
     secondary: p.loadout.secondary,
     nades: [p.loadout.grenades.he, p.loadout.grenades.flash, p.loadout.grenades.smoke],
     ping: p.ping,
+    survived: p.survived,
   };
 }
 
@@ -175,6 +182,7 @@ export function applySnapshot(m: MatchState, s: Snapshot): void {
     p.deaths = ps.deaths;
     p.weapon = ps.weapon;
     p.ping = ps.ping;
+    p.survived = ps.survived ?? p.survived;
     const lo = p.loadout;
     lo.armor = ps.armor;
     lo.helmet = ps.helmet;

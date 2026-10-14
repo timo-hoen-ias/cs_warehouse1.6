@@ -15,8 +15,9 @@ import {
 import { ROUND, tickRound, type RoundPhase } from '../logic/round';
 import { spotAt } from '../logic/zones';
 import type { Team } from '../logic/economy';
-import { WEAPONS, type WeaponDef } from '../logic/weapons';
-import { buyAmmo, buyItem, botBuy, consumeGrenade, bestWeapon } from '../logic/loadout';
+import { WEAPONS, shotInterval, type WeaponDef } from '../logic/weapons';
+import { buyAmmo, buyItem, botBuy, consumeGrenade, bestWeapon, giveWeapon } from '../logic/loadout';
+import { makeGun } from '../logic/fire';
 import { fireSpread, startReload, tickGun, tryShoot } from '../logic/fire';
 import { resolveRay, shotDirs, aimAt, spreadDir, dirToYawPitch, type ShotTarget } from '../logic/combat';
 import { humanPartBoxes, type Vec3 } from '../logic/hitbox';
@@ -121,7 +122,7 @@ export class MatchDriver extends Behaviour {
   }
 
   get isHost(): boolean {
-    return !this.net.online || this.net.hostId === this.net.id;
+    return !this.net.online || (this.net.hostId !== '' && this.net.hostId === this.net.id);
   }
 
   /** Lokaler Spieler im Match (Host: autoritativ; Client: Spiegel, ggf. undefined vor dem ersten Snapshot). */
@@ -162,7 +163,14 @@ export class MatchDriver extends Behaviour {
 
   // ---------------------------------------------------------------- Netz
 
+  private lastHostId = '';
+
   private onPeers(): void {
+    if (this.net.hostId !== this.lastHostId) {
+      // Neuer Host zählt seine Snapshots neu → alte Sequenz vergessen
+      this.lastHostId = this.net.hostId;
+      this.lastSnapSeq = -1;
+    }
     if (this.isHost && !this.wasHost) this.becomeHost();
     else if (!this.isHost && this.wasHost) this.wasHost = false;
     if (!this.isHost) this.sendHello();
@@ -176,7 +184,20 @@ export class MatchDriver extends Behaviour {
 
   private becomeHost(): void {
     this.wasHost = true;
-    // Host-Migration: Spiegel wird autoritativ; eigener Spieler sicherstellen
+    // Host-Migration: Spiegel wird autoritativ.
+    // Snapshot-Zähler über dem bisherigen Host fortsetzen, Rundenzähler übernehmen (kein Doppelstart)
+    this.snapSeq = Math.max(this.snapSeq, this.lastSnapSeq + 1);
+    this.lastRound = this.match.round.round;
+    // Menschen, die nicht mehr im Raum sind (z. B. der alte Host), entfernen
+    const present = new Set([this.localId, ...this.net.peers]);
+    for (const p of Object.values(this.match.players)) {
+      if (!p.bot && !present.has(p.id)) removePlayer(this.match, p.id);
+    }
+    // Bot-IDs nach den vorhandenen fortsetzen (sonst überschreibt fillBots einen lebenden Bot)
+    for (const p of Object.values(this.match.players)) {
+      const n = Number(/^bot-(\d+)$/.exec(p.id)?.[1] ?? -1);
+      if (n >= this.botIndex) this.botIndex = n + 1;
+    }
     if (!this.match.players[this.localId]) {
       addPlayer(this.match, this.localId, sanitizeName(this.options.localName), { team: this.options.team });
     }
@@ -213,10 +234,10 @@ export class MatchDriver extends Behaviour {
         if (!this.isHost) for (const p of msg.p) this.applyRemotePose(p);
         break;
       case 'snap':
-        if (!this.isHost) this.applySnap(msg.s);
+        if (!this.isHost && (!msg.h || msg.h === this.net.hostId)) this.applySnap(msg.s);
         break;
       case 'ev':
-        if (!this.isHost) this.onEvent(msg.e);
+        if (!this.isHost && (!msg.h || msg.h === this.net.hostId)) this.onEvent(msg.e);
         break;
       case 'hello':
         if (this.isHost) this.hostHello(msg.id, msg.name, msg.team);
@@ -274,7 +295,7 @@ export class MatchDriver extends Behaviour {
   }
 
   private emit(e: GameEvent): void {
-    this.net.send({ t: 'ev', e });
+    this.net.send({ t: 'ev', e, h: this.localId });
     this.onEvent(e);
   }
 
@@ -371,8 +392,8 @@ export class MatchDriver extends Behaviour {
     for (const p of Object.values(this.match.players)) this.spawnOne(p);
   }
 
-  private emitSpawn(p: MatchPlayer): void {
-    this.emit({ k: 'spawn', id: p.id, x: p.pose.x, z: p.pose.z, yaw: p.pose.yaw });
+  private emitSpawn(p: MatchPlayer, fresh = false): void {
+    this.emit({ k: 'spawn', id: p.id, x: p.pose.x, z: p.pose.z, yaw: p.pose.yaw, fresh });
   }
 
   // ---------------------------------------------------------------- Host: Kampf
@@ -387,12 +408,35 @@ export class MatchDriver extends Behaviour {
     return out;
   }
 
+  private readonly lastFire = new Map<string, number>();
+
   private hostFire(shooterId: string, weaponId: string, origin: Vec3, dirs: Vec3[]): void {
     const shooter = this.match.players[shooterId];
     const def = WEAPONS[weaponId];
     this.counters.firesHandled += 1;
-    if (!shooter || !shooter.alive || !def) return;
-    if (this.match.round.phase === 'freeze' || this.match.round.phase === 'warmup' && false) return;
+    if (!shooter || !shooter.alive || !def || !dirs.length) return;
+    if (this.match.round.phase === 'freeze') return;
+    // Fremde Schüsse prüfen: Waffe im Inventar, Kadenz, Anzahl Strahlen, Ursprung nahe der Pose
+    if (shooterId !== this.localId && !shooter.bot) {
+      const lo = shooter.loadout;
+      const base = weaponId === 'knife_stab' ? 'knife' : weaponId;
+      if (base !== 'knife' && lo.primary !== base && lo.secondary !== base) return;
+      const last = this.lastFire.get(shooterId) ?? -1;
+      if (last >= 0 && this.match.time - last < shotInterval(def) * 0.6) return;
+      this.lastFire.set(shooterId, this.match.time);
+      if (Math.hypot(origin.x - shooter.pose.x, origin.z - shooter.pose.z) > 2.5) return;
+      if (dirs.length > Math.max(1, def.pellets)) dirs = dirs.slice(0, def.pellets);
+      // Munition auf dem Host mitzählen (für Munitionskauf und Host-Wechsel)
+      const gun = lo.guns[weaponId];
+      if (gun && def.mode === 'hit') {
+        if (gun.mag > 0) gun.mag -= 1;
+        else if (gun.reserve > 0) {
+          const take = Math.min(def.magSize, gun.reserve);
+          gun.reserve -= take;
+          gun.mag = take - 1;
+        }
+      }
+    }
     const targets = this.targetsFor(shooterId);
     const ends: [number, number, number][] = [];
     const walls: [number, number, number][] = [];
@@ -411,7 +455,7 @@ export class MatchDriver extends Behaviour {
         if (def.pellets === 1 && hit.part === 'head' && def.type !== 'shotgun') { /* ein Kopftreffer reicht */ }
       }
     }
-    this.net.send({ t: 'ev', e: { k: 'shot', id: shooterId, w: weaponId, o: [origin.x, origin.y, origin.z], ends, walls } });
+    this.net.send({ t: 'ev', h: this.localId, e: { k: 'shot', id: shooterId, w: weaponId, o: [origin.x, origin.y, origin.z], ends, walls } });
     if (shooterId !== this.localId) this.onEvent({ k: 'shot', id: shooterId, w: weaponId, o: [origin.x, origin.y, origin.z], ends, walls });
   }
 
@@ -499,7 +543,7 @@ export class MatchDriver extends Behaviour {
     const p = this.match.players[id];
     if (!p) return;
     const r = buyAmmo(p.loadout, p.money, slot);
-    this.emit({ k: 'buy', id, item: slot === 1 ? 'Munition Primär' : 'Munition Pistole', ok: r.ok, reason: r.ok ? undefined : buyReason(r.reason) });
+    this.emit({ k: 'buy', id, item: slot === 1 ? 'ammo1' : 'ammo2', ok: r.ok, reason: r.ok ? undefined : buyReason(r.reason) });
   }
 
   // ---------------------------------------------------------------- Lokale Aktionen
@@ -545,6 +589,8 @@ export class MatchDriver extends Behaviour {
     switch (e.k) {
       case 'spawn':
         if (e.id === this.localId) {
+          // Frisches Inventar: Munitionsstand der Spiegelkopie zurücksetzen (Host hat ihn schon neu)
+          if (e.fresh && !this.isHost && this.local) for (const id of Object.keys(this.local.loadout.guns)) this.local.loadout.guns[id] = makeGun(WEAPONS[id]!);
           this.player.spawn(e.x, e.z, e.yaw);
           this.player.hp = 100;
           this.player.setDead(false);
@@ -586,7 +632,7 @@ export class MatchDriver extends Behaviour {
         break;
       }
       case 'shot': {
-        if (e.id === this.localId) break;
+        if (e.id === this.localId || !e.ends.length) break;
         const o = { x: e.o[0], y: e.o[1], z: e.o[2] };
         for (const end of e.ends) this.grenades.fx.tracer(o, { x: end[0], y: end[1], z: end[2] });
         for (const w of e.walls) this.grenades.fx.impact({ kind: 'wall', point: { x: w[0], y: w[1], z: w[2] }, normal: { x: 0, y: 1, z: 0 } }, { x: 0, y: -1, z: 0 });
@@ -664,8 +710,23 @@ export class MatchDriver extends Behaviour {
         if (e.id === this.localId) {
           if (e.ok) {
             this.sfx?.play('buy');
+            const lo = this.local?.loadout;
+            if (e.item === 'ammo1' || e.item === 'ammo2') {
+              // Munition: Client-Kopie selbst auffüllen (Snapshot trägt keinen Munitionsstand)
+              const wid = e.item === 'ammo1' ? lo?.primary : lo?.secondary;
+              if (!this.isHost && lo && wid && lo.guns[wid]) {
+                const d = WEAPONS[wid]!;
+                lo.guns[wid]!.reserve = Math.min(d.reserve, lo.guns[wid]!.reserve + d.magSize);
+              }
+              this.hud.notice(e.item === 'ammo1' ? 'Munition (Primär) gekauft' : 'Munition (Pistole) gekauft');
+              break;
+            }
             const def = WEAPONS[e.item];
-            if (def && (def.slot === 1 || def.slot === 2)) this.shooter.setWeapon(e.item);
+            if (def && (def.slot === 1 || def.slot === 2)) {
+              // Ereignis kann vor dem Snapshot eintreffen → Spiegel sofort aktualisieren
+              if (!this.isHost && lo && lo.primary !== e.item && lo.secondary !== e.item) giveWeapon(lo, e.item);
+              this.shooter.setWeapon(e.item);
+            }
             this.hud.notice(`Gekauft: ${def?.name ?? e.item}`);
           } else this.hud.notice(`Kauf fehlgeschlagen: ${e.reason ?? ''}`);
         }
@@ -744,7 +805,8 @@ export class MatchDriver extends Behaviour {
     for (const s of this.smokes) s.timeLeft -= dt;
     this.match.time += dt;
     this.match.round.timer = Math.max(0, this.match.round.timer - dt);
-    if (this.match.round.bomb.phase === 'planted') this.match.round.bomb.fuseLeft = Math.max(0, this.match.round.bomb.fuseLeft - dt);
+    const bp = this.match.round.bomb.phase;
+    if (bp === 'planted' || bp === 'defusing') this.match.round.bomb.fuseLeft = Math.max(0, this.match.round.bomb.fuseLeft - dt);
   }
 
   private localPose(): Pose {
@@ -803,7 +865,8 @@ export class MatchDriver extends Behaviour {
       }
     }
     const bombBefore = m.round.bomb.phase;
-    const result = tickRound(m.round, { alive: aliveCounts(m), bombAction: { plant, defuse }, inSpot, hasKit }, dt);
+    // Nach dem Match-Sieg keine weitere Runde starten: Ergebnis stehen lassen bis zum Neustart
+    const result = m.winner ? null : tickRound(m.round, { alive: aliveCounts(m), bombAction: { plant, defuse }, inSpot, hasKit }, dt);
     if (m.round.bomb.phase !== bombBefore) {
       if (m.round.bomb.phase === 'planted' && bombBefore === 'planting') {
         if (this.planterId) {
@@ -843,9 +906,8 @@ export class MatchDriver extends Behaviour {
       if (winner) this.emit({ k: 'match', winner });
     }
     // Neue Runde (round.ts startet sie nach roundEnd/warmup selbst)
-    if (m.round.round !== this.lastRound && m.round.phase === 'freeze') {
+    if (!m.winner && m.round.round !== this.lastRound && m.round.phase === 'freeze') {
       this.lastRound = m.round.round;
-      if (m.winner && m.matchEndTimer <= 0) restartMatch(m);
       this.startRound();
     }
     if (m.winner) {
@@ -856,6 +918,11 @@ export class MatchDriver extends Behaviour {
         m.round.phase = 'warmup';
         m.round.timer = ROUND.warmupTime;
         this.lastRound = 0;
+        this.nades = [];
+        this.smokes = [];
+        this.bombPos = null;
+        this.drops = [];
+        this.emit({ k: 'round', what: 'start', round: 0 });
         this.spawnAllNow();
       }
     }
@@ -903,7 +970,7 @@ export class MatchDriver extends Behaviour {
       smokes: this.smokes,
       bombPos: this.bombPos ? [this.bombPos.x, this.bombPos.y, this.bombPos.z] : null,
     });
-    this.net.send({ t: 'snap', s: snap });
+    this.net.send({ t: 'snap', s: snap, h: this.localId });
   }
 
   private eHeldFor(id: string): boolean {
@@ -918,6 +985,8 @@ export class MatchDriver extends Behaviour {
     // Taktik-Plan für die T-Bots (zufälliger Spot), Bots kaufen
     this.plan = this.rnd() < 0.5 ? 'a' : 'b';
     this.fillBots();
+    // Wer nicht überlebt hat, startet mit frischem Inventar → Clients setzen ihre Munition zurück
+    const keeps = new Map(Object.values(m.players).map((p) => [p.id, p.survived && p.alive && m.round.round > 1]));
     beginRound(m, (team, i) => this.world.spawnPose(team, i), this.rnd);
     for (const p of Object.values(m.players)) {
       if (p.bot) {
@@ -933,7 +1002,7 @@ export class MatchDriver extends Behaviour {
           b.blind = 0;
         }
       }
-      this.emitSpawn(p);
+      this.emitSpawn(p, !keeps.get(p.id));
     }
     this.nades = [];
     this.smokes = [];
@@ -1216,9 +1285,10 @@ export class MatchDriver extends Behaviour {
     const m = this.match;
     const me = this.local;
     const phase = m.round.phase;
+    const bombLive = m.round.bomb.phase === 'planted' || m.round.bomb.phase === 'defusing';
     this.hud.setRound({
       phase,
-      timer: Math.ceil(m.round.timer),
+      timer: Math.max(0, Math.ceil(bombLive ? m.round.bomb.fuseLeft : m.round.timer)),
       tRounds: m.round.tRounds,
       ctRounds: m.round.ctRounds,
       round: m.round.round,
@@ -1307,6 +1377,15 @@ export class MatchDriver extends Behaviour {
     this.player.hp = 100;
     this.player.setDead(false);
     this.hud.setSpectator(null);
+  }
+
+  /** Debug/Netztest: beliebigen Spieler auf dem Host wiederbeleben. */
+  debugReviveId(id: string): boolean {
+    const p = this.match.players[id];
+    if (!p) return false;
+    p.alive = true;
+    p.hp = 100;
+    return true;
   }
 
   /** Debug/Smoke: Spieler teleportieren. */

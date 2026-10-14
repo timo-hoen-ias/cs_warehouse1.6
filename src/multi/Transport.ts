@@ -56,8 +56,9 @@ export class NeedleTransport implements NetTransport {
     this.unsubs.push(c.beginListen(RoomEvents.JoinedRoom, () => this.refresh()));
     this.unsubs.push(c.beginListen(RoomEvents.UserJoinedRoom, () => this.refresh()));
     this.unsubs.push(c.beginListen(RoomEvents.UserLeftRoom, (evt: { userId: string }) => {
-      this.onPeerLeft?.(evt.userId);
+      // Erst Host neu bestimmen, dann den Abgang melden: so entfernt der neue Host den Spieler
       this.refresh();
+      this.onPeerLeft?.(evt.userId);
     }));
     // Eigener Relay-Server (LAN) oder Needle-Backend (Standard)
     if (serverUrl) c.connect(serverUrl).catch((e: unknown) => console.error('[net] Verbindung fehlgeschlagen', e));
@@ -68,8 +69,9 @@ export class NeedleTransport implements NetTransport {
     return this.context.connection.connectionId ?? '';
   }
 
+  /** Leer, solange der Raum noch nicht betreten ist (dann ist niemand Host). */
   get hostId(): string {
-    return this._host || this.id;
+    return this._host;
   }
 
   get peers(): readonly string[] {
@@ -81,8 +83,10 @@ export class NeedleTransport implements NetTransport {
   }
 
   private refresh(): void {
+    // Beitrittsreihenfolge des Raum-Servers (gleich auf allen Clients) → Host = Dienstältester
     const all = this.context.connection.usersInRoom();
     const me = this.id;
+    if (!me) return;
     const ids = all.includes(me) ? [...all] : [...all, me];
     this._peers = ids.filter((x) => x !== me);
     const host = electHost(ids) ?? me;
