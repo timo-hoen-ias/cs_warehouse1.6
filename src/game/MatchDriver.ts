@@ -1325,7 +1325,8 @@ export class MatchDriver extends Behaviour {
         return { x: pose.x, z: pose.z, yaw: pose.yaw, team: p.team, alive: p.alive, id: p.id };
       }),
       me?.team ?? 'T',
-      this.bombPos,
+      // Gelegte Bombe sehen alle; eine liegende C4 nur die Terroristen (wie im CS-Radar)
+      this.bombPos ?? (me?.team === 'T' ? (() => { const d = droppedBomb(this.drops); return d ? { x: d.x, y: d.y, z: d.z } : null; })() : null),
     );
     if (this.hud.scoreboardVisible) this.hud.setScoreboard(m, this.localId);
     // Interaktions-Hinweis: im Spot mit Bombe
