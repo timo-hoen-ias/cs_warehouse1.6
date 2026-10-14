@@ -83,6 +83,10 @@ export class ViewModel extends Behaviour {
     const cam = this.context.mainCamera;
     if (!cam) return;
     cam.add(this.root);
+    // Kleines Fülllicht an der Kamera: Waffe hat immer Glanzkanten, auch im Schatten.
+    this.gunLight = new THREE.PointLight(0xfff1dc, 0.9, 2.5, 1.5);
+    this.gunLight.position.set(-0.2, 0.35, 0.1);
+    this.root.add(this.gunLight);
   }
 
   onDestroy(): void {
@@ -110,9 +114,22 @@ export class ViewModel extends Behaviour {
     if (!loaded) return;
 
     // Waffe soll (Umgebungs-/Licht-)Schatten empfangen — auch prozedurale Modelle.
+    // Die Quaternius-MTLs sind fast schwarz (Kd ≈ 0.02): auf lesbare Standard-Materialien
+    // mit Metall-Glanz heben, damit Kanten/Lauf im Hallenlicht Kontur bekommen.
     loaded.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (m.isMesh) m.receiveShadow = true;
+      if (!m.isMesh) return;
+      m.receiveShadow = true;
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      const upgraded = mats.map((mat) => {
+        const src = mat as THREE.MeshPhongMaterial;
+        const c = src.color ? src.color.clone() : new THREE.Color(0x333333);
+        const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+        if (lum < 0.08) c.setRGB(0.07 + c.r * 2, 0.075 + c.g * 2, 0.085 + c.b * 2);
+        const isWood = c.r > c.b * 1.3 && lum > 0.08;
+        return new THREE.MeshStandardMaterial({ color: c, metalness: isWood ? 0.1 : 0.6, roughness: isWood ? 0.7 : 0.42 });
+      });
+      m.material = upgraded.length === 1 ? upgraded[0]! : upgraded;
     });
 
     // Lokale Bounding-Box im Modellraum MESSEN, bevor wir rotieren/skalieren.
@@ -144,13 +161,29 @@ export class ViewModel extends Behaviour {
     holder.add(inner);
     this.root.add(holder);
     this.modelNode = holder;
+    this.drawT = 0;
+    this.reloadLeft = 0;
     this.onReady?.();
   }
 
-  /** Ein Recoil-Impuls (z. B. nach Schuss). */
+  /** Ein Recoil-Impuls (z. B. nach Schuss): Rückstoß + zufällige Lauf-Rolle. */
   kick(amount: number): void {
-    this.recoil = Math.min(0.12, this.recoil + amount);
+    this.recoil = Math.min(0.16, this.recoil + amount);
+    this.kickRoll = (Math.random() - 0.5) * amount * 4;
   }
+
+  /** Nachlade-Animation: Waffe kippt nach unten und kommt am Ende zurück. */
+  reloadAnim(duration: number): void {
+    this.reloadLeft = duration;
+    this.reloadTotal = duration;
+  }
+
+  private kickRoll = 0;
+  private reloadLeft = 0;
+  private reloadTotal = 0;
+  /** Zieh-Animation beim Wechsel (0..1, 1 = fertig gezogen). */
+  private drawT = 1;
+  private gunLight?: THREE.PointLight;
 
   /** true, sobald ein Modell geladen/im Holder hängt. */
   hasModel(): boolean {
@@ -186,10 +219,16 @@ export class ViewModel extends Behaviour {
     const dt = Math.min(this.context.time.deltaTime, 0.05);
     // Recoil federnd zurück (fester Abklang je Sekunde)
     if (this.recoil > 0.0005) {
-      const decay = Math.exp(-14 * dt);
+      const decay = Math.exp(-12 * dt);
       this.recoil *= decay;
-      if (this.recoil < 0.0005) this.recoil = 0;
+      this.kickRoll *= decay;
+      if (this.recoil < 0.0005) {
+        this.recoil = 0;
+        this.kickRoll = 0;
+      }
     }
+    if (this.drawT < 1) this.drawT = Math.min(1, this.drawT + dt / 0.22);
+    if (this.reloadLeft > 0) this.reloadLeft = Math.max(0, this.reloadLeft - dt);
 
     // Sway: Drehgeschwindigkeit der Kamera lässt die Waffe subtil nachziehen.
     this.swayTime += dt;
@@ -236,11 +275,14 @@ export class ViewModel extends Behaviour {
       const eased = this.wallNear + (push - this.wallNear) * Math.min(1, 1 - Math.exp(-WALL_DAMP * dt));
       this.wallNear = eased;
 
-      const x = v.pos.x * (1 - WALL_X_PUSH * eased) + this.swayX;
-      const y = v.pos.y + this.recoil * 0.8 + this.swayY + breathe;
-      const z = v.pos.z * (1 - WALL_Z_PUSH * eased) + this.recoil * 0.4;
+      // Ziehen: Waffe kommt von unten rechts hoch (ease-out); Nachladen: kippt nach unten (Sinusbogen)
+      const draw = 1 - Math.pow(1 - this.drawT, 3);
+      const reload = this.reloadTotal > 0 ? Math.sin(Math.PI * Math.min(1, 1 - this.reloadLeft / this.reloadTotal)) * (this.reloadLeft > 0 ? 1 : 0) : 0;
+      const x = v.pos.x * (1 - WALL_X_PUSH * eased) + this.swayX + (1 - draw) * 0.12;
+      const y = v.pos.y + this.recoil * 0.9 + this.swayY + breathe - (1 - draw) * 0.28 - reload * 0.08;
+      const z = v.pos.z * (1 - WALL_Z_PUSH * eased) + this.recoil * 0.9;
       this.modelNode.position.set(x, y, z);
-      this.modelNode.rotation.set(this.recoil * 5, this.swayRot, this.recoil * 0.8);
+      this.modelNode.rotation.set(this.recoil * 7 - (1 - draw) * 0.7 - reload * 0.55, this.swayRot + (1 - draw) * 0.3, this.recoil * 0.8 + this.kickRoll + reload * 0.25);
     }
   }
 

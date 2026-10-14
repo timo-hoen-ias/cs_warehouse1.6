@@ -9,6 +9,7 @@ import { layoutRacks, rackBounds } from '../logic/layout';
 import { buildWaypoints, type WaypointGraph } from '../logic/waypoints';
 import { spawnPoints, yawTowards } from '../logic/spawns';
 import { buildLevelView } from '../level/LevelView';
+import { groundBlockers } from '../logic/structures';
 
 /**
  * Welt eines Spiels: Level-Geometrie (Sicht + Kollision), Wegpunkte, Zonen,
@@ -33,7 +34,8 @@ export class World {
     this.solids = view.solids;
     this.aabbs = this.solids.map((s) => ({ minX: s.minX, minY: s.minY, minZ: s.minZ, maxX: s.maxX, maxY: s.maxY, maxZ: s.maxZ }));
     this.parts = this.aabbs.map((box) => ({ part: 'body' as const, box }));
-    this.waypoints = buildWaypoints(level.lager, undefined, this.solids.filter((s) => s.kind === 'prop'));
+    // Bots laufen am Boden: Requisiten, Stützen, Stufen, Rampe blockieren; hohe Plattformen/Geländer nicht
+    this.waypoints = buildWaypoints(level.lager, undefined, groundBlockers(this.solids.filter((s) => s.kind !== 'rack' && s.kind !== 'wall')));
     this.inner = view.inner;
     const z = level.zones;
     this.zones = { a: { x: z.a[0], z: z.a[2] }, b: { x: z.b[0], z: z.b[2] }, t: { x: z.t[0], z: z.t[2] }, ct: { x: z.ct[0], z: z.ct[2] } };

@@ -172,6 +172,30 @@ export class Fx extends Behaviour {
     if (hit.kind === 'target') this.onHitmarker?.(hit.killed);
   }
 
+  /** Hülsenauswurf: kleine Messing-Box fliegt nach rechts/oben, dreht sich, fällt. */
+  shell(muzzle: Vec3, dir: Vec3): void {
+    const cam = this.context.mainCamera;
+    if (!cam) return;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+    const start = new THREE.Vector3(muzzle.x, muzzle.y, muzzle.z).addScaledVector(new THREE.Vector3(dir.x, dir.y, dir.z), -0.35).addScaledVector(up, -0.05);
+    const shell = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.03), new THREE.MeshStandardMaterial({ color: 0xd8b24a, metalness: 0.8, roughness: 0.3 }));
+    shell.position.copy(start);
+    const vel = right.clone().multiplyScalar(1.6 + Math.random() * 0.8).addScaledVector(up, 1.4 + Math.random() * 0.6);
+    const spin = new THREE.Vector3(Math.random() * 20, Math.random() * 20, Math.random() * 20);
+    this.root.add(shell);
+    this.addFx(shell, 0.9, (dt) => {
+      vel.y -= 9.8 * dt;
+      shell.position.addScaledVector(vel, dt);
+      shell.rotation.x += spin.x * dt;
+      shell.rotation.y += spin.y * dt;
+      shell.rotation.z += spin.z * dt;
+    }, () => {
+      shell.geometry.dispose();
+      (shell.material as THREE.Material).dispose();
+    });
+  }
+
   tracer(from: Vec3, to: Vec3): void {
     const line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([

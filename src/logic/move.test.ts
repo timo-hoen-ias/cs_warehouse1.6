@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { LagerDaten } from '../shared/types';
 import { computeSolids } from './level';
 import type { PlayerMotion } from './move';
-import { PLAYER, pointFree, resolveAxis, stepPlayer, wishSpeed } from './move';
+import { PLAYER, blocksAt, groundHeight, pointFree, resolveAxis, stepPlayer, wishSpeed } from './move';
 
 const lager: LagerDaten = {
   mandant: 1,
@@ -121,5 +121,80 @@ describe('PLAYER Duck-Stance', () => {
   it('wishSpeed mit crouchSpeed begrenzt das Tempo', () => {
     const v = wishSpeed({ w: true, s: false, a: false, d: false, sprint: false }, 0, PLAYER.crouchSpeed, PLAYER.sprintSpeed);
     expect(Math.hypot(v.x, v.z)).toBeCloseTo(PLAYER.crouchSpeed);
+  });
+});
+
+describe('Vertikalität: Stufen, Kisten, Plattformen', () => {
+  const box = (minX: number, maxX: number, minZ: number, maxZ: number, minY: number, maxY: number, label = 'b'): import('./level').SolidBox =>
+    ({ kind: 'prop', minX, maxX, minZ, maxZ, minY, maxY, label });
+  const run = (m: PlayerMotion, mx: number, mz: number, jump: boolean, steps: number, s: import('./level').SolidBox[]): PlayerMotion => {
+    for (let i = 0; i < steps; i++) m = stepPlayer(m, mx, mz, jump && i === 0, 0.016, s);
+    return m;
+  };
+
+  it('groundHeight: Oberkante einer erreichbaren Box, sonst 0; zu hohe Box zählt nicht', () => {
+    const low = box(-1, 1, -1, 1, 0, 0.5);
+    expect(groundHeight(0, 0, 0, [low])).toBe(0.5);
+    expect(groundHeight(5, 5, 0, [low])).toBe(0);
+    const high = box(-1, 1, -1, 1, 0, 1.2);
+    expect(groundHeight(0, 0, 0, [high])).toBe(0);
+    expect(groundHeight(0, 0, 1.0, [high])).toBe(1.2);
+  });
+
+  it('blocksAt: Stufe blockiert nicht, Kiste blockiert, Decke über dem Kopf blockiert nicht', () => {
+    expect(blocksAt(box(0, 1, 0, 1, 0, 0.5), 0)).toBe(false);
+    expect(blocksAt(box(0, 1, 0, 1, 0, 1.2), 0)).toBe(true);
+    expect(blocksAt(box(0, 1, 0, 1, 2.5, 2.8), 0)).toBe(false);
+    expect(blocksAt(box(0, 1, 0, 1, 0, 1.2), 1.0)).toBe(false); // Fuß fast oben → Stufe
+  });
+
+  it('läuft auf eine niedrige Palette (0.5 m) ohne Sprung hinauf und wieder herunter', () => {
+    const pallet = box(2, 4, -1, 1, 0, 0.5);
+    let m: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+    m = run(m, 4, 0, false, 60, [pallet]);
+    expect(m.x).toBeGreaterThan(2.2);
+    expect(m.y).toBeCloseTo(PLAYER.eye + 0.5, 5);
+    expect(m.grounded).toBe(true);
+    m = run(m, 4, 0, false, 80, [pallet]);
+    expect(m.x).toBeGreaterThan(4.5);
+    expect(m.y).toBeCloseTo(PLAYER.eye, 3);
+  });
+
+  it('eine 1 m Kiste blockiert beim Gehen, lässt sich aber überspringen', () => {
+    const crate = box(1.5, 2.5, -1, 1, 0, 1.0);
+    let m: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+    m = run(m, 4, 0, false, 60, [crate]);
+    expect(m.x).toBeLessThanOrEqual(1.5 - PLAYER.radius + 1e-6);
+    // Sprung + Vorwärtsbewegung
+    m = { x: 0.9, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+    m = run(m, 3, 0, true, 35, [crate]); // Sprungbahn ≈ 0.5 s bis Landung auf 1 m
+    expect(m.x).toBeGreaterThan(1.5);
+    expect(m.y).toBeCloseTo(PLAYER.eye + 1.0, 3);
+    expect(m.grounded).toBe(true);
+  });
+
+  it('Treppe aus Stufen führt auf eine Plattform; Fallen von der Kante landet am Boden', () => {
+    const solids: import('./level').SolidBox[] = [];
+    for (let i = 0; i < 8; i++) solids.push(box(1 + i * 0.4, 1.4 + i * 0.4, -1, 1, 0, 0.3 * (i + 1)));
+    const platform = box(4.2, 10, -3, 3, 2.2, 2.4);
+    solids.push(platform);
+    let m: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+    m = run(m, 4, 0, false, 120, solids);
+    expect(m.x).toBeGreaterThan(5);
+    expect(m.y).toBeCloseTo(PLAYER.eye + 2.4, 3);
+    expect(m.grounded).toBe(true);
+    // Weiter bis über die Kante → fällt auf den Hallenboden
+    m = run(m, 4, 0, false, 200, solids);
+    expect(m.x).toBeGreaterThan(10);
+    expect(m.y).toBeCloseTo(PLAYER.eye, 3);
+    expect(m.grounded).toBe(true);
+  });
+
+  it('unter einem Laufsteg (2.5 m) läuft man hindurch', () => {
+    const catwalk = box(1, 5, -2, 2, 2.5, 2.75);
+    let m: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+    m = run(m, 4, 0, false, 100, [catwalk]);
+    expect(m.x).toBeGreaterThan(5);
+    expect(m.y).toBeCloseTo(PLAYER.eye, 5);
   });
 });

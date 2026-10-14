@@ -21,6 +21,7 @@ export default defineConfig(async ({ command }) => {
             include: [
                 'three/examples/jsm/loaders/OBJLoader.js',
                 'three/examples/jsm/loaders/MTLLoader.js',
+                'three/examples/jsm/utils/BufferGeometryUtils.js',
             ],
         },
         build: {

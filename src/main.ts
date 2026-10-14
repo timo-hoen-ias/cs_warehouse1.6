@@ -48,6 +48,8 @@ onStart(async (context) => {
   scene.add(sun);
   context.renderer.shadowMap.enabled = true;
   context.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  context.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  context.renderer.toneMappingExposure = 1.15;
 
   const cam = context.mainCamera as THREE.PerspectiveCamera;
   cam.rotation.order = 'YXZ';
@@ -185,8 +187,8 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       const e = enemies[0]!;
       const px = e.pose.x - 4;
       const pz = e.pose.z;
+      driver.debugRevive();
       player.spawn(px, pz, 0);
-      player.setDead(false);
       const dx = e.pose.x - px;
       const dz = e.pose.z - pz;
       const dist = Math.hypot(dx, dz);
@@ -205,8 +207,8 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     g.__wallShot = () => {
       const wall = world.solids.find((s) => s.kind === 'wall' && s.label === 'wand-ost');
       if (!wall) return { error: 'wand-ost fehlt' };
+      driver.debugRevive();
       player.spawn(wall.minX - 3, (wall.minZ + wall.maxZ) / 2, -Math.PI / 2);
-      player.setDead(false);
       player.setLook(-Math.PI / 2, 0.35);
       shooter.setWeapon(driver.local?.loadout.secondary ?? 'glock');
       setTimeout(() => {
@@ -219,6 +221,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       const me = driver.local;
       if (!me) return { error: 'kein Spieler' };
       me.loadout.grenades[kind] = 1;
+      driver.debugRevive();
       const id = ({ he: 'hegrenade', flash: 'flashbang', smoke: 'smokegrenade' } as const)[kind];
       shooter.setWeapon(id);
       setTimeout(() => {
@@ -233,8 +236,8 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       me.loadout.bomb = true;
       for (const p of Object.values(driver.match.players)) if (p.id !== me.id) p.loadout.bomb = false;
       const a = world.zones.a;
+      driver.debugRevive();
       player.spawn(a.x, a.z, 0);
-      player.setDead(false);
       shooter.setWeapon('c4');
       setTimeout(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', bubbles: true })), 100);
       setTimeout(() => document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyE', bubbles: true })), 5000);

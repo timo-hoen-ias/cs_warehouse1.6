@@ -203,3 +203,29 @@ export function spotTexture(letter: string): THREE.CanvasTexture {
     ctx.fillText(letter, s / 2, s / 2 + 6);
   }, false);
 }
+
+/** Hängeschild: dunkler Grund, farbiger Rahmen + Text. */
+export function signTexture(text: string, color: string): THREE.CanvasTexture {
+  return make('sign-' + text + color, 512, (ctx, s) => {
+    ctx.clearRect(0, 0, s, s);
+    const h = s * 0.3;
+    const y0 = (s - h) / 2;
+    ctx.fillStyle = '#14181d';
+    ctx.fillRect(0, y0, s, h);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 10;
+    ctx.strokeRect(6, y0 + 6, s - 12, h - 12);
+    ctx.fillStyle = color;
+    let size = Math.floor(h * 0.42);
+    ctx.font = `bold ${size}px Arial`;
+    while (ctx.measureText(text).width > s - 40 && size > 12) {
+      size -= 2;
+      ctx.font = `bold ${size}px Arial`;
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, s / 2, s / 2 + 4);
+  }, false);
+}
+
+

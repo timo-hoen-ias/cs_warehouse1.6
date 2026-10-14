@@ -354,7 +354,7 @@ export class MatchDriver extends Behaviour {
     for (const p of Object.values(this.match.players)) {
       if (!p.alive || p.id === ignore) continue;
       const crouch = this.remotePoses.get(p.id)?.c ?? (p.id === this.localId ? this.player.crouching() : false);
-      out.push({ id: p.id, parts: humanPartBoxes({ x: p.pose.x, y: 0, z: p.pose.z }, crouch ? 0.75 : 1) });
+      out.push({ id: p.id, parts: humanPartBoxes({ x: p.pose.x, y: p.pose.y, z: p.pose.z }, crouch ? 0.75 : 1) });
     }
     return out;
   }
@@ -498,7 +498,7 @@ export class MatchDriver extends Behaviour {
       case 'kill': {
         if (e.killer === this.localId) {
           this.hud.hitmarker(true);
-          this.sfx?.play('kill');
+          this.sfx?.play(e.hs ? 'headshot' : 'kill');
         }
         if (e.victim === this.localId) {
           this.player.hp = 0;
@@ -538,6 +538,7 @@ export class MatchDriver extends Behaviour {
         } else if (e.kind === 'he') {
           const d = Math.hypot(at.x - this.player.motionX(), at.z - this.player.motionZ());
           this.sfx?.play('boom', Math.max(0.2, 1 - d / 60));
+          this.player.shake(Math.max(0, 0.03 * (1 - d / 25)));
         } else this.sfx?.play('smoke');
         break;
       }
@@ -637,7 +638,7 @@ export class MatchDriver extends Behaviour {
   }
 
   private localPose(): Pose {
-    return { x: this.player.motionX(), y: 0, z: this.player.motionZ(), yaw: this.player.yawNow(), pitch: this.player.pitchNow() };
+    return { x: this.player.motionX(), y: this.player.feetY(), z: this.player.motionZ(), yaw: this.player.yawNow(), pitch: this.player.pitchNow() };
   }
 
   private hostTick(dt: number): void {
@@ -864,6 +865,7 @@ export class MatchDriver extends Behaviour {
     else {
       b.motion = stepPlayer(b.motion, 0, 0, false, dt, this.world.solids);
       b.pose.x = b.motion.x;
+      b.pose.y = b.motion.y - PLAYER.eye;
       b.pose.z = b.motion.z;
     }
 
@@ -871,7 +873,7 @@ export class MatchDriver extends Behaviour {
     if (decision.lookAt) {
       const target = decision.target ? m.players[decision.target] : null;
       const ty = target ? 1.2 : 1.2;
-      const aim = aimAt({ x: b.pose.x, y: BOT.eye, z: b.pose.z }, { x: decision.lookAt.x, y: ty, z: decision.lookAt.z });
+      const aim = aimAt({ x: b.pose.x, y: b.pose.y + BOT.eye, z: b.pose.z }, { x: decision.lookAt.x, y: (target?.pose.y ?? 0) + ty, z: decision.lookAt.z });
       const yp = dirToYawPitch(aim.dir);
       b.pose.yaw = yp.yaw;
       b.pose.pitch = yp.pitch;
@@ -895,8 +897,8 @@ export class MatchDriver extends Behaviour {
         if (!r.ok) return;
       }
       b.lastShotAt = m.time;
-      const eye = { x: b.pose.x, y: BOT.eye, z: b.pose.z };
-      const aim = aimAt(eye, { x: target.pose.x, y: 1.1, z: target.pose.z });
+      const eye = { x: b.pose.x, y: b.pose.y + BOT.eye, z: b.pose.z };
+      const aim = aimAt(eye, { x: target.pose.x, y: target.pose.y + 1.1, z: target.pose.z });
       const err = aimError(b.mem.sightTime, this.options.botSkill);
       const base = spreadDir(aim.dir, err, b.rnd);
       const spread = gun ? fireSpread(def, gun, b.path.length > 0, false) : def.spreadBase;
@@ -942,6 +944,7 @@ export class MatchDriver extends Behaviour {
     const l = Math.hypot(dx, dz) || 1;
     b.motion = stepPlayer(b.motion, (dx / l) * BOT_SPEED, (dz / l) * BOT_SPEED, false, dt, this.world.solids);
     b.pose.x = b.motion.x;
+    b.pose.y = b.motion.y - PLAYER.eye;
     b.pose.z = b.motion.z;
   }
 
@@ -958,7 +961,7 @@ export class MatchDriver extends Behaviour {
       if (n.g.kind === 'he') {
         for (const p of Object.values(m.players)) {
           if (!p.alive) continue;
-          const dmg = heDamageAt(at, { x: p.pose.x, y: 1.0, z: p.pose.z }, this.world.aabbs);
+          const dmg = heDamageAt(at, { x: p.pose.x, y: p.pose.y + 1.0, z: p.pose.z }, this.world.aabbs);
           if (dmg <= 0) continue;
           const r = applyExplosion(m, p.id, n.g.owner, dmg);
           if (!r) continue;
@@ -1097,6 +1100,18 @@ export class MatchDriver extends Behaviour {
       const r = applyHit(this.match, p.id, this.localId, WEAPONS['awp']!, 'head', 0);
       if (r?.killed) this.onHostKill(p, this.localId, 'awp', true);
     }
+  }
+
+  /** Debug/Smoke: lokalen Spieler im Match wiederbeleben (Host). */
+  debugRevive(): void {
+    const me = this.match.players[this.localId];
+    if (me) {
+      me.alive = true;
+      me.hp = 100;
+    }
+    this.player.hp = 100;
+    this.player.setDead(false);
+    this.hud.setSpectator(null);
   }
 
   /** Debug/Smoke: Spieler teleportieren. */

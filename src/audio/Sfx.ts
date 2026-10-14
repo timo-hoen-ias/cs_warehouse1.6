@@ -5,7 +5,7 @@
  */
 import { WEAPONS } from '../logic/weapons';
 
-export type SfxName = 'hit' | 'hurt' | 'kill' | 'death' | 'reload' | 'empty' | 'throw' | 'boom' | 'flash' | 'smoke'
+export type SfxName = 'hit' | 'hurt' | 'kill' | 'headshot' | 'death' | 'reload' | 'empty' | 'throw' | 'boom' | 'flash' | 'smoke'
   | 'planted' | 'defused' | 'roundStart' | 'win' | 'lose' | 'buy' | 'beep' | 'switch' | 'plantTick';
 
 export class Sfx {
@@ -72,6 +72,7 @@ export class Sfx {
       case 'hit': this.tone('square', 1800, 0.04, 0.18); break;
       case 'hurt': this.tone('sawtooth', 160, 0.12, 0.3); this.burst(0.08, 300, 0.2); break;
       case 'kill': this.tone('square', 2200, 0.05, 0.22); this.tone('square', 2900, 0.06, 0.18, 0.06); break;
+      case 'headshot': this.tone('square', 2600, 0.05, 0.25); this.tone('square', 3400, 0.05, 0.22, 0.05); this.tone('sine', 4200, 0.12, 0.2, 0.1); this.burst(0.08, 3000, 0.2); break;
       case 'death': this.sweep('sawtooth', 300, 60, 0.6, 0.35); break;
       case 'reload': this.click(0.05, 1200, 0.25); this.click(0.05, 800, 0.25, 0.25); this.click(0.04, 1500, 0.2, 0.55); break;
       case 'empty': this.click(0.03, 2500, 0.25); break;

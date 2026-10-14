@@ -52,6 +52,16 @@ export class FpsPlayer extends Behaviour {
   private bobPhase = 0;
   private prevX = 0;
   private prevZ = 0;
+  /** Kamera-Shake (Schuss/Explosion): kurzer zufälliger Winkel-Impuls, klingt ab. */
+  private shakeAmp = 0;
+  private shakeX = 0;
+  private shakeY = 0;
+  shake(amount: number): void {
+    this.shakeAmp = Math.min(0.03, this.shakeAmp + amount);
+  }
+  /** Todes-Kamera: Roll + Absinken (0..1). */
+  private deathT = 0;
+
   /** Recoil-Offset setzen (kommt pro Frame vom Shooter). */
   setRecoil(pitch: number, yaw: number): void {
     this.recoilPitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, pitch));
@@ -59,8 +69,8 @@ export class FpsPlayer extends Behaviour {
   }
   /** Kamera aus Look + Recoil-Offset schreiben. */
   private writeLook(cam: THREE.Object3D): void {
-    const p = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch + this.recoilPitch));
-    cam.rotation.set(p, this.yaw + this.recoilYaw, 0);
+    const p = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch + this.recoilPitch + this.shakeY));
+    cam.rotation.set(p, this.yaw + this.recoilYaw + this.shakeX, this.deathT * 0.9);
   }
   private keys: Record<string, boolean> = {};
   private locked = false;
@@ -192,8 +202,21 @@ export class FpsPlayer extends Behaviour {
     this.prevX = this.motion.x;
     this.prevZ = this.motion.z;
 
+    // Shake: zufälliger Impuls, exponentiell abklingend
+    if (this.shakeAmp > 0.0002) {
+      this.shakeX = (Math.random() - 0.5) * 2 * this.shakeAmp;
+      this.shakeY = (Math.random() - 0.5) * 2 * this.shakeAmp;
+      this.shakeAmp *= Math.exp(-18 * dt);
+    } else {
+      this.shakeX = 0;
+      this.shakeY = 0;
+      this.shakeAmp = 0;
+    }
+    // Todes-Kamera: kippt und sinkt (Zuschauer am Boden)
+    this.deathT += ((this.deadFlag ? 1 : 0) - this.deathT) * Math.min(1, dt * 5);
+
     // Ducken senkt die Kamera (Physik-Boden bleibt bei PLAYER.eye, sichtbar tiefer).
-    const eyeDrop = PLAYER.eye - this.stanceY;
+    const eyeDrop = PLAYER.eye - this.stanceY + this.deathT * 1.15;
 
     this.writeLook(cam);
     cam.rotation.z += bobRoll;
@@ -203,6 +226,8 @@ export class FpsPlayer extends Behaviour {
   /** Aktuelle XZ-Position + Blick (Debug/Netzwerk-Snapshots). */
   motionX(): number { return this.motion.x; }
   motionZ(): number { return this.motion.z; }
+  /** Fußhöhe (0 = Hallenboden; auf Plattformen höher). */
+  feetY(): number { return this.motion.y - PLAYER.eye; }
   yawNow(): number { return this.yaw; }
   isLocked(): boolean { return this.locked; }
 
@@ -225,7 +250,7 @@ export class FpsPlayer extends Behaviour {
 
   /** Weltraum-Hitboxen des Spielers (für Bot-Beschuss / gegnerische Raycasts). */
   partBoxes(): PartBox[] {
-    return humanPartBoxes({ x: this.motion.x, y: 0, z: this.motion.z });
+    return humanPartBoxes({ x: this.motion.x, y: this.feetY(), z: this.motion.z });
   }
 
   /** true wenn tot (vom Match gesetzt; Zuschauer-Modus). */

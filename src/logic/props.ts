@@ -42,13 +42,14 @@ export function propSolid(p: Prop): SolidBox {
  * clearance 1.6 m (Gänge zwischen Regalen bleiben begehbar), Auswahl zufällig
  * (Seed), Container nur in großen Freiflächen (clearance 4 m).
  */
-export function generateProps(lager: LagerDaten, zones: LevelZones, count: number, seed = 7): Prop[] {
+export function generateProps(lager: LagerDaten, zones: LevelZones, count: number, seed = 7, avoid: SolidBox[] = []): Prop[] {
   const rnd = mulberry32(seed);
   const small = freeSpots(lager, 1.6, 1.5);
   const big = freeSpots(lager, 4.0, 2);
   const zonePts = [zones.t, zones.ct, zones.a, zones.b];
   const out: Prop[] = [];
   const farFromZones = (p: Vec3): boolean => zonePts.every((z) => Math.hypot(z[0] - p[0], z[2] - p[2]) >= PROP_ZONE_CLEAR);
+  const farFromAvoid = (p: Vec3): boolean => avoid.every((b) => p[0] <= b.minX - 1.5 || p[0] >= b.maxX + 1.5 || p[2] <= b.minZ - 1.5 || p[2] >= b.maxZ + 1.5);
   const farFromProps = (p: Vec3): boolean => out.every((o) => Math.hypot(o.pos[0] - p[0], o.pos[2] - p[2]) >= PROP_MIN_DIST + Math.max(o.size[0], o.size[2]) / 2);
   const kinds: PropKind[] = ['pallet', 'pallet', 'pallet', 'cage', 'crate', 'container'];
   let guard = 0;
@@ -57,7 +58,7 @@ export function generateProps(lager: LagerDaten, zones: LevelZones, count: numbe
     const pool = kind === 'container' ? big : small;
     if (!pool.length) continue;
     const cand = pool[Math.floor(rnd() * pool.length)]!;
-    if (!farFromZones(cand) || !farFromProps(cand)) continue;
+    if (!farFromZones(cand) || !farFromProps(cand) || !farFromAvoid(cand)) continue;
     const rot = (Math.floor(rnd() * 4) % 4) as 0 | 1 | 2 | 3;
     // Stapelhöhe variieren (Paletten 1–3 Lagen)
     const base = PROP_SIZES[kind];
@@ -67,7 +68,7 @@ export function generateProps(lager: LagerDaten, zones: LevelZones, count: numbe
   return out;
 }
 
-/** Alle Solids eines Levels: Regale + Wände + Props. */
-export function solidsWithProps(lager: LagerDaten, props: Prop[] = []): SolidBox[] {
-  return [...computeSolids(lager), ...props.map(propSolid)];
+/** Alle Solids eines Levels: Regale + Wände + Props + Strukturen. */
+export function solidsWithProps(lager: LagerDaten, props: Prop[] = [], structures: SolidBox[] = []): SolidBox[] {
+  return [...computeSolids(lager), ...props.map(propSolid), ...structures];
 }

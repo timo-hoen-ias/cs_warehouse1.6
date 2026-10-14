@@ -189,7 +189,10 @@ export class Shooter extends Behaviour {
     if (state) tickGun(state, def, dt);
 
     if (this.reloadRequested && state) {
-      if (startReload(state, def)) this.onReload?.();
+      if (startReload(state, def)) {
+        this.onReload?.();
+        this.viewModel?.reloadAnim(state.reloadLeft);
+      }
       this.reloadRequested = false;
     }
 
@@ -253,11 +256,14 @@ export class Shooter extends Behaviour {
     // Rückstoß + Viewmodel
     const rec = this.recoilState();
     const kick = fireRecoil(def.recoil, rec, Math.random);
-    this.viewModel?.kick(Math.min(0.12, kick.pitch * 6 + 0.006));
+    const punch = def.type === 'sniper' ? 0.16 : def.type === 'shotgun' ? 0.14 : Math.min(0.12, kick.pitch * 9 + 0.018);
+    this.viewModel?.kick(punch);
+    this.player?.shake(punch * 0.35);
 
     // Lokale Effekte: Mündung, Tracer bis Wand/Reichweite, Wand-Decal (Ziel-Treffer kommen vom Host)
     const muzzle = this.muzzlePoint(ray.dir);
-    this.fx?.muzzleFlash(muzzle, ray.dir, def.type === 'sniper' ? 1.4 : 1);
+    this.fx?.muzzleFlash(muzzle, ray.dir, def.type === 'sniper' ? 1.6 : def.type === 'shotgun' ? 1.4 : 1.1);
+    if (def.type !== 'knife') this.fx?.shell(muzzle, ray.dir);
     for (const d of dirs) {
       const hit = resolveRay(ray.origin, d, def.range, this.aabbs, []);
       if (def.mode === 'hit') this.fx?.tracer(muzzle, hit.point);

@@ -56744,33 +56744,33 @@
   },
   "zones": {
     "t": [
-      -0.1,
       0,
-      -25.8
+      0,
+      -35.8
     ],
     "ct": [
-      -0.1,
       0,
-      25.2
+      0,
+      35.2
     ],
     "a": [
-      -21,
+      -27,
       0,
-      7.2
+      10.2
     ],
     "b": [
-      21,
+      27,
       0,
-      -7.8
+      -10.8
     ]
   },
   "props": [
     {
       "kind": "pallet",
       "pos": [
-        25.9,
+        32.9,
         0,
-        -13.4
+        -12.9
       ],
       "size": [
         1.2,
@@ -56782,13 +56782,41 @@
     {
       "kind": "pallet",
       "pos": [
-        -11.6,
+        -24.1,
         0,
-        -7.4
+        -11.4
       ],
       "size": [
         1.2,
         0.55,
+        0.8
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -31.6,
+        0,
+        12.6
+      ],
+      "size": [
+        1.2,
+        1.1,
+        0.8
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        -33.1,
+        0,
+        23.1
+      ],
+      "size": [
+        1.2,
+        1.1,
         0.8
       ],
       "rot": 1
@@ -56796,23 +56824,23 @@
     {
       "kind": "crate",
       "pos": [
-        -17.6,
+        10.4,
         0,
-        -10.4
+        -33.9
       ],
       "size": [
         1,
         1,
         1
       ],
-      "rot": 0
+      "rot": 3
     },
     {
       "kind": "cage",
       "pos": [
-        -1.1,
+        -3.1,
         0,
-        19.6
+        24.6
       ],
       "size": [
         1.2,
@@ -56824,37 +56852,51 @@
     {
       "kind": "pallet",
       "pos": [
-        12.4,
+        1.4,
         0,
-        -25.4
+        26.1
       ],
       "size": [
         1.2,
-        1.1,
+        1.6500000000000001,
         0.8
       ],
-      "rot": 3
+      "rot": 0
     },
     {
-      "kind": "container",
+      "kind": "cage",
       "pos": [
-        11.8,
+        -31.6,
         0,
-        21
+        0.6
       ],
       "size": [
-        2.4,
-        2.6,
-        6
+        1.2,
+        1,
+        0.8
+      ],
+      "rot": 1
+    },
+    {
+      "kind": "pallet",
+      "pos": [
+        28.4,
+        0,
+        -32.4
+      ],
+      "size": [
+        1.2,
+        1.6500000000000001,
+        0.8
       ],
       "rot": 2
     },
     {
       "kind": "cage",
       "pos": [
-        1.9,
+        -19.6,
         0,
-        13.6
+        -29.4
       ],
       "size": [
         1.2,
@@ -56866,178 +56908,688 @@
     {
       "kind": "pallet",
       "pos": [
-        19.9,
+        -21.1,
         0,
-        19.6
-      ],
-      "size": [
-        1.2,
-        1.1,
-        0.8
-      ],
-      "rot": 1
-    },
-    {
-      "kind": "pallet",
-      "pos": [
-        16.9,
-        0,
-        7.6
+        -33.9
       ],
       "size": [
         1.2,
         0.55,
         0.8
       ],
-      "rot": 2
+      "rot": 0
     },
     {
       "kind": "pallet",
       "pos": [
-        -26.6,
+        -0.1,
         0,
-        21.1
-      ],
-      "size": [
-        1.2,
-        1.6500000000000001,
-        0.8
-      ],
-      "rot": 3
-    },
-    {
-      "kind": "pallet",
-      "pos": [
-        -14.6,
-        0,
-        -25.4
+        11.1
       ],
       "size": [
         1.2,
         0.55,
         0.8
       ],
-      "rot": 1
-    },
-    {
-      "kind": "pallet",
-      "pos": [
-        -14.6,
-        0,
-        10.6
-      ],
-      "size": [
-        1.2,
-        1.6500000000000001,
-        0.8
-      ],
-      "rot": 1
+      "rot": 0
     }
   ],
   "spawns": {
     "t": [
       [
-        0.6,
+        0.7,
         0,
-        -24.59
+        -34.59
       ],
       [
-        -0.8,
+        -0.7,
         0,
-        -24.59
+        -34.59
       ],
       [
-        2.32,
+        2.42,
         0,
-        -24.4
+        -34.4
       ],
       [
-        -0.1,
+        1.4,
         0,
-        -23
+        -33.38
       ],
       [
-        -2.52,
         0,
-        -24.4
+        0,
+        -33
       ],
       [
-        3.85,
+        -1.4,
         0,
-        -24.36
+        -33.38
       ],
       [
-        3.12,
+        -2.42,
         0,
-        -23.1
+        -34.4
       ],
       [
-        -3.32,
+        3.95,
         0,
-        -23.1
+        -34.36
       ],
       [
-        -4.05,
+        3.22,
         0,
-        -24.36
+        -33.1
       ],
       [
-        5.31,
+        2.1,
         0,
-        -24.35
+        -32.16
       ]
     ],
     "ct": [
       [
-        -0.1,
+        -2.1,
         0,
-        25.2
+        31.56
       ],
       [
-        1.3,
+        -0.73,
         0,
-        25.2
+        31.06
       ],
       [
-        -1.5,
+        0.73,
         0,
-        25.2
+        31.06
       ],
       [
-        -0.8,
+        2.1,
         0,
-        23.99
+        31.56
       ],
       [
-        0.6,
+        -3.96,
         0,
-        23.99
+        31.24
       ],
       [
-        2.7,
+        -2.8,
         0,
-        25.2
+        30.35
       ],
       [
-        -2.9,
+        -1.45,
         0,
-        25.2
+        29.79
       ],
       [
-        -2.52,
         0,
-        23.8
+        0,
+        29.6
       ],
       [
-        -1.5,
+        1.45,
         0,
-        22.78
+        29.79
       ],
       [
-        -0.1,
+        2.8,
         0,
-        22.4
+        30.35
       ]
     ]
-  }
+  },
+  "structures": [
+    {
+      "kind": "platform",
+      "label": "ebene-1",
+      "minX": 18.3,
+      "maxX": 28.3,
+      "minZ": 19,
+      "maxZ": 26,
+      "minY": 2.95,
+      "maxY": 3.2
+    },
+    {
+      "kind": "pillar",
+      "label": "ebene-1",
+      "minX": 18.450000000000003,
+      "maxX": 18.75,
+      "minZ": 19.150000000000002,
+      "maxZ": 19.45,
+      "minY": 0,
+      "maxY": 2.95
+    },
+    {
+      "kind": "pillar",
+      "label": "ebene-1",
+      "minX": 18.450000000000003,
+      "maxX": 18.75,
+      "minZ": 25.55,
+      "maxZ": 25.849999999999998,
+      "minY": 0,
+      "maxY": 2.95
+    },
+    {
+      "kind": "pillar",
+      "label": "ebene-1",
+      "minX": 27.85,
+      "maxX": 28.15,
+      "minZ": 19.150000000000002,
+      "maxZ": 19.45,
+      "minY": 0,
+      "maxY": 2.95
+    },
+    {
+      "kind": "pillar",
+      "label": "ebene-1",
+      "minX": 27.85,
+      "maxX": 28.15,
+      "minZ": 25.55,
+      "maxZ": 25.849999999999998,
+      "minY": 0,
+      "maxY": 2.95
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 18.64,
+      "maxZ": 19,
+      "minY": 0,
+      "maxY": 3.2
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 18.28,
+      "maxZ": 18.64,
+      "minY": 0,
+      "maxY": 3
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 17.92,
+      "maxZ": 18.28,
+      "minY": 0,
+      "maxY": 2.75
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 17.56,
+      "maxZ": 17.92,
+      "minY": 0,
+      "maxY": 2.5
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 17.2,
+      "maxZ": 17.56,
+      "minY": 0,
+      "maxY": 2.25
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 16.84,
+      "maxZ": 17.2,
+      "minY": 0,
+      "maxY": 2
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 16.48,
+      "maxZ": 16.84,
+      "minY": 0,
+      "maxY": 1.75
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 16.12,
+      "maxZ": 16.48,
+      "minY": 0,
+      "maxY": 1.5
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 15.76,
+      "maxZ": 16.12,
+      "minY": 0,
+      "maxY": 1.25
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 15.4,
+      "maxZ": 15.76,
+      "minY": 0,
+      "maxY": 1
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 15.04,
+      "maxZ": 15.4,
+      "minY": 0,
+      "maxY": 0.75
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 14.68,
+      "maxZ": 15.04,
+      "minY": 0,
+      "maxY": 0.5
+    },
+    {
+      "kind": "step",
+      "label": "ebene-1",
+      "minX": 22.400000000000002,
+      "maxX": 24.2,
+      "minZ": 14.32,
+      "maxZ": 14.68,
+      "minY": 0,
+      "maxY": 0.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-1",
+      "minX": 18.3,
+      "maxX": 28.3,
+      "minZ": 25.92,
+      "maxZ": 26,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-1",
+      "minX": 18.3,
+      "maxX": 18.38,
+      "minZ": 19,
+      "maxZ": 26,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-1",
+      "minX": 28.220000000000002,
+      "maxX": 28.3,
+      "minZ": 19,
+      "maxZ": 26,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-1",
+      "minX": 18.3,
+      "maxX": 22.400000000000002,
+      "minZ": 19,
+      "maxZ": 19.08,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-1",
+      "minX": 24.2,
+      "maxX": 28.3,
+      "minZ": 19,
+      "maxZ": 19.08,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "platform",
+      "label": "ebene-2",
+      "minX": -1.7000000000000002,
+      "maxX": 8.3,
+      "minZ": 13,
+      "maxZ": 20,
+      "minY": 2.95,
+      "maxY": 3.2
+    },
+    {
+      "kind": "pillar",
+      "label": "ebene-2",
+      "minX": -1.5500000000000003,
+      "maxX": -1.2500000000000004,
+      "minZ": 13.15,
+      "maxZ": 13.450000000000001,
+      "minY": 0,
+      "maxY": 2.95
+    },
+    {
+      "kind": "pillar",
+      "label": "ebene-2",
+      "minX": -1.5500000000000003,
+      "maxX": -1.2500000000000004,
+      "minZ": 19.55,
+      "maxZ": 19.849999999999998,
+      "minY": 0,
+      "maxY": 2.95
+    },
+    {
+      "kind": "pillar",
+      "label": "ebene-2",
+      "minX": 7.85,
+      "maxX": 8.15,
+      "minZ": 13.15,
+      "maxZ": 13.450000000000001,
+      "minY": 0,
+      "maxY": 2.95
+    },
+    {
+      "kind": "pillar",
+      "label": "ebene-2",
+      "minX": 7.85,
+      "maxX": 8.15,
+      "minZ": 19.55,
+      "maxZ": 19.849999999999998,
+      "minY": 0,
+      "maxY": 2.95
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 12.64,
+      "maxZ": 13,
+      "minY": 0,
+      "maxY": 3.2
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 12.28,
+      "maxZ": 12.64,
+      "minY": 0,
+      "maxY": 3
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 11.92,
+      "maxZ": 12.28,
+      "minY": 0,
+      "maxY": 2.75
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 11.56,
+      "maxZ": 11.92,
+      "minY": 0,
+      "maxY": 2.5
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 11.2,
+      "maxZ": 11.56,
+      "minY": 0,
+      "maxY": 2.25
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 10.84,
+      "maxZ": 11.2,
+      "minY": 0,
+      "maxY": 2
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 10.48,
+      "maxZ": 10.84,
+      "minY": 0,
+      "maxY": 1.75
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 10.120000000000001,
+      "maxZ": 10.48,
+      "minY": 0,
+      "maxY": 1.5
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 9.76,
+      "maxZ": 10.120000000000001,
+      "minY": 0,
+      "maxY": 1.25
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 9.4,
+      "maxZ": 9.76,
+      "minY": 0,
+      "maxY": 1
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 9.04,
+      "maxZ": 9.4,
+      "minY": 0,
+      "maxY": 0.75
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 8.68,
+      "maxZ": 9.04,
+      "minY": 0,
+      "maxY": 0.5
+    },
+    {
+      "kind": "step",
+      "label": "ebene-2",
+      "minX": 2.4,
+      "maxX": 4.2,
+      "minZ": 8.32,
+      "maxZ": 8.68,
+      "minY": 0,
+      "maxY": 0.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-2",
+      "minX": -1.7000000000000002,
+      "maxX": 8.3,
+      "minZ": 19.92,
+      "maxZ": 20,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-2",
+      "minX": -1.7000000000000002,
+      "maxX": -1.62,
+      "minZ": 13,
+      "maxZ": 20,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-2",
+      "minX": 8.22,
+      "maxX": 8.3,
+      "minZ": 13,
+      "maxZ": 20,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-2",
+      "minX": -1.7000000000000002,
+      "maxX": 2.4,
+      "minZ": 13,
+      "maxZ": 13.08,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "rail",
+      "label": "ebene-2",
+      "minX": 4.2,
+      "maxX": 8.3,
+      "minZ": 13,
+      "maxZ": 13.08,
+      "minY": 3.2,
+      "maxY": 4.25
+    },
+    {
+      "kind": "dock",
+      "label": "rampe",
+      "minX": -19.9375,
+      "maxX": 19.9375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 1.2
+    },
+    {
+      "kind": "step",
+      "label": "rampe",
+      "minX": -20.3375,
+      "maxX": -19.9375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 1.2
+    },
+    {
+      "kind": "step",
+      "label": "rampe",
+      "minX": -20.7375,
+      "maxX": -20.3375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 0.8999999999999999
+    },
+    {
+      "kind": "step",
+      "label": "rampe",
+      "minX": -21.1375,
+      "maxX": -20.7375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 0.6
+    },
+    {
+      "kind": "step",
+      "label": "rampe",
+      "minX": -21.5375,
+      "maxX": -21.1375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 0.3
+    },
+    {
+      "kind": "step",
+      "label": "rampe",
+      "minX": 19.9375,
+      "maxX": 20.3375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 1.2
+    },
+    {
+      "kind": "step",
+      "label": "rampe",
+      "minX": 20.3375,
+      "maxX": 20.7375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 0.8999999999999999
+    },
+    {
+      "kind": "step",
+      "label": "rampe",
+      "minX": 20.7375,
+      "maxX": 21.1375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 0.6
+    },
+    {
+      "kind": "step",
+      "label": "rampe",
+      "minX": 21.1375,
+      "maxX": 21.5375,
+      "minZ": 32.5,
+      "maxZ": 37,
+      "minY": 0,
+      "maxY": 0.3
+    }
+  ]
 }

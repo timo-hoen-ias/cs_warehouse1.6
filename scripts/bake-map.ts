@@ -9,6 +9,7 @@ import { generateLagerDaten } from '../src/logic/demo';
 import { generateProps, solidsWithProps } from '../src/logic/props';
 import { spawnPoints } from '../src/logic/spawns';
 import { MAPS, mapById, type MapDef } from '../src/logic/maps';
+import { generateStructures } from '../src/logic/structures';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = resolve(__dirname, '../levels');
@@ -26,14 +27,15 @@ export function toLevel(meta: LevelMeta, lager: LagerDaten, propCount: number, s
   const base = computeSolids(lager);
   if (base.length === 0) throw new Error(`Level '${meta.id}': keine soliden Objekte (leeres Lager?)`);
   const zones = suggestZones(lager);
-  const props = generateProps(lager, zones, propCount, seed + 100);
-  const solids = solidsWithProps(lager, props);
+  const structures = generateStructures(lager, zones, 2, seed + 50);
+  const props = generateProps(lager, zones, propCount, seed + 100, structures);
+  const solids = solidsWithProps(lager, props, structures);
   const inner = innerBounds(rackBounds(layoutRacks(lager.lagerorte))!);
   const spawns = {
     t: spawnPoints(zones.t, SPAWNS_PER_TEAM, solids, inner),
     ct: spawnPoints(zones.ct, SPAWNS_PER_TEAM, solids, inner),
   };
-  return { format: 2, name: meta.name, meta, lager, zones, props, spawns };
+  return { format: 2, name: meta.name, meta, lager, zones, props, spawns, structures };
 }
 
 async function loadFromDb(): Promise<LagerDaten | null> {
@@ -81,7 +83,9 @@ function write(level: LevelFile): void {
   const count = level.lager.lagerorte.length;
   const cells = level.lager.lagerorte.reduce((s, o) => s + o.plaetze.length, 0);
   console.log(`[bake] ${level.meta!.id} → ${file}`);
-  console.log(`[bake]   ${count} Lagerorte, ${cells} Plätze, ${level.props!.length} Requisiten, Spawns T/CT ${level.spawns!.t.length}/${level.spawns!.ct.length}`);
+  const ebenen = level.structures!.filter((s) => s.kind === 'platform').length;
+  const rampe = level.structures!.some((s) => s.kind === 'dock');
+  console.log(`[bake]   ${count} Lagerorte, ${cells} Plätze, ${level.props!.length} Requisiten, ${ebenen} Zwischenebenen${rampe ? ', Laderampe' : ''}, Spawns T/CT ${level.spawns!.t.length}/${level.spawns!.ct.length}`);
   console.log(`[bake]   Zonen: T=${fmt(level.zones.t)} CT=${fmt(level.zones.ct)} A=${fmt(level.zones.a)} B=${fmt(level.zones.b)}`);
 }
 

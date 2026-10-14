@@ -4,7 +4,7 @@ import { layoutRacks, rackBounds, type RackPlacement } from './layout';
 
 /** Solider, achsenparalleler Quader in Weltmetern (für Kollision + Rendering). */
 export type SolidBox = {
-  kind: 'rack' | 'wall' | 'prop';
+  kind: 'rack' | 'wall' | 'prop' | 'platform' | 'step' | 'pillar' | 'rail' | 'dock';
   minX: number;
   minY: number;
   minZ: number;
@@ -14,7 +14,7 @@ export type SolidBox = {
   label: string;
 };
 
-export const WALL_MARGIN = 4; // Abstand Außenwand zu den äußersten Regalen (wie warehouse-map)
+export const WALL_MARGIN = 12; // Abstand Außenwand zu den äußersten Regalen: offene Flächen für Spawns, Zwischenebenen, Laderampe
 export const WALL_THICK = 0.5;
 export const WALL_HEIGHT = 6; // Hallenhöhe (über Kopfhöhe)
 

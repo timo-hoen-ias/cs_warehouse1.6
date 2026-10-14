@@ -1,4 +1,5 @@
 import type { LagerDaten } from './types';
+import type { SolidBox } from '../logic/level';
 
 /** Position in Weltmetern (Fußpunkt, y=0 = Boden). */
 export type Vec3 = [number, number, number];
@@ -54,6 +55,8 @@ export type LevelFile = {
   meta?: LevelMeta;
   props?: Prop[];
   spawns?: { t: Vec3[]; ct: Vec3[] };
+  /** Vertikale Strukturen (Zwischenebenen, Treppen, Laderampe) als Solids. */
+  structures?: SolidBox[];
 };
 
 /** Rechteck in der XZ-Ebene (Weltmeter). */
