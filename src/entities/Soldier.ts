@@ -3,73 +3,114 @@ import type { Team } from '../logic/economy';
 import type { Pose } from '../logic/match';
 import { humanPartBoxes, type PartBox } from '../logic/hitbox';
 import { WEAPONS } from '../logic/weapons';
+import { CROUCH_DROP, LEG, fallPose, solveLegAngles, walkPose } from './soldierAnim';
+import {
+  SHOULDER_X, SHOULDER_Y, TORSO_PIVOT_Y, WEAPON_POS,
+  buildArmGeometry, buildShinGeometry, buildThighGeometry, buildTorsoGeometry, buildWeaponGeometry,
+  type ArmStance, type WeaponKind,
+} from './soldierParts';
 
-const TEAM_COLORS: Record<Team, { body: number; head: number; accent: number }> = {
-  T: { body: 0xb0722a, head: 0xd9a066, accent: 0x5a3a14 },
-  CT: { body: 0x2f4f8a, head: 0xd9b8a0, accent: 0x1b2a4a },
-};
-const DEAD_COLOR = 0x3a3f44;
+/** Tönung der Materialien: lebendig = unverändert (Vertex-Farben), tot = abgedunkelt/entsättigt. */
+const ALIVE_TINT = 0xffffff;
+const DEAD_TINT = 0x4a5057;
+
+function hashId(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
 
 /**
- * Sichtbarer Soldat (Bots + entfernte Spieler): Körper/Kopf/Arme/Beine/Waffe +
- * Namensschild (Sprite). Hitboxen kommen aus humanPartBoxes an der Fußposition.
+ * Sichtbarer Soldat (Bots + entfernte Spieler): Low-Poly-Körper (Weste, Stiefel, Rucksack,
+ * Team-Ausrüstung), Arme in Zweihandhaltung, Waffe + Namensschild (Sprite).
+ * Statische Teile sind je Körperteil zu einem Mesh verschmolzen (7 Meshes + Waffe).
+ * Hitboxen kommen aus humanPartBoxes an der Fußposition.
  * Bewegung: setPose (Host-Bot) oder interpolierte Netz-Posen.
  */
 export class Soldier {
   readonly root = new THREE.Group();
   team: Team;
-  private readonly matBody: THREE.MeshStandardMaterial;
-  private readonly matHead: THREE.MeshStandardMaterial;
-  private readonly matAccent: THREE.MeshStandardMaterial;
+  private readonly matTop: THREE.MeshStandardMaterial;
+  private readonly matLegs: THREE.MeshStandardMaterial;
+  private readonly matGun: THREE.MeshStandardMaterial;
+  /** Alles außer dem Namensschild (wird beim Umfallen um den Fußpunkt gedreht). */
+  private readonly fallGroup = new THREE.Group();
   private readonly weaponNode = new THREE.Group();
   private readonly torso = new THREE.Group();
-  private readonly legL: THREE.Mesh;
-  private readonly legR: THREE.Mesh;
+  private readonly torsoMesh: THREE.Mesh;
+  private readonly armL: THREE.Mesh;
+  private readonly armR: THREE.Mesh;
+  private readonly thighL: THREE.Mesh;
+  private readonly thighR: THREE.Mesh;
+  private readonly shinL: THREE.Mesh;
+  private readonly shinR: THREE.Mesh;
+  private readonly gunMesh: THREE.Mesh;
   private readonly label: THREE.Sprite;
+  private stance: ArmStance = 'long';
   private weaponId = '';
   private walkPhase = 0;
+  private walkAmp = 0;
   private lastX = 0;
   private lastZ = 0;
   private crouch = 0;
+  private deathStart = 0;
+  private falling = false;
+  private readonly fallDir: 1 | -1;
+  private readonly fallRoll: number;
   alive = true;
 
   constructor(readonly id: string, public name: string, team: Team) {
     this.team = team;
-    const c = TEAM_COLORS[team];
-    this.matBody = new THREE.MeshStandardMaterial({ color: c.body, roughness: 0.8 });
-    this.matHead = new THREE.MeshStandardMaterial({ color: c.head, roughness: 0.7 });
-    this.matAccent = new THREE.MeshStandardMaterial({ color: c.accent, roughness: 0.9 });
+    const h = hashId(id);
+    this.fallDir = h & 1 ? 1 : -1;
+    this.fallRoll = (((h >>> 1) % 7) - 3) * 0.05;
+    this.matTop = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, flatShading: true });
+    this.matLegs = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, flatShading: true });
+    this.matGun = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.35 });
 
-    // Beine (Fuß bei y=0)
-    this.legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.75, 0.26), this.matAccent);
-    this.legR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.75, 0.26), this.matAccent);
-    this.legL.position.set(-0.14, 0.375, 0);
-    this.legR.position.set(0.14, 0.375, 0);
-    this.root.add(this.legL, this.legR);
+    // Beine: Oberschenkel am Hüftgelenk, Unterschenkel am Knie (Fuß bei y=0)
+    const empty = (): THREE.BufferGeometry => new THREE.BufferGeometry();
+    this.thighL = new THREE.Mesh(empty(), this.matLegs);
+    this.thighR = new THREE.Mesh(empty(), this.matLegs);
+    this.shinL = new THREE.Mesh(empty(), this.matLegs);
+    this.shinR = new THREE.Mesh(empty(), this.matLegs);
+    this.thighL.position.set(-0.1, LEG.hipY, 0);
+    this.thighR.position.set(0.1, LEG.hipY, 0);
+    this.shinL.position.y = -LEG.thigh;
+    this.shinR.position.y = -LEG.thigh;
+    this.thighL.add(this.shinL);
+    this.thighR.add(this.shinR);
 
-    // Torso + Kopf + Arme (Gruppe für Ducken)
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.34), this.matBody);
-    body.position.y = 1.1;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), this.matHead);
-    head.position.y = 1.6;
-    const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.34), this.matAccent);
-    helmet.position.y = 1.72;
-    const armL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.18), this.matBody);
-    armL.position.set(-0.4, 1.1, 0.1);
-    armL.rotation.x = -0.9;
-    const armR = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.18), this.matBody);
-    armR.position.set(0.4, 1.1, 0.1);
-    armR.rotation.x = -0.9;
-    this.torso.add(body, head, helmet, armL, armR, this.weaponNode);
-    this.weaponNode.position.set(0.25, 1.2, 0.35);
-    this.root.add(this.torso);
-    for (const m of [body, head, helmet, armL, armR, this.legL, this.legR]) m.castShadow = true;
+    // Oberkörper (Drehpunkt = Hüfte), Arme an den Schultern, Waffenknoten an der rechten Hand
+    this.torsoMesh = new THREE.Mesh(empty(), this.matTop);
+    this.armL = new THREE.Mesh(empty(), this.matTop);
+    this.armR = new THREE.Mesh(empty(), this.matTop);
+    this.armL.position.set(-SHOULDER_X, SHOULDER_Y - TORSO_PIVOT_Y, 0);
+    this.armR.position.set(SHOULDER_X, SHOULDER_Y - TORSO_PIVOT_Y, 0);
+    this.weaponNode.position.set(WEAPON_POS.x, WEAPON_POS.y - TORSO_PIVOT_Y, WEAPON_POS.z);
+    this.gunMesh = new THREE.Mesh(empty(), this.matGun);
+    this.weaponNode.add(this.gunMesh);
+    this.torso.add(this.torsoMesh, this.armL, this.armR, this.weaponNode);
+    this.torso.position.y = TORSO_PIVOT_Y;
+
+    this.fallGroup.add(this.thighL, this.thighR, this.torso);
+    this.root.add(this.fallGroup);
+    for (const m of [this.torsoMesh, this.armL, this.armR, this.thighL, this.thighR, this.shinL, this.shinR]) m.castShadow = true;
+    this.buildBody();
+
+    // Umfallen: einmal pro Frame vor dem Matrix-Update (setPose läuft nur für Lebende)
+    const baseUpdate = this.root.updateMatrixWorld.bind(this.root);
+    this.root.updateMatrixWorld = (force?: boolean): void => {
+      this.tickFall();
+      baseUpdate(force);
+    };
 
     // Namensschild
     this.label = makeLabel(name, team);
     this.label.position.y = 2.05;
     this.root.add(this.label);
     this.setWeapon('knife');
+    this.applyPose(0, 0, 0, 0);
   }
 
   addTo(parent: THREE.Object3D): void {
@@ -81,19 +122,43 @@ export class Soldier {
     this.root.traverse((o) => {
       const m = o as THREE.Mesh;
       m.geometry?.dispose();
-      const mat = m.material as THREE.Material | undefined;
-      mat?.dispose();
     });
-    (this.label.material as THREE.SpriteMaterial).map?.dispose();
+    this.matTop.dispose();
+    this.matLegs.dispose();
+    this.matGun.dispose();
+    const lm = this.label.material as THREE.SpriteMaterial;
+    lm.map?.dispose();
+    lm.dispose();
+  }
+
+  /** Teamabhängige Geometrie (Helm/Sturmhaube, Farben) neu aufbauen und alte freigeben. */
+  private buildBody(): void {
+    const t = this.team;
+    this.swapGeometry(this.torsoMesh, buildTorsoGeometry(t));
+    this.swapGeometry(this.armR, buildArmGeometry(t, 'R', this.stance));
+    this.swapGeometry(this.armL, buildArmGeometry(t, 'L', this.stance));
+    this.swapGeometry(this.thighL, buildThighGeometry(t, 'L'));
+    this.swapGeometry(this.thighR, buildThighGeometry(t, 'R'));
+    this.swapGeometry(this.shinL, buildShinGeometry(t, 'L'));
+    this.swapGeometry(this.shinR, buildShinGeometry(t, 'R'));
+  }
+
+  private swapGeometry(mesh: THREE.Mesh, geo: THREE.BufferGeometry): void {
+    const old = mesh.geometry;
+    mesh.geometry = geo;
+    old.dispose();
+  }
+
+  private applyTint(): void {
+    const c = this.alive ? ALIVE_TINT : DEAD_TINT;
+    this.matTop.color.setHex(c);
+    this.matLegs.color.setHex(c);
   }
 
   setTeam(team: Team): void {
     if (this.team === team) return;
     this.team = team;
-    const c = TEAM_COLORS[team];
-    this.matBody.color.setHex(c.body);
-    this.matHead.color.setHex(c.head);
-    this.matAccent.color.setHex(c.accent);
+    this.buildBody();
     this.setName(this.name);
   }
 
@@ -116,67 +181,83 @@ export class Soldier {
     this.lastZ = p.z;
     this.root.position.set(p.x, p.y, p.z);
     this.root.rotation.y = p.yaw + Math.PI; // Modell blickt +Z, Kamera-Yaw 0 = -Z
-    // Gehanimation
+    // Gehanimation (Amplitude weich nachgeführt, damit Anhalten nicht ruckt)
     if (moved > 0.0005) this.walkPhase += moved * 6;
-    const swing = Math.sin(this.walkPhase) * Math.min(0.6, moved * 40);
-    this.legL.rotation.x = swing;
-    this.legR.rotation.x = -swing;
-    // Ducken: Torso senken
-    const target = crouch ? 1 : 0;
-    this.crouch += (target - this.crouch) * 0.25;
-    this.torso.position.y = -0.45 * this.crouch;
-    this.torso.rotation.x = -p.pitch * 0.4;
+    const targetAmp = Math.min(0.6, moved * 40);
+    this.walkAmp += (targetAmp - this.walkAmp) * 0.4;
+    // Ducken: Hüfte senken, Beine anwinkeln
+    this.crouch += ((crouch ? 1 : 0) - this.crouch) * 0.25;
+    this.applyPose(this.walkPhase, this.walkAmp, this.crouch, p.pitch);
+  }
+
+  private applyPose(phase: number, amp: number, crouch: number, pitch: number): void {
+    const drop = CROUCH_DROP * crouch;
+    const legs = solveLegAngles(drop);
+    const w = walkPose(phase, amp);
+    const hipY = LEG.hipY - drop;
+    this.thighL.position.y = hipY;
+    this.thighR.position.y = hipY;
+    this.thighL.rotation.x = legs.thigh + w.swing;
+    this.thighR.rotation.x = legs.thigh - w.swing;
+    this.shinL.rotation.x = legs.shin + w.kneeL;
+    this.shinR.rotation.x = legs.shin + w.kneeR;
+    // Oberkörper: wippt, verdreht leicht, neigt sich beim Ducken/Blick nach oben
+    this.torso.position.y = hipY + w.bob;
+    this.torso.rotation.y = w.twist;
+    this.torso.rotation.x = Math.max(-0.5, Math.min(0.5, -pitch * 0.35)) + 0.12 * crouch;
+    this.armL.rotation.x = w.armSway;
+    this.armR.rotation.x = -w.armSway;
   }
 
   setWeapon(id: string): void {
     if (id === this.weaponId) return;
     this.weaponId = id;
-    this.weaponNode.clear();
     const def = WEAPONS[id];
-    if (!def || def.type === 'knife') {
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.25), new THREE.MeshStandardMaterial({ color: 0xcfd6dc, metalness: 0.6, roughness: 0.3 }));
-      blade.position.z = 0.1;
-      this.weaponNode.add(blade);
-      return;
+    const type: WeaponKind = def ? def.type : 'unknown';
+    this.swapGeometry(this.gunMesh, buildWeaponGeometry(type));
+    // Kurze Waffen: linke Hand umfasst den Griff, lange: Vorderschaft
+    const stance: ArmStance = type === 'pistol' || type === 'knife' || type === 'grenade' || type === 'bomb' || type === 'unknown' ? 'short' : 'long';
+    if (stance !== this.stance) {
+      this.stance = stance;
+      this.swapGeometry(this.armL, buildArmGeometry(this.team, 'L', stance));
     }
-    const len = def.type === 'pistol' ? 0.25 : def.type === 'sniper' ? 1.0 : def.type === 'grenade' || def.type === 'bomb' ? 0.15 : 0.65;
-    const color = def.type === 'grenade' ? 0x4a6a3a : def.type === 'bomb' ? 0x8a2a2a : 0x2a2d31;
-    const gun = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, len), new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.4 }));
-    gun.position.z = len / 2;
-    this.weaponNode.add(gun);
   }
 
   setAlive(alive: boolean): void {
     if (this.alive === alive) return;
     this.alive = alive;
+    this.applyTint();
     if (!alive) {
-      this.matBody.color.setHex(DEAD_COLOR);
-      this.matHead.color.setHex(DEAD_COLOR);
-      this.matAccent.color.setHex(DEAD_COLOR);
-      // Umfallen
-      this.root.rotation.x = Math.PI / 2;
-      this.root.position.y = 0.3;
+      this.deathStart = performance.now();
+      this.falling = true;
       this.label.visible = false;
     } else {
-      const c = TEAM_COLORS[this.team];
-      this.matBody.color.setHex(c.body);
-      this.matHead.color.setHex(c.head);
-      this.matAccent.color.setHex(c.accent);
-      this.root.rotation.x = 0;
+      this.falling = false;
+      this.fallGroup.rotation.set(0, 0, 0);
+      this.fallGroup.position.set(0, 0, 0);
       this.label.visible = true;
     }
   }
 
+  /** Fall-Animation (~0.4 s) um den Fußpunkt; läuft über root.updateMatrixWorld. */
+  private tickFall(): void {
+    if (!this.falling) return;
+    const f = fallPose((performance.now() - this.deathStart) / 1000, this.fallDir, this.fallRoll);
+    this.fallGroup.rotation.set(f.rotX, 0, f.rotZ);
+    this.fallGroup.position.set(0, f.lift, f.slide);
+    if (f.t >= 1) this.falling = false;
+  }
+
   /** Kurzer roter Blitz bei Treffer. */
   flashHit(): void {
-    this.matBody.emissive.setHex(0x990000);
-    setTimeout(() => { this.matBody.emissive.setHex(0x000000); }, 90);
+    this.matTop.emissive.setHex(0x990000);
+    setTimeout(() => { this.matTop.emissive.setHex(0x000000); }, 90);
   }
 
   /** Weltraum-Hitboxen (Fußpunkt = root-Position; geduckt kleiner). */
   partBoxes(): PartBox[] {
     const p = this.root.position;
-    return humanPartBoxes({ x: p.x, y: 0, z: p.z }, 1 - 0.25 * this.crouch);
+    return humanPartBoxes({ x: p.x, y: p.y, z: p.z }, 1 - 0.25 * this.crouch);
   }
 }
 
