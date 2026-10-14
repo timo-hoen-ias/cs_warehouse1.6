@@ -1,0 +1,112 @@
+ambience/alarm_far.ogg: alarmfar
+ambience/bart/whoosh.ogg: nade_throw
+ambience/bart/whoosh2.ogg: life_pigeons
+ambience/distant_cars.ogg: traffic
+ambience/door.ogg: life_door
+ambience/electro.ogg: buzz
+ambience/engine1.ogg: life_reverse
+ambience/engine_slow1.ogg: forklift
+ambience/forest1.ogg: birds
+ambience/grinds_my_gears.ogg: conveyor
+ambience/hammering_machine.ogg: machine
+ambience/hum.ogg: cold, hallhum
+ambience/leak_metalic.ogg: drip
+ambience/machine_room_1.ogg: hallhum
+ambience/morph/rain.ogg: rain
+ambience/pump_majig.ogg: compressor
+ambience/server2.ogg: ventilation
+ambience/wastewind.ogg: tunnel
+ambience/windy_industry.ogg: wind
+interface/back.ogg: ui_back
+interface/change.ogg: ui_change
+interface/press.ogg: buy, ui_click
+player/concstep.ogg: land, step_concrete_1, step_gravel_1, step_metal_1, step_tile_1, step_wood_1
+player/concstep2.ogg: step_concrete_2, step_gravel_2, step_metal_2, step_tile_2, step_wood_2
+player/concstep3.ogg: land, step_concrete_3, step_gravel_3, step_metal_3, step_tile_3, step_wood_3
+player/concstep4.ogg: step_concrete_4, step_gravel_4, step_metal_4, step_tile_4, step_wood_4
+player/death.ogg: death_1
+player/death2.ogg: death_2
+player/death3.ogg: death_3
+player/death4.ogg: death_4
+player/death5.ogg: death_5
+player/land.ogg: land
+player/pain.ogg: pain_1
+player/pain2.ogg: pain_2
+player/pain3.ogg: pain_3
+player/pain4.ogg: pain_4
+player/pain5.ogg: pain_5
+player/pain6.ogg: pain_6
+sfx/chat.ogg: ui_chat
+sfx/debris.ogg: c4_explode, imp_concrete_1
+sfx/debris2.ogg: imp_concrete_3
+sfx/debris3.ogg: c4_explode, he_near_1, he_near_2, imp_concrete_2, life_pallet
+sfx/extinguish.ogg: smoke_hiss
+sfx/extinguish2.ogg: smoke_hiss
+sfx/extinguish3.ogg: smoke_hiss
+sfx/shell.ogg: shell_1, shell_shotgun_1
+sfx/shell2.ogg: shell_2
+sfx/shell3.ogg: shell_3, shell_shotgun_2
+sfx/shell4.ogg: shell_4
+sfx/shell5.ogg: shell_5
+sfx/shell6.ogg: shell_6
+weapons/bigblast.ogg: c4_explode, he_near_1
+weapons/bigblast2.ogg: he_near_2
+weapons/explode.ogg: he_near_1
+weapons/explode2.ogg: he_near_2
+weapons/explode3.ogg: c4_explode
+weapons/explodefar2.ogg: he_far_1
+weapons/explodefar3.ogg: c4_explode_far, he_far_2
+weapons/grenade/switch.ogg: draw_nade, nade_pin
+weapons/mine/explode2.ogg: c4_explode
+weapons/pistol/primary.ogg: fiveseven_1, glock_1, usp_1, usp_sil_1
+weapons/pistol/primary2.ogg: elite_2, glock_2, p228_1
+weapons/pistol/primary3.ogg: elite_1, fiveseven_2, p228_2, usp_2, usp_sil_2
+weapons/pistol/primaryfar2.ogg: far_pistol_1
+weapons/pistol/primaryfar3.ogg: far_pistol_2
+weapons/pistol/reload.ogg: c4_defuse, draw_pistol, reload_pistol
+weapons/pistol/secondary.ogg: deagle_1
+weapons/pistol/secondary2.ogg: deagle_2
+weapons/ricochet.ogg: ricochet_1, ricochet_2, ricochet_3
+weapons/rifle/primary.ogg: ak47_1, awp_1, g3sg1_2, galil_2
+weapons/rifle/primary2.ogg: ak47_2, famas_1, g3sg1_1, m249_2
+weapons/rifle/primary3.ogg: awp_2, famas_2, galil_1, m249_1
+weapons/rifle/primaryfar2.ogg: far_rifle_1
+weapons/rifle/primaryfar3.ogg: far_sniper_1
+weapons/rifle/reload.ogg: bolt, reload_mg, reload_rifle
+weapons/rifle/reload2.ogg: reload_sniper
+weapons/rifle/secondary.ogg: aug_2, m4a1_1, m4a1_sil_1, scout_1, sg550_2
+weapons/rifle/secondary2.ogg: m4a1_2, m4a1_sil_2, sg550_1, sg552_1
+weapons/rifle/secondary3.ogg: aug_1, scout_2, sg552_2
+weapons/rifle/secondaryfar2.ogg: far_rifle_2
+weapons/rifle/secondaryfar3.ogg: far_sniper_2
+weapons/shotgun/primary.ogg: m3_1
+weapons/shotgun/primary2.ogg: m3_2, xm1014_1
+weapons/shotgun/primary3.ogg: xm1014_2
+weapons/shotgun/primaryfar2.ogg: far_shotgun_1
+weapons/shotgun/primaryfar3.ogg: far_shotgun_2
+weapons/shotgun/reload.ogg: reload_shell
+weapons/singe.ogg: flyby_2
+weapons/singe2.ogg: flyby_3
+weapons/smallblast.ogg: flash_bang
+weapons/smg/primary.ogg: mac10_2, mp5_1, tmp_1
+weapons/smg/primary2.ogg: mp5_2, p90_1
+weapons/smg/primary3.ogg: mac10_1, p90_2, tmp_2
+weapons/smg/primaryfar2.ogg: far_smg_1
+weapons/smg/primaryfar3.ogg: far_smg_2
+weapons/smg/reload.ogg: c4_defuse, reload_smg
+weapons/smg/secondary.ogg: ump45_1
+weapons/smg/secondary2.ogg: ump45_2
+weapons/smg/switch.ogg: buy, draw_rifle, pickup, pump
+weapons/switch.ogg: c4_planted, draw_pistol, pickup
+weapons/sword/primary.ogg: knife_slash_1
+weapons/sword/primary2.ogg: knife_slash_2
+weapons/sword/secondary.ogg: knife_stab
+weapons/sword/switch.ogg: draw_knife
+weapons/thud.ogg: imp_wood_1, life_pallet, nade_bounce_1, nade_bounce_2, nade_bounce_3
+weapons/thud2.ogg: imp_wood_2, life_clank_1, life_clank_2, life_pallet
+weapons/thud3.ogg: knife_wall_1, knife_wall_2
+weapons/thwack.ogg: knife_hit_1
+weapons/thwack2.ogg: imp_flesh_1, knife_hit_2
+weapons/thwack3.ogg: imp_flesh_2
+weapons/tink.ogg: headshot, imp_metal_1, imp_metal_2, imp_metal_3, knife_wall_1, knife_wall_2, life_clank_1, life_clank_2, nade_bounce_1, nade_bounce_2, nade_bounce_3, step_metal_1, step_metal_2, step_metal_3, step_metal_4
+weapons/whizz.ogg: flyby_1

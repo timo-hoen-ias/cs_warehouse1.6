@@ -87,6 +87,9 @@ async function run() {
     if (!state) fail('Szene-Hook nie gesetzt (Engine gestartet?)');
     else ok('Szene: ' + JSON.stringify(state));
 
+    // Audio entsperren (Nutzergeste simulieren; Browser läuft mit --autoplay-policy=no-user-gesture-required)
+    await ev(`document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })), 1`);
+
     // 2) Render
     await sleep(2000);
     const frames = await evJson('globalThis.__frames?.()');
@@ -111,6 +114,12 @@ async function run() {
       }
       return v;
     };
+
+    // 3b) Audio: Kontext läuft, alle Grund-Samples geladen (keine Fehler), Raum-Teppich spielt
+    const au = await waitFor('globalThis.__audio?.()', (v) => v.state === 'running' && v.pending === 0 && v.loaded >= 150 && v.ambienceVoices > 0, 30000);
+    if (au?.state === 'running' && au.loaded >= 150 && au.failed === 0 && au.ambienceVoices > 0)
+      ok(`Audio: ${au.loaded} Samples (${au.format}), ${au.voices} Stimmen, Raum ${au.room}, Ambience ${au.ambienceVoices}, Emitter ${au.emitters}`);
+    else fail('Audio nicht bereit: ' + JSON.stringify(au));
 
     // 4) Kaufphase abwarten (warmup 5 s → freeze), Kevlar kaufen (800 $ → 150 $)
     let st = await waitFor('globalThis.__state?.()', (v) => v.phase === 'freeze', 60000);
@@ -199,6 +208,23 @@ async function run() {
     const pos = await evJson('globalThis.__pos?.()');
     if (st3?.round === 2 && st3.alive?.T >= 1 && st3.alive?.CT >= 1 && pos && !pos.dead) ok(`Runde 2 gestartet (${st3.phase}), alle respawnt`);
     else fail(`Runde 2 nicht gestartet: ${JSON.stringify(st3)} ${JSON.stringify(pos)}`);
+
+    // 11b) Audio nach dem Spielgeschehen: noch fehlerfrei, Stimmen-Limit eingehalten
+    const au2 = await evJson('globalThis.__audio?.()');
+    const pl = au2?.played ?? {};
+    const groups = ['fire', 'impact', 'draw', 'ui', 'smoke'].filter((g) => !(pl[g] > 0));
+    if (au2 && au2.failed === 0 && au2.voices <= 48 && au2.loaded >= au?.loaded && !groups.length) ok(`Audio nach Runde: ${au2.loaded} Samples, ${au2.voices} Stimmen, gespielt ${JSON.stringify(pl)}`);
+    else fail('Audio fehlerhaft nach Runde: ' + JSON.stringify(au2));
+
+    // 11c) Alle Audio-Pfade (Oberflächen, Explosion nah/fern, Tinnitus, C4, Vorbeiflug, Schrot-Nachladen)
+    const before11 = (await evJson('globalThis.__audio?.()'))?.played ?? {};
+    await evJson('globalThis.__audioProbe?.()');
+    await sleep(800);
+    const after11 = (await evJson('globalThis.__audio?.()'))?.played ?? {};
+    const need = ['step', 'land', 'fire', 'far', 'flyby', 'impact', 'he', 'c4', 'ear', 'reload', 'ui'];
+    const missing = need.filter((g) => !((after11[g] ?? 0) > (before11[g] ?? 0)));
+    if (!missing.length) ok(`Audio-Pfade: ${need.join(', ')}`);
+    else fail(`Audio-Pfade fehlen: ${missing.join(', ')} (${JSON.stringify(after11)})`);
 
     const relevant = errors.filter((e) => !/DRACOLoader|KTX2Loader/.test(e));
     if (relevant.length) fail('Console-Fehler:\n' + relevant.join('\n'));

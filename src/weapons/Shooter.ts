@@ -48,6 +48,9 @@ export class Shooter extends Behaviour {
   onEmptyClick?: () => void;
   /** G: gehaltene Waffe fallen lassen. */
   onDrop?: (weaponId: string) => void;
+  /** Audio: Waffe gezogen / eigener Schuss schlägt in eine Wand ein. */
+  onDraw?: (weaponId: string) => void;
+  onWallHit?: (point: Vec3) => void;
 
   /** Solide Level-Boxen (Wände/Regale) für die lokale Strahl-Vorschau. */
   solids: SolidBox[] = [];
@@ -153,6 +156,7 @@ export class Shooter extends Behaviour {
     this.setZoom(0);
     this.rezoomLevel = 0;
     this.viewModel?.show(id).catch(() => undefined);
+    this.onDraw?.(id);
   }
 
   private carries(lo: Loadout, id: string): boolean {
@@ -358,6 +362,7 @@ export class Shooter extends Behaviour {
       if (hit.kind === 'wall') {
         const n = surfaceNormalOnBoxes(this.aabbs, hit.point) ?? { x: 0, y: 1, z: 0 };
         this.fx?.impact({ kind: 'wall', point: hit.point, normal: n }, d);
+        if (d === dirs[0]) this.onWallHit?.(hit.point);
       }
     }
     this.onShotSfx?.(def.id);
