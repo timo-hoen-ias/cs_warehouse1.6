@@ -126,7 +126,9 @@ export function surfaceNormalOnBoxes(boxes: Aabb[], point: Vec3, eps = 0.02): Ve
  */
 export function rayEntryNormal(box: Aabb, origin: Vec3, dir: Vec3): Vec3 | null {
   if (rayIntersectAabb(origin, dir, box) === null) return null;
-  let bestT = Infinity;
+  // Slab-Verfahren: der Strahl ist erst IN der Box, wenn er alle Eintritts-Ebenen
+  // passiert hat → die Eintrittsfläche ist die mit der GRÖSSTEN Eintritts-Distanz.
+  let bestT = -Infinity;
   let best: Vec3 | null = null;
   const axes: ['x' | 'y' | 'z', number, number][] = [
     ['x', box.minX, box.maxX],
@@ -140,7 +142,7 @@ export function rayEntryNormal(box: Aabb, origin: Vec3, dir: Vec3): Vec3 | null 
     // Eintritts-Ebene: bei positiver Richtung min, bei negativer Richtung max.
     const plane = d > 0 ? lo : hi;
     const t = (plane - o) / d;
-    if (t >= 0 && t < bestT) {
+    if (t >= 0 && t > bestT) {
       bestT = t;
       const s = d > 0 ? -1 : 1; // nach außen weisend
       best = axis === 'x' ? { x: s, y: 0, z: 0 } : axis === 'y' ? { x: 0, y: s, z: 0 } : { x: 0, y: 0, z: s };
