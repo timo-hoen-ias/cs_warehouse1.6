@@ -24,4 +24,5 @@ custom-elements.json
 # Headless-Smoke-Artefakte
 .edge-test
 .edge-smoke
+.edge-*
 smoke.png

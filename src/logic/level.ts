@@ -16,7 +16,7 @@ export type SolidBox = {
 
 export const WALL_MARGIN = 12; // Abstand Außenwand zu den äußersten Regalen: offene Flächen für Spawns, Zwischenebenen, Laderampe
 export const WALL_THICK = 0.5;
-export const WALL_HEIGHT = 6; // Hallenhöhe (über Kopfhöhe)
+export const WALL_HEIGHT = 8; // Hallenhöhe bis Unterkante Dach (Platz für Fachwerkbinder, Strahler, Hochregale)
 
 /** Abstand eines Regals zur Wand, eingeplant als Gang (Perimeter-Umlauf). */
 export const PERIMETER_WALK = 1.5;

@@ -5,13 +5,16 @@ import { computeSolids, type SolidBox } from '../logic/level';
 import { BASE_H, LEVEL_GAP, SLOT, cellLocalPosition, cellSize, gangPlätze, isCatchAll, layoutRacks, type RackPlacement } from '../logic/layout';
 import { propSolid } from '../logic/props';
 import { mulberry32 } from '../logic/demo';
-import { cageTexture, containerTexture, crateTexture, floorTexture, palletTexture, signTexture, spotTexture, wallTexture } from './textures';
+import { cageTexture, containerTexture, crateTexture, exitSignTexture, floorTexture, palletTexture, signTexture, spotTexture, wallTexture } from './textures';
+import { buildCeiling, floorLightMap } from './Ceiling';
 
 export type LevelBuild = {
   group: THREE.Group;
   solids: SolidBox[];
   /** Begehbare Innenfläche (für Radar). */
   inner: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** Hallenhöhe (Unterkante Dach). */
+  height: number;
 };
 
 const CONTAINER_COLORS = ['#b5432b', '#2b6cb0', '#2f855a', '#b7791f'];
@@ -47,7 +50,7 @@ class Instances {
  * Requisiten, Zwischenebenen/Rampe, Beschilderung, Hallendach. Kollision läuft
  * über dieselben soliden Boxen (Regale/Wände aus computeSolids + Props + Strukturen).
  */
-export function buildLevelView(level: LevelFile): LevelBuild {
+export function buildLevelView(level: LevelFile, quality: 'high' | 'low' = 'high'): LevelBuild {
   const group = new THREE.Group();
   const props = level.props ?? [];
   const structures = level.structures ?? [];
@@ -60,7 +63,8 @@ export function buildLevelView(level: LevelFile): LevelBuild {
   const height = walls[0]?.maxY ?? 6;
 
   buildFloor(group, inner, racks);
-  buildCeiling(group, inner, height);
+  buildCeiling(group, inner, height, quality);
+  buildExitSigns(group, inner);
   for (const b of walls) {
     const tex = wallTexture().clone();
     tex.needsUpdate = true;
@@ -82,7 +86,7 @@ export function buildLevelView(level: LevelFile): LevelBuild {
     mesh.position.set(v[0], 0.02, v[2]);
     group.add(mesh);
   }
-  return { group, solids, inner };
+  return { group, solids, inner, height };
 }
 
 // ---------------------------------------------------------------- Regale
@@ -157,7 +161,8 @@ function buildFloor(group: THREE.Group, inner: LevelBuild['inner'], racks: RackP
   const t = floorTexture().clone();
   t.needsUpdate = true;
   t.repeat.set(w / 2, d / 2);
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }));
+  // Gebackene Licht-Map: Lichtflecken unter den Hallenstrahlern
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, lightMap: floorLightMap(inner), lightMapIntensity: 0.35 }));
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set((inner.minX + inner.maxX) / 2, 0, (inner.minZ + inner.maxZ) / 2);
   mesh.receiveShadow = true;
@@ -190,27 +195,22 @@ function buildFloor(group: THREE.Group, inner: LevelBuild['inner'], racks: RackP
   }
 }
 
-/** Hallendach (dunkel) + Träger + Leuchtbalken (instanziert). */
-function buildCeiling(group: THREE.Group, inner: LevelBuild['inner'], height: number): void {
-  const w = inner.maxX - inner.minX;
-  const d = inner.maxZ - inner.minZ;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: 0x1b1f25, roughness: 1, side: THREE.DoubleSide }));
-  mesh.rotation.x = Math.PI / 2;
-  mesh.position.set((inner.minX + inner.maxX) / 2, height, (inner.minZ + inner.maxZ) / 2);
-  group.add(mesh);
-  const beamMat = new THREE.MeshStandardMaterial({ color: 0x3a4149, roughness: 0.8 });
-  const step = 8;
-  const beamXs: number[] = [];
-  for (let x = inner.minX + step / 2; x < inner.maxX; x += step) beamXs.push(x);
-  const beams = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, 0.5, d), beamMat, beamXs.length);
-  const m4 = new THREE.Matrix4();
-  beamXs.forEach((x, i) => beams.setMatrixAt(i, m4.makeTranslation(x, height - 0.25, (inner.minZ + inner.maxZ) / 2)));
-  group.add(beams);
-  const lampPos: [number, number][] = [];
-  for (const x of beamXs) for (let z = inner.minZ + 6; z < inner.maxZ; z += 12) lampPos.push([x, z]);
-  const lamps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.08, 1.6), new THREE.MeshBasicMaterial({ color: 0xfff4d6 }), lampPos.length);
-  lampPos.forEach(([x, z], i) => lamps.setMatrixAt(i, m4.makeTranslation(x, height - 0.55, z)));
-  group.add(lamps);
+/** Grüne Notausgang-Schilder mittig an jeder Wand (leuchtend). */
+function buildExitSigns(group: THREE.Group, inner: LevelBuild['inner']): void {
+  const mat = new THREE.MeshBasicMaterial({ map: exitSignTexture() });
+  const geo = new THREE.PlaneGeometry(1.2, 1.2);
+  const place = (x: number, z: number, rotY: number): void => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, 3.0, z);
+    m.rotation.y = rotY;
+    group.add(m);
+  };
+  const cx = (inner.minX + inner.maxX) / 2;
+  const cz = (inner.minZ + inner.maxZ) / 2;
+  place(cx, inner.minZ + 0.02, 0);
+  place(cx, inner.maxZ - 0.02, Math.PI);
+  place(inner.minX + 0.02, cz, Math.PI / 2);
+  place(inner.maxX - 0.02, cz, -Math.PI / 2);
 }
 
 /** Hängende Schilder: Bereiche (Wareneingang/Versand/Spots) + Gangnummern. */

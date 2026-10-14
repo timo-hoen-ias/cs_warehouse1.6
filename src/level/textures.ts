@@ -229,3 +229,47 @@ export function signTexture(text: string, color: string): THREE.CanvasTexture {
 }
 
 
+
+/** Trapezblech (Dachunterseite): helle/dunkle Sicken, leichte Verschmutzung. */
+export function roofTexture(): THREE.CanvasTexture {
+  return make('roof', 128, (ctx, s) => {
+    ctx.fillStyle = '#8f98a2';
+    ctx.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x += 32) {
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillRect(x, 0, 8, s);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(x + 14, 0, 6, s);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(x + 22, 0, 4, s);
+    }
+    const r = rng(41);
+    for (let i = 0; i < 300; i++) {
+      ctx.fillStyle = `rgba(40,30,20,${0.04 + r() * 0.08})`;
+      ctx.fillRect(r() * s, r() * s, 2 + r() * 6, 2 + r() * 10);
+    }
+  });
+}
+
+/** Notausgang-Schild (grün, Piktogramm-Pfeil + Text). */
+export function exitSignTexture(): THREE.CanvasTexture {
+  return make('exit', 256, (ctx, s) => {
+    ctx.fillStyle = '#0d8a3c';
+    ctx.fillRect(0, 0, s, s);
+    ctx.fillStyle = '#f2fff5';
+    ctx.font = 'bold 44px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('NOTAUSGANG', s / 2, s * 0.68);
+    ctx.beginPath();
+    ctx.moveTo(s * 0.3, s * 0.32);
+    ctx.lineTo(s * 0.6, s * 0.32);
+    ctx.lineTo(s * 0.6, s * 0.22);
+    ctx.lineTo(s * 0.78, s * 0.38);
+    ctx.lineTo(s * 0.6, s * 0.54);
+    ctx.lineTo(s * 0.6, s * 0.44);
+    ctx.lineTo(s * 0.3, s * 0.44);
+    ctx.closePath();
+    ctx.fill();
+  }, false);
+}

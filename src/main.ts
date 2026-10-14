@@ -14,6 +14,7 @@ import { LocalTransport, NeedleTransport, type NetTransport } from './multi/Tran
 import { Sfx } from './audio/Sfx';
 import { mapById } from './logic/maps';
 import { SettingsMenu } from './ui/SettingsMenu';
+import { setupLighting } from './level/Lighting';
 import type { Settings } from './logic/settings';
 import { WEAPONS } from './logic/weapons';
 
@@ -29,36 +30,15 @@ async function loadLevel(mapId: string): Promise<LevelFile> {
 
 /**
  * Spiel-Start: Lobby → Karte laden → Welt + Spieler + Driver. Offline = lokaler
- * Host mit Bots; online = Needle-Raum (Host = kleinste Verbindungs-ID).
+ * Host mit Bots; online = Needle-Raum (Host = Dienstältester im Raum).
  */
 onStart(async (context) => {
   const scene = context.scene;
-  scene.background = new THREE.Color(0x15181d);
-  scene.fog = new THREE.Fog(0x15181d, 70, 200);
-  const hemi = new THREE.HemisphereLight(0xdfe9f5, 0x40301a, 0.8);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff3e0, 1.4);
-  sun.position.set(30, 50, 12);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 200;
-  sun.shadow.camera.left = -80;
-  sun.shadow.camera.right = 80;
-  sun.shadow.camera.top = 80;
-  sun.shadow.camera.bottom = -80;
-  scene.add(sun);
-  // Grafikstufe: ?quality=low (oder Software-Rendering) → keine Schatten, Pixelratio 1
-  const quality = new URL(window.location.href).searchParams.get('quality') ?? 'high';
-  const low = quality === 'low';
-  context.renderer.shadowMap.enabled = !low;
-  context.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  if (low) {
-    sun.castShadow = false;
-    context.renderer.setPixelRatio(0.6);
-  }
-  context.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  context.renderer.toneMappingExposure = 1.15;
+  scene.background = new THREE.Color(0x0e1014);
+  // Grafikstufe: ?quality=low (schwache Rechner/Software-Rendering) → keine Schatten, kleinere Auflösung
+  const quality = new URL(window.location.href).searchParams.get('quality') === 'low' ? 'low' : 'high';
+  graphicsQuality = quality;
+  if (quality === 'low') context.renderer.setPixelRatio(0.6);
 
   const cam = context.mainCamera as THREE.PerspectiveCamera;
   cam.rotation.order = 'YXZ';
@@ -95,10 +75,12 @@ function safeStorage(): Storage | null {
 }
 
 let settingsMenuOpen: () => boolean = () => false;
+let graphicsQuality: 'high' | 'low' = 'high';
 
 async function startGame(context: Context, level: LevelFile, lobby: LobbyResult): Promise<void> {
   const scene = context.scene;
-  const world = new World(level);
+  const world = new World(level, graphicsQuality);
+  setupLighting(scene, context.renderer, world, graphicsQuality);
   scene.add(world.group);
 
   const sfx = new Sfx();

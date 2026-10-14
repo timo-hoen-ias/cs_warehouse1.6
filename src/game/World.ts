@@ -10,6 +10,7 @@ import { buildWaypoints, type WaypointGraph } from '../logic/waypoints';
 import { spawnPoints, yawTowards } from '../logic/spawns';
 import { buildLevelView } from '../level/LevelView';
 import { groundBlockers } from '../logic/structures';
+import { ceilingBox } from '../logic/ceiling';
 
 /**
  * Welt eines Spiels: Level-Geometrie (Sicht + Kollision), Wegpunkte, Zonen,
@@ -28,12 +29,18 @@ export class World {
   readonly zones: { a: { x: number; z: number }; b: { x: number; z: number }; t: { x: number; z: number }; ct: { x: number; z: number } };
   readonly spawns: Record<Team, Vec3[]>;
 
-  constructor(readonly level: LevelFile) {
-    const view = buildLevelView(level);
+  /** Hallenhöhe (Unterkante Dach). */
+  readonly height: number;
+
+  constructor(readonly level: LevelFile, quality: 'high' | 'low' = 'high') {
+    const view = buildLevelView(level, quality);
+    this.height = view.height;
     this.group = view.group;
     this.solids = view.solids;
     // Geländer sind offene Gitter: blockieren Bewegung, aber keine Schüsse, Sicht oder Granaten
     this.aabbs = this.solids.filter((s) => s.kind !== 'rail').map((s) => ({ minX: s.minX, minY: s.minY, minZ: s.minZ, maxX: s.maxX, maxY: s.maxY, maxZ: s.maxZ }));
+    // Dach: nur für Schüsse, Sicht und Granaten (nicht in `solids`, sonst blockierte es Radar/Wegpunkte/Waffen-Wandabstand)
+    this.aabbs.push(ceilingBox(view.inner, view.height));
     this.parts = this.aabbs.map((box) => ({ part: 'body' as const, box }));
     // Bots laufen am Boden: Requisiten, Stützen, Stufen, Rampe blockieren; hohe Plattformen/Geländer nicht
     this.waypoints = buildWaypoints(level.lager, undefined, groundBlockers(this.solids.filter((s) => s.kind !== 'rack' && s.kind !== 'wall')));
