@@ -124,7 +124,7 @@ export type MapLight = {
 
 /** Bodenmarkierungen und Schilder (nur Darstellung). */
 export type Decal = {
-  kind: 'line' | 'stripes' | 'letter' | 'arrow' | 'stain' | 'grid' | 'text';
+  kind: 'line' | 'stripes' | 'letter' | 'arrow' | 'stain' | 'grid' | 'text' | 'frost';
   /** Mitte, knapp über dem Boden. */
   pos: Vec3;
   size: [number, number];

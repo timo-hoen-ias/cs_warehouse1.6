@@ -658,6 +658,27 @@ export function decalTexture(kind: string, text = ''): THREE.CanvasTexture {
         }
         break;
       }
+      case 'frost': {
+        // Reif-/Eisfleck: weiche weiße Flecken mit Kristallstrichen
+        for (let i = 0; i < 9; i++) {
+          const x = s / 2 + (r() - 0.5) * s * 0.5, y = s / 2 + (r() - 0.5) * s * 0.5, rad = s * (0.12 + r() * 0.22);
+          const g = c.createRadialGradient(x, y, 0, x, y, rad);
+          g.addColorStop(0, 'rgba(235,246,255,0.75)');
+          g.addColorStop(1, 'rgba(235,246,255,0)');
+          c.fillStyle = g;
+          c.fillRect(0, 0, s, s);
+        }
+        c.lineWidth = 1;
+        for (let i = 0; i < 90; i++) {
+          const a = r() * Math.PI * 2, d = r() * s * 0.4, x = s / 2 + Math.cos(a) * d, y = s / 2 + Math.sin(a) * d, b = r() * Math.PI, l = 3 + r() * 9;
+          c.strokeStyle = `rgba(255,255,255,${0.3 + r() * 0.5})`;
+          c.beginPath();
+          c.moveTo(x, y);
+          c.lineTo(x + Math.cos(b) * l, y + Math.sin(b) * l);
+          c.stroke();
+        }
+        break;
+      }
       case 'arrow':
         c.fillStyle = '#ffffff';
         c.beginPath();

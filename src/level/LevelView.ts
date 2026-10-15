@@ -152,7 +152,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
-      opacity: d.kind === 'grid' ? 0.7 : d.kind === 'stain' ? 0.9 : 0.85,
+      opacity: d.kind === 'grid' ? 0.7 : d.kind === 'stain' ? 0.9 : d.kind === 'frost' ? 0.8 : 0.85,
       color: new THREE.Color(c.r * L[0], c.g * L[1], c.b * L[2]),
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(d.size[0], d.size[1]), mat);

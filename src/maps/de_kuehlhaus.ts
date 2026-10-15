@@ -1,6 +1,13 @@
 import { MapBuilder, type MapData } from '../logic/mapkit';
 import { CellPlan, type CellKind, type FacadeStyle } from '../logic/mapplan';
-import { prop } from '../logic/mapprops';
+import { dressYard } from './kuehlhaus/yard';
+import { dressGarage } from './kuehlhaus/garage';
+import { dressLobby } from './kuehlhaus/lobby';
+import { dressRampRoom } from './kuehlhaus/ramproom';
+import { dressHalleA } from './kuehlhaus/halleA';
+import { dressKeller } from './kuehlhaus/keller';
+import { dressCT } from './kuehlhaus/ct';
+import { dressRoofs } from './kuehlhaus/roofs';
 
 /**
  * de_kuehlhaus — „Kühlhaus“: der Klassiker de_nuke als Tiefkühl-Logistikzentrum.
@@ -38,8 +45,9 @@ export function buildKuehlhaus(): MapData {
 
   // ------------------------------------------------------------------ Erdgeschoss-Grundriss (2-m-Raster)
   const G = new CellPlan(-90, -92, 90, 92, 2, '#');
-  G.rect('Y', -80, 30, 84, 88) // Außenbereich
-    .rect('T', 28, 60, 64, 86) // T-Spawn (Laderampen)
+  G.rect('O', -90, -92, -30, 30) // niedrige Außenmauer im Westen (Sicht vom Dachweg)
+    .rect('Y', -80, 30, 84, 88) // Außenbereich
+    .rect('T', 22, 60, 58, 86) // T-Spawn (Laderampen)
     .rect('E', 4, 26, 16, 30) // Haupteingang
     .rect('L', -16, 4, 24, 26) // Lobby
     .rect('u', 2, -10, 14, 2) // Hütte
@@ -52,6 +60,10 @@ export function buildKuehlhaus(): MapData {
     .rect('R', -28, 8, -18, 16)
     .rect('r', -28, -6, -18, 8)
     .rect('Q', -26, -8, -20, -6)
+    // niedrige Brüstungen um Dachweg und Westdach (sonst stünde man in 16-m-Schluchten)
+    .rect('W', -32, -50, -14, -6)
+    .rect('W', -30, -6, -28, 36)
+    .rect('W', -22, 16, -20, 36)
     // Garage, Garagenflur und Dachweg
     .rect('W', -58, 34, -22, 62)
     .rect('g', -56, 36, -24, 60)
@@ -72,12 +84,13 @@ export function buildKuehlhaus(): MapData {
     .rect('d', 8, -62, 14, -58)
     .rect('d', 28, -62, 32, -58)
     // Geheimgang: Rampe im Hof, Mund zum Keller
-    .rect('Z', 66, 30, 76, 48)
-    .rect('Q', 68, 28, 74, 30);
+    .rect('Z', 48, 30, 58, 48)
+    .rect('Q', 50, 28, 56, 30);
 
   const legend: Record<string, CellKind> = {
     '#': { building: { h: 16, mat: 'panel', tint: 0xdde6ec } },
     W: { building: { h: 5.6, mat: 'concrete', tint: 0xb8c0c6 } },
+    O: { building: { h: 7.4, mat: 'panel', tint: 0xdde6ec } },
     K: { building: { h: 4.9, mat: 'panel', tint: 0xdde6ec } },
     Q: { building: { h: 16, mat: 'concreteDark' }, bare: true },
     X: { floor: 4.5, mat: 'steel', roof: 7, roofTop: 7.4, roofMat: 'panel', room: 'room' },
@@ -138,11 +151,11 @@ export function buildKuehlhaus(): MapData {
     .rect('_', -28, -6, -18, 8) // Rampenraum (G-Plan)
     .rect('c', -26, -20, -20, -6) // Gang unten Rampe
     .rect('c', -20, -20, -12, -14)
-    .rect('_', 66, 30, 76, 48) // Geheimgang-Rampe (G-Plan)
-    .rect('c', 68, 6, 74, 30) // Geheimgang
-    .rect('c', 58, 0, 74, 6)
-    .rect('c', 58, -34, 64, 0)
-    .rect('c', 44, -38, 64, -30);
+    .rect('_', 48, 30, 58, 48) // Geheimgang-Rampe (G-Plan)
+    .rect('c', 50, 6, 56, 30) // Geheimgang
+    .rect('c', 44, 0, 56, 6)
+    .rect('c', 46, -38, 52, 0)
+    .rect('c', 44, -38, 46, -32);
   const ulegend: Record<string, CellKind> = {
     '#': { building: { h: -0.3, mat: 'concrete', tint: 0xa8b2ba } },
     _: {},
@@ -157,7 +170,7 @@ export function buildKuehlhaus(): MapData {
 
   // ------------------------------------------------------------------ Rampen & Treppen
   b.ramp(-28, -1, -18, 8, -5, 0, 'pz', 'concrete', { tag: 'ramp' }); // Rampenraum → Keller
-  b.ramp(66, 39, 76, 48, -5, 0, 'pz', 'concrete', { tag: 'ramp' }); // Geheimgang
+  b.ramp(48, 39, 58, 48, -5, 0, 'pz', 'concrete', { tag: 'ramp' }); // Geheimgang
   b.ramp(-50, 62, -40, 71, 0, 4.5, 'nz', 'concrete', { tag: 'ramp' }); // Aufgang Garagendach
   b.stairs(38, -28, 42, -18, -5, 0, 'pz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Lüftung
   b.stairs(-8, -76, 0, -66, -5, 0, 'nz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Kellertreppe
@@ -166,7 +179,7 @@ export function buildKuehlhaus(): MapData {
   b.floor(-6, -20, 10, -16, 4.5, 'steel', { thick: 0.3, top: 'grating', tag: 'platform' });
 
   // ------------------------------------------------------------------ Callouts
-  b.area('T-Spawn', 28, 60, 64, 86);
+  b.area('T-Spawn', 22, 60, 58, 86);
   b.area('Außenbereich', -80, 30, 84, 88);
   b.area('Silos', -8, 40, 28, 70);
   b.area('Garage', -56, 36, -24, 60, -1, 4);
@@ -194,19 +207,26 @@ export function buildKuehlhaus(): MapData {
   b.area('Westdach', -28, -46, -14, -6, 4, 9);
   b.area('Spot B', -12, -58, 44, -14, -6, -1);
   b.area('Datenraum', 14, -56, 42, -30, -6, -1);
-  b.area('Geheimgang', 56, -40, 76, 30, -6, -1);
-  b.area('Geheimgang-Rampe', 66, 30, 76, 48, -6, 1);
+  b.area('Geheimgang', 44, -40, 58, 30, -6, -1);
+  b.area('Geheimgang-Rampe', 48, 30, 58, 48, -6, 1);
 
   // ------------------------------------------------------------------ Spots, Spawns, Kaufzonen
   b.site('A', 'Serverschrank A', [14, -0.4, -56], [42, 7, -30], [30, 0, -44]);
   b.site('B', 'Serverschrank B', [14, -5.4, -56], [42, -1.2, -30], [30, -5, -44]);
-  b.spawnGrid('T', 46, 0, 73, 8, 2, 3, 0);
+  b.spawnGrid('T', 40, 0, 73, 8, 2, 3, 0);
   b.spawnGrid('CT', 16, 0, -80.5, 8, 2, 3, Math.PI);
-  b.buy('T', 28, 60, 64, 86);
+  b.buy('T', 22, 60, 58, 86);
   b.buy('CT', 4, -86, 34, -62);
+
+  dressYard(b);
+  dressGarage(b);
+  dressLobby(b);
+  dressRampRoom(b);
+  dressHalleA(b);
+  dressKeller(b);
+  dressCT(b);
+  dressRoofs(b);
 
   return b.data;
 }
 
-// prop wird in den Ausbau-Schritten genutzt
-void prop;
