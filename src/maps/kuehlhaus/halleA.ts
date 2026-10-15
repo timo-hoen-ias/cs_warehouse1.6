@@ -95,7 +95,6 @@ export function dressHalleA(b: B): void {
   prop(b, 'cooler', 38.6, 0, -54.6, { rot: 0 });
   prop(b, 'palletGoods', 38, 0, -50, { tint: 0xe8e8e8, h: 1.1 });
   line(b, 'compressor', 41.9, 0, -50, 41.9, 0, -34, 3, { rot: 1 });
-  prop(b, 'chiller', 41.6, 0, -26.5, { rot: 1 });
   b.decor('pipeZ', [43.2, 3.2, -40], 0, [1.2, 1.2, 28], 0xd8dde2);
   b.decor('pipeZ', [43.2, 2.6, -40], 0, [0.7, 0.7, 28], 0xc0442e);
   b.decor('pipeX', [38, 4.4, -37], 0, [10, 0.8, 0.8], 0xc0442e);

@@ -109,5 +109,14 @@ describe('Requisiten', () => {
     const blueish = (c: number): boolean => Math.min(c & 0xff, (c >> 8) & 0xff, (c >> 16) & 0xff) >= 0x9f; // hell, kein Karton-Braun
     expect(tints(cold).every(blueish)).toBe(true);
     expect(tints(warm).some((c) => !blueish(c))).toBe(true);
+    // Tiefkühl-Kartons und Regalware sind Folie (hell), nicht brauner Karton
+    const c2 = mk();
+    prop(c2, 'cartons', 0, 0, 0, { cold: true, n: 5 });
+    prop(c2, 'rack', 4, 0, 0, { cold: true });
+    prop(c2, 'shelf', 8, 0, 0, { cold: true });
+    expect(c2.data.brushes.some((x) => x.mat === 'carton')).toBe(false);
+    const w2 = mk();
+    prop(w2, 'cartons', 0, 0, 0, { n: 5 });
+    expect(w2.data.brushes.some((x) => x.mat === 'carton')).toBe(true);
   });
 });

@@ -159,7 +159,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
             const gx = -len / 2 + i * bw + (k + 0.5) * (bw / 2);
             const gh = 0.5 + rnd() * Math.min(1.1, h / levels - 0.4);
             box(gx - bw / 4 + 0.08, ly, -0.5, gx + bw / 4 - 0.08, ly + 0.14, 0.5, 'pallet', { collide: 'none', noNav: true });
-            box(gx - bw / 4 + 0.1, ly + 0.14, -0.46, gx + bw / 4 - 0.1, ly + 0.14 + gh, 0.46, rnd() < 0.5 ? 'wrap' : 'carton', { collide: 'none', noNav: true, tint: goods[Math.floor(rnd() * goods.length)] });
+            box(gx - bw / 4 + 0.1, ly + 0.14, -0.46, gx + bw / 4 - 0.1, ly + 0.14 + gh, 0.46, rnd() < 0.5 || o.cold ? 'wrap' : 'carton', { collide: 'none', noNav: true, tint: goods[Math.floor(rnd() * goods.length)] });
           }
         }
       }
@@ -175,7 +175,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
         for (let k = 0; k < 3; k++) {
           if (rnd() < 0.25) continue;
           const gx = -len / 2 + (k + 0.5) * (len / 3);
-          box(gx - len / 7, ly + 0.03, -0.25, gx + len / 7, ly + 0.03 + 0.2 + rnd() * 0.25, 0.25, 'carton', { collide: 'none', noNav: true, tint: goods[Math.floor(rnd() * goods.length)] });
+          box(gx - len / 7, ly + 0.03, -0.25, gx + len / 7, ly + 0.03 + 0.2 + rnd() * 0.25, 0.25, o.cold ? 'wrap' : 'carton', { collide: 'none', noNav: true, tint: goods[Math.floor(rnd() * goods.length)] });
         }
       }
       break;
@@ -227,7 +227,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
         const lx = (rnd() - 0.5) * 1.2;
         const lz = (rnd() - 0.5) * 1.2;
         const ly = i % 3 === 2 ? 0.4 : 0;
-        box(lx - s / 2, ly, lz - s / 2, lx + s / 2, ly + s * 0.8, lz + s / 2, 'carton', { tint: goods[Math.floor(rnd() * goods.length)], collide: 'none', noNav: true });
+        box(lx - s / 2, ly, lz - s / 2, lx + s / 2, ly + s * 0.8, lz + s / 2, o.cold ? 'wrap' : 'carton', { tint: goods[Math.floor(rnd() * goods.length)], collide: 'none', noNav: true });
       }
       break;
     }
@@ -345,7 +345,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
       // Rollcontainer mit Ware: Gitter blockiert Bewegung, Ware auch Schüsse
       box(-0.4, 0, -0.35, 0.4, 0.14, 0.35, 'steel', { tint: 0x5a6a7a, collide: 'none', noNav: true });
       box(-0.4, 0.14, -0.35, 0.4, 1.7, 0.35, 'cage', { collide: 'move', tint: 0x9aa8b4, uv: 0.8, noNav: true, occlude: false });
-      box(-0.36, 0.2, -0.31, 0.36, 0.2 + (o.h ?? 1.0), 0.31, 'carton', { tint: goods[Math.floor(rnd() * goods.length)] });
+      box(-0.36, 0.2, -0.31, 0.36, 0.2 + (o.h ?? 1.0), 0.31, o.cold ? 'wrap' : 'carton', { tint: goods[Math.floor(rnd() * goods.length)] });
       break;
     }
   }
