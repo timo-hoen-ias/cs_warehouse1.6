@@ -58,7 +58,7 @@ describe('de_umschlag: Mirage-Topologie', () => {
     const u = area('Unterführung');
     expect(u.center.y).toBeLessThanOrEqual(-3);
     expect(area('Mitte').center.y - u.center.y).toBeGreaterThanOrEqual(3);
-    const route = areasOn(area('Unterführungs-Abgang').center, area('Spot B').center);
+    const route = areasOn(area('Unterführungs-Abgang').center, map.zones.b);
     expect(route).toContain('Unterführung');
     expect(route).toContain('Unterführungs-Rampe');
     expect(route).not.toContain('Kurz');
@@ -118,7 +118,7 @@ describe('de_umschlag: Mirage-Topologie', () => {
     const win = data.brushes.filter((b) => b.max[2] <= -60 && b.min[2] >= -62 && b.min[0] >= -48 && b.max[0] <= -44 && b.min[1] <= 1.0 + 1e-6 && b.max[1] >= 1.0 - 1e-6);
     expect(win.length).toBeGreaterThan(0);
     // Sicht aus dem Markt durch das Fenster in die Halle
-    expect(col.clear({ x: -46, y: 1.65, z: -66 }, { x: -46, y: 1.2, z: -50 })).toBe(true);
+    expect(col.clear({ x: -46, y: 1.65, z: -66 }, { x: -46, y: 1.2, z: -58.5 })).toBe(true);
   });
 
   it('Sites: beide Pflanzpunkte stehen frei, Sandwich unter dem Vordach (Decke > 5 m)', () => {
