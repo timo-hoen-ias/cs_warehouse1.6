@@ -141,20 +141,21 @@ export function dressMitte(b: B): void {
   prop(b, 'forklift', -9, 0, -29.6, { rot: 2, tint: 0xd08a20 });
   prop(b, 'palletGoods', -14.2, 0, -28, { tint: 0xb8996a });
   prop(b, 'palletGoods', -14.2, 0, -29.3, { tint: 0xc9ad7c });
-  prop(b, 'crate', -14.6, 0, -33, { h: 1.2 });
+  prop(b, 'crate', -12.2, 0, -31.2, { h: 1.2 });
   prop(b, 'gasLamp', -15.4, 0, -26.8);
   shop(b, 'LADEHOF', -15.68, 3.0, -31, 'px', 'NUR ANLIEFERUNG', 2.8);
   // Brückengasse: schmale Verbindung zum Hof B, Sackbarrikade und Laternen
-  prop(b, 'sacks', -26, 0, -34.4, { len: 3.6, n: 3 });
-  prop(b, 'palletStack', -20.5, 0, -29.2, { n: 5 });
-  prop(b, 'crate', -31.5, 0, -29.2, { h: 1.2 });
-  prop(b, 'barrelGroup', -34.6, 0, -34.6, {});
-  prop(b, 'gasLamp', -24, 0, -28.6);
-  prop(b, 'gasLamp', -34.6, 0, -29);
-  hoists(b, 'pz', -36, -34, -18, 0, 1, 6, { len: 1.5 });
-  hoists(b, 'nz', -28, -34, -18, 0, 1, 6, { len: 1.5, first: 2 });
-  hoists(b, 'nz', -28, -33, -19, 0, 2, 6, { len: 1.5, first: 1, load: 1 });
-  plate(b, 'BRÜCKENGASSE', -26, 3.0, -28 - F, 'nz', 'ZUM HOF B', 3.6);
+  prop(b, 'sacks', -26, 1.6, -34.4, { len: 3.6, n: 3 });
+  prop(b, 'palletStack', -20.5, 1.6, -29.2, { n: 5 });
+  prop(b, 'crate', -27.6, 1.6, -29.2, { h: 1.2 });
+  prop(b, 'barrelGroup', -28.4, 1.6, -34.6, {});
+  prop(b, 'gasLamp', -24, 1.6, -28.6);
+  prop(b, 'gasLamp', -28.6, 1.6, -29);
+  hoists(b, 'pz', -36, -30, -18, 1.6, 1, 6, { len: 1.5 });
+  hoists(b, 'nz', -28, -30, -18, 1.6, 1, 6, { len: 1.5, first: 2 });
+  hoists(b, 'nz', -28, -30, -19, 1.6, 2, 6, { len: 1.5, first: 1, load: 1 });
+  plate(b, 'BRÜCKENGASSE', -26, 1.6 + 3.0, -28 - F, 'nz', 'ZUM HOF B', 3.6);
+  edge(b, -16.4, -36, -16, -28, 1.6);
 }
 
 // ====================================================================== Zweite Mitte (Gasse unter der Speicherbrücke)

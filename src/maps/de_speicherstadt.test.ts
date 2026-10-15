@@ -52,13 +52,20 @@ describe('de_speicherstadt: Inferno-Topologie', () => {
     }
   });
 
-  it('Banane ist die kürzeste Route der T nach B (nicht über die Mitte); die Brückengasse ist die längere zweite Route', () => {
+  it('Banane ist die einzige Route der T nach B (nicht über die Mitte); die Brückengasse ist eine Kaimauer-Einbahn für die CT', () => {
     const route = areasOn(map.zones.t, map.zones.b);
     for (const n of ['Banane-Anfang', 'Banane', 'Lieferwagen', 'Banane-Brücke', 'B-Eingang']) expect(route, n).toContain(n);
     expect(route).not.toContain('Obere Mitte');
-    const viaMitte = routeLength(g, map.zones.t, area('Brückengasse').center) + routeLength(g, area('Brückengasse').center, map.zones.b);
-    expect(viaMitte).toBeGreaterThan(routeLength(g, map.zones.t, map.zones.b) + 6);
-    expect(areasOn(map.zones.t, area('Brückengasse').center)).toContain('Obere Mitte');
+    const bg = area('Brückengasse').center;
+    const lh = area('Ladehof').center;
+    // CT: von der Gasse (+1.6 m) hinunter in den Ladehof — kurz
+    expect(bg.y).toBeGreaterThan(1.4);
+    const down = astar(g, node(bg), node(lh));
+    expect(down.length, 'Sprung hinunter').toBeGreaterThan(0);
+    expect(routeLength(g, bg, lh)).toBeLessThan(30);
+    // T: vom Ladehof nicht hinauf; der Weg in die Gasse führt nur über Banane und Hof B (> 150 m)
+    expect(routeLength(g, lh, bg)).toBeGreaterThan(100);
+    expect(areasOn(map.zones.t, bg)).not.toContain('Ladehof');
   });
 
   it('Banane ist gekrümmt: kein Blick vom B-Eingang oder Hof B zum T-Ausgang; Mitte und A-Hof ohne Sichtachse zum T-Spawn', () => {
@@ -179,24 +186,15 @@ describe('de_speicherstadt: Inferno-Topologie', () => {
 });
 
 /**
- * Balance (Bot-Simulation, siehe IMPLEMENTIERUNGSPLAN M4): die CT sahen vom Hof B (NW-Ecke, Dock) 40–50 m an der Westwand
- * entlang in die Banane; die T stauten sich dort und trafen sich gegenseitig. Die Gegenmaßnahmen sind absichtlich.
+ * Balance (Bot-Simulation, siehe IMPLEMENTIERUNGSPLAN M4/M6.3): Mit den stärkeren CT-Bots lag die Karte bei 65–70 % T. Gemessen
+ * wirksam: CT-Spawn näher an der Rampe (CT 1 s früher überall), Brückengasse nicht mehr als T-Route (T teilten sich auf zwei B-Wege,
+ * die CT nur einen verteidigen konnten), Serverreihen von den Pflanzpunkten weg (Planter nicht von Reihen gedeckt).
  */
-describe('de_speicherstadt: Balance (Sichtlinien, Laufzeiten)', () => {
+describe('de_speicherstadt: Balance (Laufzeiten, Spawns, Pflanzpunkte)', () => {
   const col = map.collider;
   const EYE = PLAYER.eye;
 
-  it('B-Eingang ist eine S-Schikane (Pumpenhaus West, Zollhäuschen Ost): vom Hof sieht man nicht in die Banane-Brücke', () => {
-    let clear = 0;
-    for (let sx = -76; sx <= -68; sx += 2) for (let sz = -54; sz <= -40; sz += 2) for (let tx = -75; tx <= -65; tx += 2) for (let tz = -12; tz <= 0; tz += 2) {
-      if (col.clear({ x: sx, y: EYE, z: sz }, { x: tx, y: EYE, z: tz })) clear++;
-    }
-    expect(clear).toBeLessThanOrEqual(2);
-    // Schikane ist kein Sperrriegel: jeder Durchgang ist mindestens 4 m breit und die T kommen hindurch
-    expect(areasOn(map.zones.t, map.zones.b)).toContain('B-Eingang');
-  });
-
-  it('T-Laufzeiten bleiben im Fenster (18–25.5 s Sprint) und behalten ≥ 0.4 s Reserve; CT → B bleibt unter 15 s', () => {
+  it('T-Laufzeiten bleiben im Fenster (18–25.5 s Sprint) und behalten ≥ 0.4 s Reserve; CT → B bleibt unter 15 s, CT → A unter 11 s', () => {
     const RUN = PLAYER.sprintSpeed;
     for (const to of [map.zones.a, map.zones.b]) {
       const t = routeLength(g, map.zones.t, to) / RUN;
@@ -204,6 +202,15 @@ describe('de_speicherstadt: Balance (Sichtlinien, Laufzeiten)', () => {
       expect(t).toBeLessThanOrEqual(25.1);
     }
     expect(routeLength(g, map.zones.ct, map.zones.b) / RUN).toBeLessThanOrEqual(15);
+    expect(routeLength(g, map.zones.ct, map.zones.a) / RUN).toBeLessThanOrEqual(11);
+  });
+
+  it('CT-Spawn liegt am Fuß der CT-Rampe (z ≥ −74), die Spawns bleiben in der Kaufzone', () => {
+    const cts = data.spawns.filter((q) => q.team === 'CT');
+    expect(cts.length).toBeGreaterThanOrEqual(8);
+    for (const sp of cts) expect(sp.pos[2]).toBeGreaterThanOrEqual(-75);
+    const buy = data.buyZones.find((z) => z.team === 'CT')!;
+    for (const sp of cts) expect(sp.pos[0] >= buy.min[0] && sp.pos[0] <= buy.max[0] && sp.pos[2] >= buy.min[2] && sp.pos[2] <= buy.max[2]).toBe(true);
   });
 
   it('keine Navigationsknoten im Wasser: Bots können nicht ins Fleet fallen und dort festsitzen', () => {
@@ -212,23 +219,15 @@ describe('de_speicherstadt: Balance (Sichtlinien, Laufzeiten)', () => {
     expect(low).toBe(0);
   });
 
-  it('Container sperren die CT-Scharfschützenplätze: NW-Ecke des Hofs B und Dock-Westende', () => {
-    const boxes = data.brushes.filter((b) => b.mat === 'container' && !b.ramp);
-    const near = (x: number, z: number) => boxes.some((b) => b.min[0] <= x && b.max[0] >= x && b.min[2] <= z && b.max[2] >= z);
-    expect(near(-74.8, -51)).toBe(true);
-    expect(near(-74.2, -58.6)).toBe(true);
-  });
-
-  it('Pflanzhinweis der T für A liegt im Spot, hinter den Serverreihen (Deckung gegen Norden) und nicht weiter weg als der Pflanzpunkt', () => {
-    const h = (data.botHints ?? []).find((q) => q.kind === 'plant' && q.site === 'A');
-    expect(h).toBeDefined();
-    if (!h || h.kind !== 'plant') return;
-    const p = { x: h.pos[0], y: h.pos[1], z: h.pos[2] };
-    expect(siteAt(map.sites, p)).toBe('a');
-    const centre = map.sites.find((q) => q.id === 'A')!.plant;
-    expect(routeLength(g, map.zones.t, p)).toBeLessThanOrEqual(routeLength(g, map.zones.t, { x: centre[0], y: centre[1], z: centre[2] }) + 0.5);
-    // Serverreihe (2 m hoch) verdeckt den Hinweis vor der Nordhalle des A-Hofs
-    expect(col.clear({ x: p.x, y: p.y + EYE, z: p.z }, { x: p.x, y: p.y + EYE, z: -66 })).toBe(false);
+  it('Serverreihen decken die Planter nicht: vom Norden sehen ≥ 3 von 5 Punkten den Pflanzpunkt', () => {
+    for (const [id, xs, z] of [['A', [40, 44, 48, 52, 56], -68], ['B', [-73, -69, -65, -61, -57], -48]] as const) {
+      const s = data.sites.find((q) => q.id === id)!;
+      const racks = data.decor.filter((d) => d.kind === 'serverRack' && Math.hypot(d.pos[0] - s.plant[0], d.pos[2] - s.plant[2]) < 7);
+      expect(racks.length, `Schränke ${id}`).toBeGreaterThanOrEqual(4);
+      const y = s.plant[1] + EYE;
+      const seen = xs.filter((x) => col.clear({ x, y, z }, { x: s.plant[0], y, z: s.plant[2] })).length;
+      expect(seen, `Sicht auf ${id}`).toBeGreaterThanOrEqual(3);
+    }
   });
 });
 

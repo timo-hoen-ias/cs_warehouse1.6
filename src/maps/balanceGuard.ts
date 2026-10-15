@@ -10,7 +10,7 @@ import { loadMapData } from './index';
  *
  * Die Schwellen sind bewusst weit (30–70 % T): die Simulation streut je Seed stark (Economy-Schneeball).
  * Gemessen (48 Seeds je Karte, IMPLEMENTIERUNGSPLAN M6.3): Lagerstaub/Güterbahnhof/Umschlag ≈ 47–58 %, Kühlhaus ≈ 42 %,
- * Speicherstadt ≈ 65–70 % (offen). Der Wächter fängt grobe Verschiebungen durch Karten- oder Bot-Änderungen ab.
+ * Speicherstadt ≈ 47–52 % (nach dem Umbau, IMPLEMENTIERUNGSPLAN M4). Der Wächter fängt grobe Verschiebungen durch Karten- oder Bot-Änderungen ab.
  */
 export const BALANCE = {
   seeds: [1, 2, 3, 4, 5],
