@@ -7,7 +7,7 @@ Akustik; die Darstellung (`src/level/LevelView.ts`) baut Geometrie mit gebackene
 **keinen Bake-Schritt**: alle Clients rechnen aus demselben Code dasselbe Ergebnis (der Host
 wählt nur die Karten-ID).
 
-Referenzkarte: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik).
+Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`).
 
 ## Koordinaten und Maße
 
@@ -56,13 +56,32 @@ Gebäudemasse. `plan.build(builder, legend, { facades })` erzeugt:
 Rampen-/Treppenzellen bekommen in der Legende `ramp: true` (Unterbau auf Höhe `floor`), die
 Rampe selbst setzt man danach explizit mit `b.ramp` bzw. `b.stairs`.
 
+### Mehrstöckige Karten (z. B. Keller unter einer Halle)
+
+Ein `CellPlan` kennt je Zelle nur einen Boden. Für übereinanderliegende Ebenen baut man **zwei Pläne** auf derselben Fläche
+(Vorbild `de_kuehlhaus`):
+
+- **Erdgeschoss-Plan:** `build(…, { floorBottom: -0.3 })` → dünne Bodenplatte statt Vollkörper bis zur Tiefe.
+- **Keller-Plan:** `build(…, { floorBottom: -8, lintelTop: -0.3 })`; Gebäudezellen mit `h: -0.3` füllen alles Nicht-Begehbare, Räume haben
+  `floor: -5, roof: -0.8` (Decke = Unterseite der Erdgeschoss-Platte).
+- **Schächte** (Rampen, Treppen) liegen im Erdgeschoss-Plan mit `floor: -5, bottom: -8` und sind im Keller-Plan **leer** (`_: {}`); die Rampe/Treppe setzt man explizit.
+- `CellKind.bottom` – Unterkante des Unterbaus dieser Zellart (statt `floorBottom`).
+- `CellKind.bare` – Gebäudezelle **ohne Fassadenverkleidung**; nötig über Tunnelmündern, sonst malt die Verkleidung die Öffnung zu.
+- `CellKind.roofWalk` – das Dach ist begehbar (Dachweg/Plattform, Tag `floor`); es bekommt keinen Sturz zum Außenbereich. Ein Gebäude ringsum
+  mit niedriger Brüstungszelle (`h ≈ 5.6`) statt 16 m hoher Wand lässt den Dachweg zum Himmel offen.
+- **Steigung:** Clip-Rampen/Treppen über 40° wirken wie Wände. Bei 5 m Höhenunterschied ≥ 8 m Lauflänge einplanen (Treppe: die Clip-Rampe deckt nur n−1 Stufen).
+- Bomben-Spots übereinander: `site`-Boxen mit getrennten Höhen (A: `y ≥ −0.4`, B: `y ≤ −1.2`), damit `siteAt` eindeutig bleibt.
+
+Weitere Bausteine: Materialien `panel` (Sandwichpaneel) und `frost` (Reif/Eis), Decal `frost`, Deko `tank`/`tankDome`/`stripCurtain`/`compressor`/`condenser`
+(Frost-Optik außerdem über Tönung und `room: 'cold'` für die Akustik).
+
 ### Requisiten (`prop(builder, kind, x, y, z, { rot, … })`)
 
 `pallet`, `palletStack`, `palletGoods`, `crate`, `crateStack` (Xbox-Kiste), `gitterbox`, `container`,
 `container40`, `trailer`, `truck`, `forklift`, `barrel`, `barrelGroup`, `drum`, `rack` (Hochregal mit Ware),
 `shelf`, `serverRack`, `serverRow`, `ups`, `cooler`, `conveyor`, `cartons`, `ibc`, `desk`, `bumper`,
 `lampPost`, `fence`, `handTruck`, `cableTray`, `locker`, `generator`, `rollerDoor`, `doorSteel`,
-`acUnit`, `electricBox`, `cones`.
+`acUnit`, `electricBox`, `cones`, `silo` (Großtank, `len` = Durchmesser, `h` = Höhe, Kollision als Achteck-Kern), `chiller` (Verflüssiger auf Füßen), `compressor`, `stripCurtain` (Streifenvorhang, nur Optik), `rollCage` (Rollcontainer). Option `cold: true` färbt Ware/Kartons/Regale in Tiefkühl-Töne (Folie statt Karton).
 
 `rot` in Vierteldrehungen (0..3), damit Kollisionsquader achsenparallel bleiben; lokale Front = +Z
 (`rot 2` → Front nach −Z, `rot 1` → −X, `rot 3` → +X). `(x, y, z)` = Fußpunkt-Mitte. Oberseiten

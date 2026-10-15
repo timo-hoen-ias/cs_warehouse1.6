@@ -34,7 +34,7 @@ CS-1.6-Arsenal, Economy, Granaten, Zielfernrohr und Spray-Mustern.
 ## Repo-Struktur (Ist)
 
 ```
-src/maps/                    # Handgebaute Karten (de_lagerstaub) + Registry (index.ts) + Validator (maps.test.ts)
+src/maps/                    # Handgebaute Karten (de_lagerstaub, de_kuehlhaus + kuehlhaus/-Bausteine) + Registry (index.ts) + Validator (maps.test.ts)
 docs/KARTENFORMAT.md         # Kartenformat, Gestaltungsregeln, Anleitung für neue Karten
 scripts/map-overview.ts      # Draufsicht (PNG, nur Node-Bordmittel) + Laufzeiten + Bereichsgraph
 scripts/relay-server.ts      # Bun-WebSocket-Relay (Needle-Raum-Protokoll), Dockerfile.relay
@@ -173,6 +173,14 @@ Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenma
 - **Verifikation:** `bun run test`, `tsc`, `build`, Smoke (angepasst: Schussposition mit Sichtlinie, Wand-Suche per Strahl) und Netztest grün; Screenshots hoch/niedrig gesichtet.
 
 **Laufzeiten de_lagerstaub (Sprint 6.2 m/s, Knotenwege):** T → A 145 m ≈ 23.4 s, T → B 146 m ≈ 23.5 s, CT → A 50 m ≈ 8.1 s, CT → B 77 m ≈ 12.5 s, T → Mitte ≈ 9.6 s, CT → Mitte ≈ 11.4 s.
+
+**Weitere Karte `de_kuehlhaus` (de_nuke als Kühlhaus, Okt 2026) ✅**
+- [x] Zwei Grundrisse übereinander (Erdgeschoss mit dünner Platte, Keller −5 m) — **B liegt direkt unter A**; Schächte (Rampenraum, Lüftung, Kellertreppe, Geheimgang-Rampe) mit tieferem Unterbau. Ebenen: Keller −5, Erdgeschoss 0, Himmel/Dachweg +4.5 m; 180 × 184 m, ≈ 17 k Navigationsknoten.
+- [x] Nuke-Topologie: Außenbereich/Silos, Garage (+ Garagenflur, Garagendach), Haupteingang, Lobby (Mitte), Hütte (Quietschtür), Westgang, Halle A (Himmel/Hölle, Spot A „Serverschrank A“ an der Kältemaschine), Rampenraum, Lüftung (Treppenschacht A ↔ B), Keller B (Datenraum „Serverschrank B“, Tiefkühllager), Geheimgang, CT-Spawn mit Kontrollraum/Kellertreppe, Mini, Westdach/Dachweg.
+- [x] Engine-Erweiterungen (generisch, getestet): `CellKind.bottom/bare/roofWalk` (mehrstöckige Pläne, unverkleidete Tunnelmünder, begehbare Dächer ohne Sturz), Materialien `panel` (Sandwichpaneel) und `frost`, Decal `frost`, Deko `tank`/`tankDome`/`stripCurtain`/`compressor`/`condenser`, Requisiten `silo`/`chiller`/`compressor`/`stripCurtain`/`rollCage` + Option `cold` (Tiefkühlware), Schilder passen die Unterzeile an.
+- [x] Tests: Validator (`maps.test.ts`, schneller: Erreichbarkeit einmal statt je Knoten A*) + `de_kuehlhaus.test.ts` (Topologie: B unter A, Lüftung, Rampe ≤ 30°, Geheimgang, Kellertreppe, Dachweg, Callouts).
+- **Laufzeiten de_kuehlhaus (Sprint 6.2 m/s):** T → A 138 m ≈ 22.2 s, T → B 134 m ≈ 21.7 s (Geheimgang; über Rampenraum ≈ 25 s), CT → A 42 m ≈ 6.7 s, CT → B 85 m ≈ 13.7 s, T → Mitte ≈ 11.7 s, CT → Mitte ≈ 16.5 s.
+- Erkenntnis: Treppen-/Rampen-Clips über 40° wirken wie Wände — bei 5 m Höhe mindestens ≈ 8 m Lauflänge einplanen (hier 26–29°). Die Lücke zwischen Keller und Schacht darf die Fassadenverkleidung nicht zumalen → Tunnelmünder als `bare`-Zellen.
 
 **Erkenntnisse/Notizen (M4):**
 - Referenztempo für Laufzeiten ist der Sprint (≈ CS-Lauftempo 250 u/s); mit Gehtempo 4.2 m/s wären es ~35 s. CT → A ist wie im Vorbild bewusst kurz (≈ 8 s).
