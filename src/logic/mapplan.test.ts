@@ -119,4 +119,15 @@ describe('CellPlan', () => {
     expect(m.y).toBeCloseTo(PLAYER.eye, 2);
     expect(b.data.acoustics.zones.filter((z) => z.kind === 'hall' && z.max[1] <= -0.8 + 1e-9)).toHaveLength(1);
   });
+  it('begehbares Dach bekommt keinen Sturz zum Außenbereich, ein normales Dach schon', () => {
+    const mk = (walk: boolean): number => {
+      const p = new CellPlan(0, 0, 12, 8, 2, '#');
+      p.rect('g', 2, 2, 6, 6).rect('.', 6, 2, 10, 6);
+      const b = new MapBuilder({ id: 'de_p', name: 'P', description: '', bounds: { min: [0, -5, 0], max: [12, 20, 8] }, env: ENV });
+      p.build(b, { '#': { building: { h: 12, mat: 'brick' } }, g: { floor: 0, roof: 4, roofTop: 4.4, roofWalk: walk }, '.': { floor: 0 } }, { floorBottom: -1, lintelTop: 12 });
+      return b.data.brushes.filter((x) => x.tag === 'wall' && x.min[1] === 4 && x.max[1] === 12).length;
+    };
+    expect(mk(false)).toBeGreaterThan(0);
+    expect(mk(true)).toBe(0);
+  });
 });

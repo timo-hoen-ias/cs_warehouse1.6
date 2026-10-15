@@ -165,7 +165,8 @@ export class CellPlan {
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         const k = kindOf(this.get(c, r));
-        if (k.building || k.roof === undefined) continue;
+        // begehbare Dächer sind nach oben offen: kein Sturz über dem Dach
+        if (k.building || k.roof === undefined || k.roofWalk) continue;
         const nbs: [number, number, 'x' | 'z', number][] = [[c + 1, r, 'z', 1], [c - 1, r, 'z', -1], [c, r + 1, 'x', 1], [c, r - 1, 'x', -1]];
         for (const [nc, nr, axis, side] of nbs) {
           const n = kindOf(this.get(nc, nr));

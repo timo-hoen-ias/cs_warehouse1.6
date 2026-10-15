@@ -1,5 +1,6 @@
 import type { MapData } from '../logic/mapkit';
 import { buildLagerstaub } from './de_lagerstaub';
+import { buildKuehlhaus } from './de_kuehlhaus';
 
 /**
  * Karten-Registry (pure): handgebaute Karten als Module. Die Lobby listet sie, der Host
@@ -13,6 +14,12 @@ export const MAPS: MapEntry[] = [
     name: 'Lagerstaub',
     description: 'Logistikzentrum im Abendlicht: Lang A durchs Hallentor, Kurz A über den Steg, Tunnel zum Serverraum B.',
     build: buildLagerstaub,
+  },
+  {
+    id: 'de_kuehlhaus',
+    name: 'Kühlhaus',
+    description: 'Tiefkühl-Logistikzentrum (de_nuke): Silos und Haupteingang, Halle A mit Himmel und Hölle, B direkt darunter im Keller – Rampenraum, Lüftung und Geheimgang verbinden die Ebenen.',
+    build: buildKuehlhaus,
   },
 ];
 
