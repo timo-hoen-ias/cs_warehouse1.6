@@ -2,7 +2,7 @@ import './theme.css';
 import './hud.css';
 import './lobby.css';
 import type { Team } from '../logic/economy';
-import { escapeHtml } from '../logic/hudFormat';
+import { escapeHtml, intText } from '../logic/hudFormat';
 import { computeUiScale } from '../logic/uiScale';
 import { ICON } from './icons';
 import { uiSound } from './uiSound';
@@ -144,7 +144,7 @@ export class LobbyOverlay {
     this.k('startWrap').innerHTML = v.isHost
       ? '<button class="ui-btn primary big" data-act="start" id="lobby-start">▶ Spiel starten</button>'
       : '<span class="lob-wait"><i></i>Warte auf den Host …</span>';
-    this.mini.innerHTML = `<b>Serverlobby</b><span>${humans}/${v.maxPlayers} Spieler · Aufwärmen</span><span style="color:var(--c-dim)">Esc = Lobby${v.isHost ? ' · Spiel starten' : ''}</span>`;
+    this.mini.innerHTML = `<b>Serverlobby</b><span>${humans}/${intText(v.maxPlayers)} Spieler · Aufwärmen</span><span style="color:var(--c-dim)">Esc = Lobby${v.isHost ? ' · Spiel starten' : ''}</span>`;
   }
 
   private readonly onClick = (e: MouseEvent): void => {

@@ -162,6 +162,11 @@ export class ServerAnnouncer {
 
   constructor(private readonly server: string, private readonly info: () => Heartbeat | null) {}
 
+  /** Discovery-Verbindung offen (nur auf dem Host)? */
+  get active(): boolean {
+    return !!this.sock;
+  }
+
   start(): void {
     if (this.sock) return;
     const s = new DiscoverySocket(discoveryUrl(this.server));
@@ -187,8 +192,9 @@ export class ServerAnnouncer {
   }
 
   stop(): void {
+    if (!this.sock) return;
     clearInterval(this.timer);
-    this.sock?.close();
+    this.sock.close();
     this.sock = null;
   }
 }

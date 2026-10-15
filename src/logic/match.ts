@@ -69,7 +69,8 @@ export const MATCH = {
 
 export function newMatch(): MatchState {
   return {
-    players: {},
+    // Ohne Prototyp: Netz-IDs wie `__proto__`/`constructor` können nichts verbiegen
+    players: Object.create(null) as Record<PlayerId, MatchPlayer>,
     round: newRoundState(),
     lossStreak: { T: 0, CT: 0 },
     feed: [],
@@ -182,7 +183,8 @@ export type HitResult = { dmg: number; killed: boolean; armorLeft: number };
 export function applyHit(m: MatchState, victimId: PlayerId, attackerId: PlayerId | null, def: WeaponDef, part: 'head' | 'body', dist = 0): HitResult | null {
   const v = m.players[victimId];
   if (!v || !v.alive) return null;
-  const raw = hitDamage(def, part) * rangeFalloff(def, dist);
+  const raw0 = hitDamage(def, part) * rangeFalloff(def, dist);
+  const raw = Number.isFinite(raw0) ? raw0 : 0;
   const a = armoredDamage(raw, def.armorPen, part, { armor: v.loadout.armor, helmet: v.loadout.helmet });
   v.loadout.armor = a.armorLeft;
   return applyRawDamage(m, v, a.dmg, attackerId, def.id, part === 'head');
@@ -191,7 +193,8 @@ export function applyHit(m: MatchState, victimId: PlayerId, attackerId: PlayerId
 /** Rohschaden (z. B. HE-Granate: Rüstung dämpft mit armorPen 0.57, kein Kopfschuss). */
 export function applyExplosion(m: MatchState, victimId: PlayerId, attackerId: PlayerId | null, dmg: number, armorPen = 0.57): HitResult | null {
   const v = m.players[victimId];
-  if (!v || !v.alive || dmg <= 0) return null;
+  // `!(dmg > 0)` verwirft auch NaN (z. B. aus kaputten Netz-Koordinaten)
+  if (!v || !v.alive || !(dmg > 0)) return null;
   const a = armoredDamage(dmg, armorPen, 'body', { armor: v.loadout.armor, helmet: v.loadout.helmet });
   v.loadout.armor = a.armorLeft;
   return applyRawDamage(m, v, a.dmg, attackerId, 'hegrenade', false);
@@ -205,6 +208,9 @@ export function applyFall(m: MatchState, victimId: PlayerId, dmg: number): HitRe
 }
 
 function applyRawDamage(m: MatchState, v: MatchPlayer, dmg: number, attackerId: PlayerId | null, weapon: string, headshot: boolean): HitResult {
+  // Nie NaN/Infinity in HP oder Rüstung schreiben (NaN-HP machten Spieler unverwundbar/unsterblich)
+  if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
+  if (!Number.isFinite(v.loadout.armor)) v.loadout.armor = 0;
   v.hp = Math.max(0, v.hp - dmg);
   const killed = v.hp <= 0;
   if (killed) {

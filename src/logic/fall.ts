@@ -18,6 +18,15 @@ export const FALL = {
   maxReport: 40,
   /** Mindestabstand zweier akzeptierter Sturzmeldungen eines Spielers (s). */
   minGap: 0.4,
+  /**
+   * Größte vom Host bei fremden Clients verrechnete Geschwindigkeit: knapp unter `fatal`, damit eine
+   * (gefälschte) Meldung allein nie tötet (≈ 87 Schaden).
+   */
+  maxAccept: 24,
+  /** Zeitfenster der Posen-Historie, in dem der Host den Fall sehen muss (s). */
+  window: 2.5,
+  /** Toleranz der beobachteten Fallhöhe (m): Posen kommen mit 20 Hz, die Landung kann zwischen zwei Posen liegen. */
+  slackHeight: 1.0,
 } as const;
 
 /** Sturzschaden in HP (ganzzahlig, 0 = keiner). Rüstung schützt nicht (wie in CS). */
@@ -61,5 +70,36 @@ export function acceptFallReport(speed: unknown, sinceLast: number): number | nu
   if (typeof speed !== 'number' || !Number.isFinite(speed)) return null;
   if (sinceLast < FALL.minGap) return null;
   const dmg = fallDamage(speed);
+  return dmg > 0 ? dmg : null;
+}
+
+/** Höhen-Stichprobe einer Pose (Spielzeit s, Fuß-Höhe m) für die Sturzprüfung des Hosts. */
+export type HeightSample = { t: number; y: number };
+
+/**
+ * Aus den empfangenen Posen beobachtete Aufprallgeschwindigkeit (m/s): größter Höhenverlust
+ * (Hochpunkt → späterer Tiefpunkt) im Fenster vor `now`, plus Toleranz. 0 = kein Fall sichtbar.
+ */
+export function observedFallSpeed(samples: readonly HeightSample[], now: number, gravity = 20, window: number = FALL.window): number {
+  let top = -Infinity;
+  let drop = 0;
+  for (const s of samples) {
+    if (now - s.t > window || !Number.isFinite(s.y)) continue;
+    if (s.y > top) top = s.y;
+    else drop = Math.max(drop, top - s.y);
+  }
+  return drop > 0 ? Math.sqrt(2 * gravity * (drop + FALL.slackHeight)) : 0;
+}
+
+/**
+ * Host-Prüfung einer Sturzmeldung eines fremden Clients: verwirft sie in Aufwärm-/Kaufphase, bei
+ * kaputten Werten, zu dichter Folge oder ohne passenden Fall in der Posen-Historie; die verrechnete
+ * Geschwindigkeit ist durch Beobachtung und `maxAccept` gedeckelt. `null` = verwerfen, sonst Schaden.
+ */
+export function hostFallDamage(speed: unknown, sinceLast: number, observed: number, phase: string): number | null {
+  if (phase === 'warmup' || phase === 'freeze') return null;
+  if (typeof speed !== 'number' || !Number.isFinite(speed) || !(observed > 0)) return null;
+  if (sinceLast < FALL.minGap) return null;
+  const dmg = fallDamage(Math.min(speed, observed, FALL.maxAccept));
   return dmg > 0 ? dmg : null;
 }

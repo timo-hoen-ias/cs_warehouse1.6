@@ -272,3 +272,29 @@ describe('Aufwärmrunde und späte Tode', () => {
     expect(h.loadout.primary).toBeNull();
   });
 });
+
+describe('Robustheit gegen kaputte Netz-Werte', () => {
+  it('NaN/Infinity-Schaden schreibt nie NaN in HP oder Rüstung', () => {
+    const m = setup();
+    expect(applyExplosion(m, 'b1', 'h1', NaN)).toBeNull();
+    expect(applyExplosion(m, 'b1', 'h1', -5)).toBeNull();
+    const r = applyHit(m, 'b1', 'h1', WEAPONS['ak47']!, 'body', NaN)!;
+    expect(r.dmg).toBe(0);
+    expect(r.killed).toBe(false);
+    const b1 = m.players['b1']!;
+    expect(b1.hp).toBe(100);
+    expect(Number.isFinite(b1.loadout.armor)).toBe(true);
+    expect(applyFall(m, 'b1', NaN)).toBeNull();
+    expect(b1.hp).toBe(100);
+    expect(b1.alive).toBe(true);
+  });
+
+  it('Spielerliste ohne Prototyp: `__proto__`/`constructor` sind keine Spieler', () => {
+    const m = newMatch();
+    expect(m.players['__proto__' as string]).toBeUndefined();
+    expect(m.players['constructor']).toBeUndefined();
+    expect(applyHit(m, 'constructor', null, WEAPONS['ak47']!, 'body')).toBeNull();
+    expect(WEAPONS['__proto__' as string]).toBeUndefined();
+    expect(WEAPONS['toString']).toBeUndefined();
+  });
+});

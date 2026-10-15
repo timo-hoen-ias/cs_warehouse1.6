@@ -15,6 +15,27 @@ export const FLIGHT_SPEED = 2.6;
 /** Abstand der Stützpunkte nach dem Neuabtasten (m). */
 export const FLIGHT_STEP = 0.5;
 
+/**
+ * Generationszähler für asynchrone Ladevorgänge: `begin()` startet einen Vorgang, jedes
+ * spätere `begin()`/`invalidate()` macht ihn veraltet. Wichtig: erst aufräumen (das selbst
+ * `invalidate()` auslösen kann), dann `begin()` — sonst ist der neue Vorgang sofort veraltet.
+ */
+export class LoadGate {
+  private gen = 0;
+
+  begin(): number {
+    return ++this.gen;
+  }
+
+  invalidate(): void {
+    this.gen++;
+  }
+
+  current(token: number): boolean {
+    return token === this.gen;
+  }
+}
+
 const dist3 = (a: V3, b: V3): number => Math.hypot(a.x - b.x, (a.y - b.y) * 3, a.z - b.z);
 
 export type TourInput = {

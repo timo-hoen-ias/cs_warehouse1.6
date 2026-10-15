@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BODY, BotBody, remainingVia } from './botBody';
+import { BODY, BotBody, PathFailMemory, pathFailKey, remainingVia } from './botBody';
 import type { Intent } from './botBrain';
 import { buildBotTestMap } from './botTestMap';
 import { compileMap } from './mapcompile';
@@ -118,5 +118,24 @@ describe('Bot-Körper', () => {
     expect(fast.aimOff(target)).toBeLessThan(slow.aimOff(target));
     for (let i = 0; i < 20; i++) fast.step(intent({ speed: 'stop', look: target, snap: true }), 0.05, env(i));
     expect(fast.aimOff(target)).toBeLessThan(0.02);
+  });
+});
+
+describe('Fehlschlag-Speicher der Wegsuche', () => {
+  it('merkt unerreichbare Ziele kurz, vergisst sie danach und bleibt klein', () => {
+    const mem = new PathFailMemory();
+    const k = pathFailKey({ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 10 });
+    expect(mem.has(k, 0)).toBe(false);
+    mem.add(k, 0);
+    expect(mem.has(k, BODY.failMemory - 0.1)).toBe(true);
+    expect(mem.has(k, BODY.failMemory + 0.1)).toBe(false);
+    for (let i = 0; i < 100; i++) mem.add(`k${i}`, 1);
+    expect(mem.size).toBeLessThanOrEqual(16);
+  });
+
+  it('Schlüssel: kleine Bewegungen des Starts zählen als gleiche Suche, anderes Ziel nicht', () => {
+    const a = pathFailKey({ x: 0.2, y: 0, z: 0.3 }, { x: 10, y: 0, z: 10 });
+    expect(pathFailKey({ x: 0.6, y: 0.1, z: 0.1 }, { x: 10.1, y: 0, z: 10 })).toBe(a);
+    expect(pathFailKey({ x: 0.2, y: 0, z: 0.3 }, { x: 12, y: 0, z: 10 })).not.toBe(a);
   });
 });

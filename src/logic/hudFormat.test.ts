@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ammoLow, buyCategoryItems, buyStateText, buyTopLevel, deathInfo, escapeHtml, formatClock, formatMoney, formatMoneyDelta, helmetPrice,
+  ammoLow, buyCategoryItems, buyStateText, buyTopLevel, deathInfo, escapeHtml, intText, formatClock, formatMoney, formatMoneyDelta, helmetPrice,
   hpLevel, iconWeapon, killFeedEntry, outcomeText, phaseLabel, pingText, roundOutcome, weaponStatBars, type BuyContext,
 } from './hudFormat';
 import { WEAPONS, weaponsInCategory } from './weapons';
@@ -50,6 +50,17 @@ describe('Formate', () => {
 
   it('escapeHtml', () => {
     expect(escapeHtml(`<a href="x">'&'</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;');
+  });
+
+  it('intText: Zahlen fürs innerHTML sind immer Ganzzahlen (kein HTML aus gefälschten Werten)', () => {
+    expect(intText(7)).toBe('7');
+    expect(intText(-3.9)).toBe('-3');
+    expect(intText('<img src=x onerror=alert(1)>')).toBe('0');
+    expect(intText('12')).toBe('0');
+    expect(intText(NaN)).toBe('0');
+    expect(intText(Infinity)).toBe('0');
+    expect(intText(null)).toBe('0');
+    expect(intText({ toString: () => '<b>' })).toBe('0');
   });
 });
 

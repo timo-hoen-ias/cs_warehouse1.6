@@ -31,6 +31,8 @@ import { GAME_VERSION, type Heartbeat } from './logic/serverList';
 
 
 const MSG_KEY = 'csw16.menuMessage';
+/** Wiederbeitritt mit der Karte des Servers (Setup über sessionStorage, einmalig). */
+const REJOIN_KEY = 'csw16.rejoin';
 
 /** Einmalige Meldung fürs Menü (z. B. nach einem Kick), über sessionStorage weitergereicht. */
 function takeMenuMessage(): string | null {
@@ -62,8 +64,10 @@ onStart(async (context) => {
   cam.near = 0.05;
 
   const launch = parseLaunch(window.location.search, mapById(undefined).id);
+  const rejoin = takeRejoin();
   let setup: GameSetup;
-  if (launch.auto) setup = launch.auto;
+  if (rejoin) setup = rejoin;
+  else if (launch.auto) setup = launch.auto;
   else {
     // 3D-Kameraflug durch die Karte hinter dem Menü (Canvas-Key-Art bleibt Rückfall); `?flight=0` aus, `?flight=1` auch bei ?quality=low
     const flightParam = new URL(window.location.href).searchParams.get('flight');
@@ -85,6 +89,37 @@ onStart(async (context) => {
   await startGame(context, level, setup);
 });
 
+/**
+ * Gespeichertes Setup für den Wiederbeitritt mit der richtigen Karte (einmal lesen, dann löschen).
+ * Höchstens ein Versuch je Raum, damit gefälschte Karten-Hinweise keine Neulade-Schleife auslösen.
+ */
+function takeRejoin(): GameSetup | null {
+  try {
+    const raw = sessionStorage.getItem(REJOIN_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(REJOIN_KEY);
+    const s = JSON.parse(raw) as GameSetup;
+    if (!s || typeof s !== 'object' || s.mode !== 'join' || typeof s.room !== 'string' || typeof s.mapId !== 'string' || mapById(s.mapId).id !== s.mapId) return null;
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+/** Server spielt eine andere (registrierte) Karte: Setup mit dieser Karte merken und neu laden. */
+function rejoinWithMap(setup: GameSetup, mapId: string): void {
+  if (mapById(mapId).id !== mapId || mapId === setup.mapId) return;
+  const u = new URL(window.location.href);
+  if (u.searchParams.get('rejoined') === setup.room) {
+    backToMenu('Der Server spielt eine andere Karte — Beitritt abgebrochen', true);
+    return;
+  }
+  try { sessionStorage.setItem(REJOIN_KEY, JSON.stringify({ ...setup, mapId })); } catch { /* egal */ }
+  u.searchParams.set('map', mapId);
+  u.searchParams.set('rejoined', setup.room);
+  window.location.href = u.href;
+}
+
 /** localStorage, falls verfügbar (privater Modus/blockiert → null). */
 function safeStorage(): Storage | null {
   try {
@@ -100,7 +135,7 @@ let graphicsQuality: 'high' | 'low' = 'high';
 /** Zurück ins Hauptmenü (Seite ohne Spiel-Parameter neu laden), optional mit Meldung/Einladung. */
 function backToMenu(message?: string, keepInvite = false): void {
   const u = new URL(window.location.href);
-  for (const k of ['auto', 'host', 'pw', 'sname', 'max', 'listed', 'lobby', 'fill', 'name', 'team']) u.searchParams.delete(k);
+  for (const k of ['auto', 'host', 'pw', 'sname', 'max', 'listed', 'lobby', 'fill', 'name', 'team', 'rejoined']) u.searchParams.delete(k);
   if (!keepInvite) u.searchParams.delete('room');
   if (message) {
     try { sessionStorage.setItem(MSG_KEY, message); } catch { /* egal */ }
@@ -186,7 +221,11 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
   // Server-Konfiguration (nur der Ersteller; Beitretende übernehmen sie per Snapshot)
   const mapId = mapById(setup.mapId).id;
   const lobbyCfg: LobbyConfig | null = setup.mode === 'host'
-    ? { name: setup.serverName, maxPlayers: setup.maxPlayers, pw: passwordDigest(setup.room, setup.password), listed: setup.listed, hold: setup.lobby }
+    ? {
+      name: setup.serverName, maxPlayers: setup.maxPlayers, pw: passwordDigest(setup.room, setup.password), listed: setup.listed, hold: setup.lobby,
+      // Karte und Bots wandern mit dem Snapshot (Beitretende laden dieselbe Karte, Host-Migration behält die Bots)
+      map: mapId, fillTo: setup.fillTo, botSkill: setup.botSkill,
+    }
     : null;
 
   const driver = playerRoot.addComponent(MatchDriver);
@@ -203,6 +242,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
     passwordDigest: setup.mode === 'join' && setup.password ? passwordDigest(setup.room, setup.password) : null,
   };
   driver.onKicked = (reason) => backToMenu(kickReasonText(reason), true);
+  driver.onWrongMap = (map) => rejoinWithMap(setup, map);
   shooter.loadout = () => driver.local?.loadout;
 
   // Startposition bis zum ersten Spawn
@@ -223,6 +263,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
   playerRoot.addComponent(AudioListener).sfx = sfx;
   grenades.onBounce = (p) => sfx.grenade('bounce', p);
 
+  let announcerOpen = (): boolean => false;
   if (setup.mode !== 'offline') {
     const link = roomLink(window.location.href, setup.room, mapId, setup.server);
     hud.notice(`Raumcode ${setup.room} — Einladungslink in der Lobby/Adressleiste`);
@@ -249,7 +290,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
         chat: driver.chatHistory,
         maxPlayers: cfg?.maxPlayers ?? setup.maxPlayers,
         serverName: cfg?.name ?? `Raum ${setup.room}`,
-        hasPassword: !!cfg?.pw,
+        hasPassword: !!cfg?.hasPassword,
       });
     };
 
@@ -263,12 +304,20 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
         room: setup.room, name: cfg.name, map: mapId,
         players: all.filter((p) => !p.bot).length, maxPlayers: cfg.maxPlayers, bots: all.filter((p) => p.bot).length,
         phase: driver.lobbyHeld ? 'lobby' : m.winner ? 'ended' : m.round.phase,
-        round: m.round.round, score: [m.round.tRounds, m.round.ctRounds], hasPassword: !!cfg.pw, version: GAME_VERSION,
+        round: m.round.round, score: [m.round.tRounds, m.round.ctRounds], hasPassword: cfg.hasPassword, version: GAME_VERSION,
       };
     };
+    // Die Discovery-Verbindung braucht nur der Host (Clients melden nichts); nach einer
+    // Host-Migration öffnet der neue Host sie, ein abgelöster Host schließt sie.
     const announcer = new ServerAnnouncer(setup.server, heartbeat);
-    announcer.start();
-    window.addEventListener('pagehide', () => announcer.stop());
+    const syncAnnouncer = (): void => {
+      if (driver.isHost && driver.lobbyConfig?.listed) announcer.start();
+      else announcer.stop();
+    };
+    announcerOpen = () => announcer.active;
+    const annTimer = window.setInterval(syncAnnouncer, 1000);
+    syncAnnouncer();
+    window.addEventListener('pagehide', () => { window.clearInterval(annTimer); announcer.stop(); });
   }
 
   // Debug-Hooks (Smoke-Tests, DevTools)
@@ -559,6 +608,10 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
     g.__unzoom = () => { shooter.setZoom(0); return true; };
     g.__lobbyStart = () => driver.startMatch();
     g.__driver = driver;
+    /** Netztest: Rohdaten wie empfangen verarbeiten (bösartige Nachrichten) bzw. roh senden. */
+    g.__netInject = (raw: unknown, from: string | null = null) => { driver.debugInject(raw, from); return true; };
+    g.__netSendRaw = (raw: unknown) => { driver.debugSendRaw(raw); return true; };
+    g.__announcer = () => announcerOpen();
     g.__lobby = () => ({ held: driver.lobbyHeld, cfg: driver.lobbyConfig, host: driver.isHost });
   }
 }

@@ -351,6 +351,15 @@ export class BotSystem {
       prev.x = p.pose.x;
       prev.z = p.pose.z;
     }
+    // Verschwundene Spieler vergessen (sonst wächst die Tabelle mit jeder Netz-ID)
+    if (this.motion.size > Object.keys(m.players).length) {
+      for (const id of this.motion.keys()) if (!Object.hasOwn(m.players, id)) this.motion.delete(id);
+    }
+  }
+
+  /** Anzahl beobachteter Spieler-Bewegungen (Test: Tabelle bleibt begrenzt). */
+  get trackedMotions(): number {
+    return this.motion.size;
   }
 
   private tickUnit(u: Unit, w: BotWorldView, dt: number, act: BotActions): void {

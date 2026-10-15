@@ -325,8 +325,24 @@ const cache = new Map<string, WeaponIcon>();
 export function weaponIcon(id: string): WeaponIcon {
   const hit = cache.get(id);
   if (hit) return hit;
+  // Unbekannte IDs (z. B. aus Netz-Ereignissen) teilen sich einen Eintrag → der Speicher wächst nicht mit
+  if (!KNOWN.has(id)) return id === GENERIC ? buildIcon(id) : weaponIcon(GENERIC);
+  return buildIcon(id);
+}
+
+/** Schlüssel des generischen Gewehrs im Speicher (kein gültiger Waffenname). */
+const GENERIC = '?';
+const EXTRA_IDS = ['knife', 'knife_stab', 'hegrenade', 'flashbang', 'smokegrenade', 'c4', 'kevlar', 'helmet', 'defusekit', 'ammo1', 'ammo2', 'ammo'];
+const KNOWN = new Set<string>([...Object.keys(SPECS), ...EXTRA_IDS]);
+
+/** Speichergröße (Test: bleibt bei beliebig vielen unbekannten IDs klein). */
+export function iconCacheSize(): number {
+  return cache.size;
+}
+
+function buildIcon(id: string): WeaponIcon {
   let icon: WeaponIcon;
-  const spec = SPECS[id];
+  const spec = Object.hasOwn(SPECS, id) ? SPECS[id] : undefined;
   if (spec) icon = spec.kind === 'pistol' ? pistol(spec) : longGun(spec);
   else {
     switch (id) {

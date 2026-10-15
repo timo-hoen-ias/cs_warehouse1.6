@@ -33,7 +33,42 @@ export const BODY = {
   separate: 1.1,
   /** Festgefahren: weniger als 0.35 m in so vielen Sekunden. */
   stuck: 1.2,
+  /**
+   * Obergrenze der A*-Expansionen je Suche (Sicherheitsnetz für sehr große Karten). Gemessen:
+   * 5000 verliert auf den aktuellen Karten (11–17 k Knoten) 4–12 % gültiger Wege, daher großzügig;
+   * die Spitzen durch unerreichbare Ziele verhindert der Fehlschlag-Speicher (`failMemory`).
+   */
+  maxExpand: 30000,
+  /** Unerreichbares Ziel so lange (s) nicht erneut suchen (ganze Graphsuche kostet 4–13 ms). */
+  failMemory: 2.5,
 } as const;
+
+/** Schlüssel für den Fehlschlag-Speicher: Start (2-m-Raster) und Ziel (0.5-m-Raster). */
+export function pathFailKey(from: XYZ, to: XYZ): string {
+  const r = (v: number, s: number): number => Math.round(v / s);
+  return `${r(from.x, 2)},${r(from.y, 2)},${r(from.z, 2)}>${r(to.x, 0.5)},${r(to.y, 0.5)},${r(to.z, 0.5)}`;
+}
+
+/** Kurzzeit-Speicher fehlgeschlagener Wegsuchen (je Bot, wenige Einträge). */
+export class PathFailMemory {
+  private readonly until = new Map<string, number>();
+
+  /** Fehlschlag merken; abgelaufene Einträge fallen dabei weg (Speicher bleibt klein). */
+  add(key: string, now: number, ttl: number = BODY.failMemory): void {
+    for (const [k, t] of this.until) if (t <= now) this.until.delete(k);
+    if (this.until.size >= 16) this.until.delete(this.until.keys().next().value!);
+    this.until.set(key, now + ttl);
+  }
+
+  has(key: string, now: number): boolean {
+    const t = this.until.get(key);
+    return t !== undefined && t > now;
+  }
+
+  get size(): number {
+    return this.until.size;
+  }
+}
 
 export type BodyEnv = { col: Collider; nav: NavGraph; now: number; skill: number; mates: readonly XYZ[] };
 
@@ -89,6 +124,8 @@ export class BotBody {
   private stuckRef = { x: 0, z: 0 };
   private stuckRun = 0;
   private unstick: { x: number; z: number; until: number } | null = null;
+  /** Kürzlich unerreichbare Ziele (keine wiederholte Ganz-Graph-Suche). */
+  private readonly failed = new PathFailMemory();
 
   constructor(pose: Pose) {
     this.pose = { ...pose };
@@ -226,7 +263,11 @@ export class BotBody {
       return null;
     }
     if ((this.stale || !this.path.length || this.pathAt >= this.path.length) && env.now >= this.repathAt) {
-      const res = findPath(env.nav, env.col, this.feet, sub, { avoid: it.avoid });
+      const fk = pathFailKey(this.feet, sub);
+      const known = this.failed.has(fk, env.now);
+      const res = known ? null : findPath(env.nav, env.col, this.feet, sub, { avoid: it.avoid, maxExpand: BODY.maxExpand });
+      // Nur echte Fehlschläge merken (sonst verlängerte sich der Eintrag bei jedem Treffer ewig)
+      if (!res && !known) this.failed.add(fk, env.now);
       this.repathAt = env.now + BODY.repath;
       this.stale = false;
       if (res) {
