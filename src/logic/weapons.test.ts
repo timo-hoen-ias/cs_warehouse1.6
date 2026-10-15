@@ -126,10 +126,14 @@ describe('Datenkonsistenz', () => {
 
   it('Viewmodel-Defaults je Typ werden gefüllt (JSON darf überschreiben)', () => {
     expect(WEAPONS['mp5']!.visual.pos).toEqual(TYPE_VISUAL.smg.pos);
-    expect(WEAPONS['awp']!.visual.rot).toEqual(TYPE_VISUAL.sniper.rot);
-    // Bullpups halten weiter vorn (Überschreibung nur der Position, Drehung bleibt Typ-Standard)
+    // Schusswaffen: Rollwinkel vom Typ, Drehung x/y aus Position + Mündung berechnet (siehe weaponGeom.test.ts)
+    expect(WEAPONS['awp']!.visual.rot.z).toBe(TYPE_VISUAL.sniper.rot.z);
+    expect(WEAPONS['awp']!.visual.rot.y).toBeGreaterThan(0);
+    // Messer/Granaten/C4 behalten die feste Drehung des Typs
+    expect(WEAPONS['knife']!.visual.rot).toEqual(TYPE_VISUAL.knife.rot);
+    expect(WEAPONS['hegrenade']!.visual.rot).toEqual(TYPE_VISUAL.grenade.rot);
+    // Bullpups halten weiter vorn (Überschreibung nur der Position)
     expect(WEAPONS['famas']!.visual.pos.z).toBeLessThan(TYPE_VISUAL.rifle.pos.z);
-    expect(WEAPONS['famas']!.visual.rot).toEqual(TYPE_VISUAL.rifle.rot);
   });
 });
 

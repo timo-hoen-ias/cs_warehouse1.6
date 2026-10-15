@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { IDENTITY_STRETCH, type StretchMap } from '../../logic/stretch';
 import type { AnimFamily, ChargeKind, ReloadStyle } from '../../logic/viewAnim';
+import type { WeaponGeom } from '../../logic/weaponGeom';
 import { UV_DENSITY, viewMaterial, type MatKind } from './materials';
 
 /**
@@ -12,6 +14,9 @@ import { UV_DENSITY, viewMaterial, type MatKind } from './materials';
  *  - Lauf zeigt nach −Z (wie die Kamera), +Y oben, +X rechts (aus Schützensicht).
  *  - Beim Autorisieren werden Punkte als [x, y, f] angegeben mit f = vorwärts = −z;
  *    Seitenprofile (für Extrusionen) als [f, y].
+ *  - Die Waffenlänge wird über eine Längsstauchung (`fit` in logic/weaponGeom.ts, siehe stretch.ts)
+ *    auf das echte Maß gebracht: der Baukasten bildet f aller Primitive, Teil-Drehpunkte und Anker
+ *    darüber ab. Mündung, Griff- und Stützhand-Punkt sowie Auswurf kommen direkt aus der Tabelle.
  *  - Anker sind Object3D-Knoten (Name `anchor:<name>`): muzzle (Mündung), gripR/gripL
  *    (Handgriffe), magHold (Magazin greifen), chargeL (Spannhebel/Schlitten), boltR
  *    (Kammerstängel), port (Ladeöffnung), keypad (C4). Hand-Rahmen: lokale +Y = Griffachse
@@ -31,7 +36,12 @@ export type P3 = readonly [number, number, number];
 export type P2 = readonly [number, number];
 
 export type PartName = 'slide' | 'slide2' | 'charge' | 'bolt' | 'pump' | 'mag' | 'mag2' | 'cover' | 'pin' | 'spoon' | 'shell';
-export type AnchorName = 'muzzle' | 'muzzle2' | 'gripR' | 'gripL' | 'magHold' | 'magHold2' | 'chargeL' | 'boltR' | 'port' | 'keypad';
+export type AnchorName = 'muzzle' | 'muzzle2' | 'gripR' | 'gripL' | 'magHold' | 'magHold2' | 'chargeL' | 'boltR' | 'port' | 'keypad' | 'eject' | 'eject2';
+
+/** Anker, deren Lage aus der Tabelle logic/weaponGeom.ts kommt (endgültige Koordinaten, ohne Stauchung). */
+const TABLE_ANCHORS = ['muzzle', 'muzzle2', 'gripR', 'gripL'] as const;
+/** Platzhalter für `at` bei Tabellen-Ankern (Position kommt aus der Tabelle). */
+export const TBL: P3 = [0, 0, 0];
 
 /** Bewegungs-/Animations-Beschreibung eines Modells (vom ViewModel ausgewertet). */
 export type Rig = {
@@ -119,7 +129,13 @@ export class Builder {
   private readonly anchorSpecs: AnchorSpec[] = [];
   private active: PartSpec | null = null;
 
-  constructor(readonly lod: Lod) {}
+  private readonly stretch: StretchMap;
+  private readonly geom?: WeaponGeom;
+
+  constructor(readonly lod: Lod, opts: { stretch?: StretchMap; geom?: WeaponGeom } = {}) {
+    this.stretch = opts.stretch ?? IDENTITY_STRETCH;
+    this.geom = opts.geom;
+  }
 
   get view(): boolean {
     return this.lod === 'view';
@@ -129,7 +145,7 @@ export class Builder {
 
   /** Animiertes Teil: alle Primitive in fn landen (mit Teil-Material) im Teil-Knoten. */
   part(name: PartName, pivot: P3, mat: MatKind, fn: () => void): this {
-    const spec: PartSpec = { name, pivot, mat };
+    const spec: PartSpec = { name, pivot: this.fp(pivot), mat };
     this.partSpecs.set(name, spec);
     const prev = this.active;
     this.active = spec;
@@ -140,8 +156,9 @@ export class Builder {
 
   /** Anker (Hand-/Mündungspunkt); innerhalb von part() hängt er am Teil. */
   anchor(name: AnchorName, at: P3, o: { axis?: P3; back?: P3; r?: number; trigger?: boolean; part?: PartName } = {}): this {
+    const fromTable = this.geom && (TABLE_ANCHORS as readonly string[]).includes(name) ? this.geom[name as (typeof TABLE_ANCHORS)[number]] : undefined;
     this.anchorSpecs.push({
-      name, at, axis: o.axis ?? [0, 1, 0], back: o.back ?? [1, 0, 0], r: o.r ?? 0.02, trigger: o.trigger ?? false,
+      name, at: fromTable ?? this.fp(at), axis: o.axis ?? [0, 1, 0], back: o.back ?? [1, 0, 0], r: o.r ?? 0.02, trigger: o.trigger ?? false,
       part: o.part ?? this.active?.name ?? '',
     });
     return this;
@@ -273,6 +290,16 @@ export class Builder {
       parent.add(o);
       anchors[a.name] = o;
     }
+    // Auswurffenster(r) nur aus der Tabelle (kein Modellteil nötig)
+    for (const name of ['eject', 'eject2'] as const) {
+      const at = this.geom?.[name];
+      if (!at) continue;
+      const o = new THREE.Object3D();
+      o.name = 'anchor:' + name;
+      o.position.copy(v3(at));
+      root.add(o);
+      anchors[name] = o;
+    }
     return { root, parts, anchors, tris, meshes };
   }
 
@@ -299,6 +326,11 @@ export class Builder {
 
   // ---------------------------------------------------------------- intern
 
+  /** Punkt [x, y, f] durch die Längsstauchung schicken. */
+  private fp(p: P3): P3 {
+    return [p[0], p[1], this.stretch.map(p[2])];
+  }
+
   private skip(o: PrimOpts): boolean {
     return !!o.d && !this.view;
   }
@@ -319,12 +351,33 @@ export class Builder {
     return this.add(g, color, o);
   }
 
+  /** Längsstauchung auf Eckpunkte (z = −f) und Normalen (Inverse-Transponierte: nz / Steigung). */
+  private applyStretch(g: THREE.BufferGeometry): void {
+    const pos = g.getAttribute('position');
+    const nrm = g.getAttribute('normal');
+    for (let i = 0; i < pos.count; i++) {
+      const f = -pos.getZ(i);
+      pos.setZ(i, -this.stretch.map(f));
+      const k = this.stretch.slope(f);
+      if (k !== 1) {
+        const nx = nrm.getX(i);
+        const ny = nrm.getY(i);
+        const nz = nrm.getZ(i) / k;
+        const l = Math.hypot(nx, ny, nz) || 1;
+        nrm.setXYZ(i, nx / l, ny / l, nz / l);
+      }
+    }
+    pos.needsUpdate = true;
+    nrm.needsUpdate = true;
+  }
+
   /** Normalisiert die Geometrie (nicht indiziert, Normalen, Box-UV, Farben) und legt sie ab. */
   private add(src: THREE.BufferGeometry, color: number, o: PrimOpts): this {
     const g = src.index ? src.toNonIndexed() : src;
     if (g !== src) src.dispose();
     for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
     if (!g.getAttribute('normal')) g.computeVertexNormals();
+    if (this.stretch !== IDENTITY_STRETCH) this.applyStretch(g);
     const mat: MatKind = this.active?.mat ?? o.m ?? 'steel';
     const pos = g.getAttribute('position');
     const nrm = g.getAttribute('normal');

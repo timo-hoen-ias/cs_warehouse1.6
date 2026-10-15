@@ -1,6 +1,6 @@
 # CS Warehouse 1.6
 
-Ein Ego-Shooter im Browser: ein Counter-Strike-1.6-inspirierter Bomben-Modus (Terroristen gegen Counter-Terroristen), der in Lagerhallen spielt. Die Karten (`de_`-Maps) werden aus den Daten einer Lager-Datenbank (MSSQL) erzeugt: Regale, Zellen und Wege des echten Lagers werden zum Level. Gebaut mit Needle Engine 5, Vite und TypeScript; Bun dient als Laufzeit und Paketmanager. Man kann offline gegen Bots spielen oder online mit Freunden per Raumcode.
+Ein Ego-Shooter im Browser: ein Counter-Strike-1.6-inspirierter Bomben-Modus (Terroristen gegen Counter-Terroristen), der in Lagerhallen und Logistikzentren spielt. Die Karten (`de_`-Maps) sind von Hand gebaut — mit Rampen, Treppen, Laufstegen, Emporen, Gruben und Tunneln auf mehreren Ebenen, gebackenem Licht und einem 3D-Navigationsgraphen für die Bots. Gebaut mit Needle Engine 5, Vite und TypeScript; Bun dient als Laufzeit und Paketmanager. Man kann offline gegen Bots spielen oder online mit Freunden per Raumcode.
 
 ## Schnellstart
 
@@ -20,7 +20,7 @@ Beim Start erscheint das **Hauptmenü** (animierte Lagerhalle im Hintergrund, Me
 
 - **Einzelspieler:** Karte wählen (Karten-Kacheln mit Vorschau), Team (automatisch/T/CT), Teamgröße (1 gegen 1 bis 8 gegen 8, Rest Bots) und Bot-Schwierigkeit (Leicht bis Experte) einstellen, „Spiel starten“. „Schnellstart“ auf der Startseite übernimmt die letzten Einstellungen.
 - **Server erstellen:** Servername, Karte, max. Spieler (2–16 Menschen), Auffüllen mit Bots, Bot-Stärke, optionales Passwort, „Im Serverbrowser anzeigen“, „Serverlobby“. Du bist Host; das Spiel läuft in deinem Browser über das öffentliche Needle-Netzwerk-Backend (oder deinen Relay, siehe unten).
-- **Serverlobby:** Bis du „Spiel starten“ drückst, läuft ein Aufwärmen: Spielerliste je Team mit Teamwechsel, Chat, Raumcode und Knopf „Einladungslink“ (kopiert z. B. `http://localhost:3000/?room=ABCDE&map=de_kommission`). „Aufwärmen (herumlaufen)“ blendet die Lobby aus, `Esc` holt sie zurück.
+- **Serverlobby:** Bis du „Spiel starten“ drückst, läuft ein Aufwärmen: Spielerliste je Team mit Teamwechsel, Chat, Raumcode und Knopf „Einladungslink“ (kopiert z. B. `http://localhost:3000/?room=ABCDE&map=de_lagerstaub`). „Aufwärmen (herumlaufen)“ blendet die Lobby aus, `Esc` holt sie zurück.
 - **Mehrspieler (Serverbrowser):** listet alle offenen Server (Name, Karte, Spieler + Bots, Latenz, Status, Schloss = Passwort). Filter „Nicht voll“, „Nicht leer“, „Ohne Passwort“, Suche, Sortierung per Spaltenkopf, „Aktualisieren“ (`F5`). Doppelklick oder Enter tritt bei; „Per Code“ tritt einem Raum direkt bei. Ein Einladungslink öffnet den Browser mit vorbelegtem Raum.
   - *Wie die Erkennung funktioniert:* Needle `context.connection` kann nur einen Raum gleichzeitig. Jeder Client öffnet deshalb eine zweite, schlanke WebSocket-Verbindung zum selben Backend und betritt den gemeinsamen Raum `csw16-lobby`. Der Host meldet dort alle 3 s einen Heartbeat (Name, Karte, Spieler, Phase, Passwort ja/nein, Version); der Browser fragt beim Öffnen aktiv nach (`csw16-q`, mit Zeitstempel → Latenz) und verwirft Einträge nach 10 s ohne Meldung. Funktioniert mit dem Needle-Backend und dem eigenen Relay gleichermaßen.
   - Der Host prüft Passwort (nur als Prüfsumme übertragen), Spielerlimit und Spielversion; abgelehnte Spieler landen mit Meldung wieder im Menü. Verlässt der Host das Spiel, übernimmt der Dienstälteste (Host-Migration, inkl. Server-Konfiguration).
@@ -75,22 +75,23 @@ Menümusik: Derek „JoJo“ Stegall, Tracks aus dem Red-Eclipse-Soundpaket (<ht
 - Waffengefühl nach CS: feste, lernbare Spray-Muster bei Automatikwaffen (gegenziehen!), Noscope-Streuung, Zielfernrohr mit Auto-Rezoom, Repetierzeiten, Rüstungsdurchschlag, Distanz-Schadensabfall, Kopfschüsse
 - Waffen und C4 fallen beim Tod zu Boden und lassen sich aufheben; Kaufen nur in der Kaufzone am Spawn
 - Zuschauer-Kamera nach dem Tod (Klick wechselt den Spieler), Schrittgeräusche, schneller werdendes Bomben-Piepen
-- Vertikalität: Zwischenebenen mit Treppen und Geländer, Laderampen, Paletten und Kisten zum Draufspringen
-- Einstellungen (O oder im Hauptmenü): Mausempfindlichkeit, Y-Invertierung, Sichtfeld, Lautstärke, Menümusik, Fadenkreuz (Farbe/Stil/Länge/Abstand/Stärke/dynamisch, mit Vorschau), HUD-Größe, Kopfbewegung, FPS-Anzeige
+- Große, handgebaute Karten (~160 × 160 m) mit echter Vertikalität: Rampen, Treppen, Laufstege, Emporen, Laderampen, Gruben, Unter- und Obertunnel; Kisten und Paletten zum Draufspringen
+- Gebackene Beleuchtung (Sonne mit Schatten, Himmel, Hallenleuchten, Lichtkegel, Ambient Occlusion) bei minimalen Laufzeitkosten; Himmel mit Sonne und Industrie-Skyline
+- Bots navigieren in 3D (A* über alle Ebenen, Callout-Bereiche), legen und entschärfen die Bombe
+- Einstellungen (O oder im Hauptmenü): Mausempfindlichkeit, Y-Invertierung, Sichtfeld, Lautstärke mit Kanälen (Effekte/Umgebung/Oberfläche), Menümusik, Fadenkreuz (Farbe/Stil/Länge/Abstand/Stärke/dynamisch, mit Vorschau), HUD-Größe, Kopfbewegung, FPS-Anzeige
 - Host-autoritativer Mehrspieler mit Host-Migration; Raumcodes, Teilen-Link, optionaler Relay-Server
-- Grafikstufe für schwache Rechner: `?quality=low` (ohne Schatten, reduzierte Auflösung)
-- Karten aus Lager-Daten gebacken und als JSON eingecheckt, damit alle Clients identisch spielen
+- Grafikstufe für schwache Rechner: `?quality=low` (gröberes Licht-Raster, keine Lichtkegel, reduzierte Auflösung)
+- Karten sind Code-Module: alle Clients bauen aus der Karten-ID des Hosts dieselbe Welt (kein Bake-Schritt)
 
 ## Karten
 
-| Karte | Lagertyp |
+| Karte | Beschreibung |
 |---|---|
-| `de_kommission` | Kommissionierhalle |
-| `de_hochregal` | Hochregallager |
-| `de_blocklager` | Blocklager |
-| `de_rampe` | Verladerampe |
+| `de_lagerstaub` | **Lagerstaub** — Logistikzentrum im Abendlicht nach klassischem Grundriss: T-Hof (Speditionshof), Außen Lang → Hallentor → Lang A mit Grube und Stapler („Auto“), A-Rampe auf die Laderampe mit dem „Serverschrank A“, Kurz A über den Gitterrost-Steg aus der Mitte (Xbox-Kiste), Mitteltür (Brandschutztor) zum CT-Bereich, Außen Tunnel → Ober-/Untertunnel (Versorgungstunnel) → Serverraum B mit Hinterer Plattform, B-Empore, B-Fenster und B-Tür. |
 
-Die gebackenen Karten liegen in `levels/*.json`.
+Laufzeiten (Sprint): T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
+Das Kartenformat und eine Anleitung für neue Karten stehen in [`docs/KARTENFORMAT.md`](docs/KARTENFORMAT.md).
+Eine Draufsicht (PNG) samt Laufzeiten erzeugt `bun run overview [karten-id] [datei.png] [px-pro-meter] [--areas]`.
 
 ## Entwicklung
 
@@ -121,30 +122,29 @@ BROWSER=/pfad/zu/chromium bun scripts/net-test.mjs
 BROWSER=/pfad/zu/chromium bun scripts/lobby-test.mjs      # optional SHOT_DIR=… für Screenshots
 ```
 
-**Karten backen** (`levels/*.json` erzeugen):
+**Karten-Übersicht und Validator:**
 
 ```bash
-bun run bake                    # alle Karten
-bun run bake <lagerkennung>     # ein echtes Lager aus der MSSQL-DB
+bun run overview de_lagerstaub karte.png 5 --areas   # Draufsicht + Laufzeiten + Bereichsgraph
+bun run test src/maps                                # Karten-Validator (Spawns, Spots, Wege, Laufzeiten …)
 ```
-
-Für ein echtes Lager die MSSQL-Zugangsdaten als Umgebungsvariablen setzen (Vorlage: `.env.example`: `MSSQL_SERVER`, `MSSQL_DATABASE`, `MSSQL_USER`, `MSSQL_PASSWORD`). Ist die Datenbank nicht erreichbar, wird das Demo-Lager gebacken. Die Ergebnisse werden eingecheckt und nicht in der CI gebacken.
 
 ### Projektstruktur
 
 | Pfad | Inhalt |
 |---|---|
-| `src/logic/` | Reine, framework-freie und getestete Logik (Layout, Query, Economy, Runden, Bombe, Waffen, Schaden, Bots, Wegpunkte, Netzwerk-Nachrichten) und Datentabellen wie `weapons.json` |
+| `src/logic/` | Reine, framework-freie und getestete Logik (Kollision mit Rampen, Navigation, Kartenbaukasten/Compiler, Licht-Backen, Economy, Runden, Bombe, Waffen, Schaden, Bots, Netzwerk-Nachrichten) und Datentabellen wie `weapons.json` |
+| `src/maps/` | Handgebaute Karten (TypeScript-Module) + Registry |
 | `src/game/` | Spielwelt und Match-Ablauf (`World.ts`, `MatchDriver.ts`) |
 | `src/player/`, `src/entities/` | Spieler-Steuerung und Soldaten-Figuren |
 | `src/multi/` | Netzwerk-Transport (Needle-Backend oder eigener Relay), Server-Erkennung (`Discovery.ts`) |
 | `src/ui/` | Hauptmenü (`MainMenu`, Hintergrund `MenuBackdrop`, Musik `MenuMusic`), Serverlobby (`LobbyOverlay`), HUD (`Hud` + `hud.css`), Einstellungen |
 | `src/weapons/` | Schießen, Granaten, Viewmodel, Effekte; `models/` = prozedurale Waffen + Arme |
-| `src/level/` | Darstellung der Karten und Texturen |
+| `src/level/` | Darstellung der Karten (Geometrie mit gebackenem Licht, Deko-Instanzen, Himmel, Texturen, Licht für Figuren) |
 | `src/audio/` | Soundeffekte |
-| `levels/` | Gebackene Karten (JSON) |
-| `assets/` | Laufzeit-Assets (Menümusik, Referenzmodelle), werden nach `dist/assets/` kopiert |
-| `scripts/` | Relay-Server, Map-Bake, Smoke-, Netzwerk- und Lobbytest |
+| `docs/` | Kartenformat und Anleitung für neue Karten |
+| `assets/` | Laufzeit-Assets (Menümusik, Klänge, Referenzmodelle), werden nach `dist/assets/` kopiert |
+| `scripts/` | Relay-Server, Karten-Übersicht (PNG), Smoke-, Screenshot-, Netzwerk- und Lobbytest |
 
 Weitere Hintergründe und der Stand der Umsetzung stehen in `IMPLEMENTIERUNGSPLAN.md`.
 
@@ -167,4 +167,9 @@ Für `wss://` muss ein TLS-terminierender Reverse-Proxy (z. B. Caddy oder nginx)
 
 - **Needle Engine:** Die kostenlose Variante blendet ein „made with Needle“-Label ein und ist für nicht-kommerzielle Nutzung gedacht. Für kommerzielle oder öffentliche Nutzung kann eine Needle-Lizenz nötig sein: <https://needle.tools/pricing>.
 - **Waffenmodelle:** prozedural im Code (`src/weapons/models/`). Das Quaternius „Ultimate Gun Pack“ (CC0) unter `assets/weapons/` liegt nur noch als Referenz bei.
+- **Sounds (Credits):** bearbeitete Aufnahmen aus dem [Red-Eclipse-Soundpaket](https://github.com/redeclipse/sounds)
+  (Red Eclipse Team, Quinton „quin“ Reeves, Alex „blackshoe“ Anguix, Q009, Therac-25, fresco, WIM, Dob „dobroide“ Roide,
+  bart) unter CC-BY-SA 4.0 / CC-BY-SA 3.0 / CC-BY 3.0 / CC0 sowie eigene Synthese; die bearbeiteten Dateien in
+  `assets/audio/` stehen unter CC-BY-SA 4.0. Vollständige Liste (Datei, Urheber, Lizenz, Änderungen):
+  [`assets/audio/CREDITS.md`](assets/audio/CREDITS.md). Keine Valve-/Counter-Strike-Assets.
 - Dieses Projekt ist von Counter-Strike 1.6 inspiriert, aber ein eigenständiges Fan-Projekt ohne Bezug zu Valve.

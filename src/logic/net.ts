@@ -40,7 +40,7 @@ export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg 
 export type GameEvent =
   | { k: 'kill'; killer: string | null; victim: string; weapon: string; hs: boolean }
   | { k: 'hit'; victim: string; attacker: string | null; dmg: number; part: 'head' | 'body'; from: [number, number, number]; at: [number, number, number] }
-  | { k: 'spawn'; id: string; x: number; z: number; yaw: number; fresh?: boolean }
+  | { k: 'spawn'; id: string; x: number; y?: number; z: number; yaw: number; fresh?: boolean }
   | { k: 'shot'; id: string; w: string; o: [number, number, number]; ends: [number, number, number][]; walls: [number, number, number][] }
   | { k: 'nade'; id: number; kind: GrenadeKind; owner: string; o: [number, number, number]; v: [number, number, number] }
   | { k: 'boom'; id: number; kind: GrenadeKind; at: [number, number, number] }

@@ -5,8 +5,11 @@
 // Aufruf: bun scripts/net-test.mjs   (Dev-Server :3000 muss laufen; BROWSER=/pfad/chromium)
 
 const BROWSER = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const RELAY_PORT = 9100;
-const ROOM = 'NETTEST';
+// Parallel laufende Sitzungen: Relay-Port, Raum und CDP-Ports per Umgebung abweichend setzen
+const RELAY_PORT = Number(process.env.RELAY_PORT ?? 9100);
+const ROOM = process.env.ROOM ?? 'NETTEST';
+const CDP_A = Number(process.env.CDP_A ?? 9231);
+const CDP_B = Number(process.env.CDP_B ?? 9232);
 const BASE = process.env.URL ?? 'http://localhost:3000/';
 const { spawn } = require('child_process');
 const { rmSync } = require('fs');
@@ -74,8 +77,8 @@ async function run() {
   try {
     const server = `ws://localhost:${RELAY_PORT}/socket`;
     const url = (name, team) => `${BASE}?auto=1&quality=low&room=${ROOM}&server=${encodeURIComponent(server)}&name=${name}&team=${team}&fill=4`;
-    a = await browser(9231, 'A');
-    b = await browser(9232, 'B');
+    a = await browser(CDP_A, 'A');
+    b = await browser(CDP_B, 'B');
     await a.navigate(url('Anna', 'T'));
     await sleep(4000);
     await b.navigate(url('Bert', 'CT'));

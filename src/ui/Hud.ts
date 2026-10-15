@@ -4,7 +4,7 @@ import type { HudState } from '../weapons/Shooter';
 import type { Team } from '../logic/economy';
 import type { MatchState, Pose } from '../logic/match';
 import type { GameEvent } from '../logic/net';
-import type { SolidBox } from '../logic/level';
+import type { Raster } from '../logic/overview';
 import type { Vec3 } from '../logic/hitbox';
 import { scoreboard } from '../logic/match';
 import { worldToRadar } from '../logic/radar';
@@ -109,7 +109,8 @@ export class Hud {
   private chatLines: { node: HTMLElement; t: number }[] = [];
   private chatSig = '';
   private chatSeen = new Map<string, number>();
-  private solids: SolidBox[] = [];
+  /** Vorgerenderte Karten-Draufsicht fürs Radar (logic/overview). */
+  private radarMap: { canvas: HTMLCanvasElement; minX: number; minZ: number; w: number; h: number } | null = null;
   private zones: Zones | null = null;
   private fpsFrames = 0;
   private fpsTime = 0;
@@ -117,8 +118,16 @@ export class Hud {
   private hostId = '';
   private readonly host = (): HTMLElement => (document.querySelector('needle-engine') as HTMLElement | null) ?? document.body;
 
-  mount(solids: SolidBox[] = []): void {
-    this.solids = solids;
+  /** Radarbild der Karte setzen (Draufsicht aus logic/overview). */
+  setRadarMap(r: Raster): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = r.w;
+    canvas.height = r.h;
+    canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.w, r.h), 0, 0);
+    this.radarMap = { canvas, minX: r.minX, minZ: r.minZ, w: r.w / r.pxPerM, h: r.h / r.pxPerM };
+  }
+
+  mount(): void {
     const root = document.createElement('div');
     root.className = 'hud ui-scope';
     root.innerHTML = `
@@ -617,18 +626,18 @@ export class Hud {
       const p = (g * size) / 6;
       c.beginPath(); c.moveTo(p, 0); c.lineTo(p, size); c.moveTo(0, p); c.lineTo(size, p); c.stroke();
     }
-    // Solids (Regale/Wände/Props) als gedrehte Rechtecke
-    c.fillStyle = 'rgba(150,170,190,.42)';
-    c.strokeStyle = 'rgba(200,215,230,.35)';
-    for (const s of this.solids) {
-      const corners = [[s.minX, s.minZ], [s.maxX, s.minZ], [s.maxX, s.maxZ], [s.minX, s.maxZ]].map(([x, z]) => worldToRadar(self.x, self.z, self.yaw, x!, z!, { size, range: view.range * 1.6 }));
-      if (!corners.some((p) => p.inside)) continue;
-      const real = [[s.minX, s.minZ], [s.maxX, s.minZ], [s.maxX, s.maxZ], [s.minX, s.maxZ]].map(([x, z]) => worldToRadar(self.x, self.z, self.yaw, x!, z!, view));
-      c.beginPath();
-      c.moveTo(real[0]!.x, real[0]!.y);
-      for (const p of real.slice(1)) c.lineTo(p.x, p.y);
-      c.closePath();
-      c.fill();
+    // Karten-Draufsicht: um den Spieler gedreht (Blickrichtung oben)
+    if (this.radarMap) {
+      const k = size / 2 / view.range;
+      c.save();
+      c.translate(size / 2, size / 2);
+      c.scale(k, k);
+      c.rotate(self.yaw);
+      c.translate(-self.x, -self.z);
+      c.globalAlpha = 0.9;
+      c.imageSmoothingEnabled = true;
+      c.drawImage(this.radarMap.canvas, this.radarMap.minX, this.radarMap.minZ, this.radarMap.w, this.radarMap.h);
+      c.restore();
     }
     // Bombenspots
     if (this.zones) {
@@ -637,6 +646,7 @@ export class Hud {
       c.textBaseline = 'middle';
       for (const k of ['a', 'b'] as const) {
         const z = worldToRadar(self.x, self.z, self.yaw, this.zones[k].x, this.zones[k].z, view);
+        if (this.radarMap && z.inside) continue; // Radarbild zeigt den Spot schon; sonst Randmarkierung
         const x = Math.max(12 * px, Math.min(size - 12 * px, z.x));
         const y = Math.max(12 * px, Math.min(size - 12 * px, z.y));
         c.fillStyle = 'rgba(255,90,74,.18)';

@@ -11,10 +11,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "bake": "bun scripts/bake-map.ts",
     "smoke": "bun scripts/smoke.mjs",
     "relay": "bun scripts/relay-server.ts",
-    "nettest": "bun scripts/net-test.mjs"
+    "nettest": "bun scripts/net-test.mjs",
+    "overview": "bun scripts/map-overview.ts"
   },
   "dependencies": {
     "@needle-tools/engine": "5.1.2",
@@ -22,10 +22,8 @@
   },
   "devDependencies": {
     "@needle-tools/helper": "^1.11.4",
-    "@types/mssql": "^9.1.5",
     "@types/three": "0.169.0",
     "@vitejs/plugin-basic-ssl": "2",
-    "mssql": "^11.0.1",
     "typescript": "^5.0.4",
     "vite": "8.0.3",
     "vitest": "^3.2.0"

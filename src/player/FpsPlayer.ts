@@ -1,12 +1,13 @@
 import { Behaviour, registerType } from '@needle-tools/engine';
 import * as THREE from 'three';
-import type { SolidBox } from '../logic/level';
-import { PLAYER, stepPlayer, type PlayerMotion } from '../logic/move';
+import { PLAYER, asCollider, stepPlayer, type MoveWorld, type PlayerMotion } from '../logic/move';
 import { wishSpeed } from '../logic/move';
 import { advanceBob, bobOffset, bobScale } from '../logic/bob';
 import { humanPartBoxes, type PartBox } from '../logic/hitbox';
 
 const SENS = 0.0022;
+/** Körperhöhe beim Ducken (Durchgänge ab ~1.3 m). */
+const CROUCH_HEIGHT = 1.25;
 const PITCH_MAX = Math.PI / 2 - 0.05;
 
 const dbg = globalThis as { __fpsDbg?: Record<string, number> };
@@ -30,8 +31,8 @@ function tick(key: string): void {
  */
 @registerType
 export class FpsPlayer extends Behaviour {
-  /** Solide Level-Boxen, gegen die kollidiert wird. */
-  solids: SolidBox[] = [];
+  /** Kollisionswelt der Karte (Quader + Rampen). */
+  collider: MoveWorld = [];
   /** Mausempfindlichkeit (rad/px) aus den Einstellungen. */
   sensitivity = SENS;
   /** Faktor beim Zoomen (FOV-Verhältnis). */
@@ -130,9 +131,9 @@ export class FpsPlayer extends Behaviour {
     window.removeEventListener('blur', this.clearInput);
   }
 
-  /** Setzt Position + Blick einmalig (Spawn). */
-  spawn(x: number, z: number, yaw = 0): void {
-    this.motion = { x, y: PLAYER.eye, z, vy: 0, grounded: true };
+  /** Setzt Position (Fußhöhe y) + Blick einmalig (Spawn). */
+  spawn(x: number, z: number, yaw = 0, y = 0): void {
+    this.motion = { x, y: y + PLAYER.eye, z, vy: 0, grounded: true };
     this.yaw = yaw;
     this.pitch = 0;
     this.recoilPitch = 0;
@@ -167,10 +168,14 @@ export class FpsPlayer extends Behaviour {
     const cam = this.context.mainCamera;
     if (!cam) return;
     tick('update');
-    const dt = Math.min(this.context.time.deltaTime, 0.05);
+    // bis 0.1 s je Frame (stepPlayer unterteilt intern) → echtes Lauftempo auch bei niedriger Bildrate
+    const dt = Math.min(this.context.time.deltaTime, 0.1);
 
-    const crouched = !!this.keys['ControlLeft'] || !!this.keys['ControlRight'];
+    // Ducken; unter niedriger Decke bleibt man geduckt, bis wieder Platz ist
+    const wantCrouch = !!this.keys['ControlLeft'] || !!this.keys['ControlRight'];
+    const crouched = wantCrouch || (this.crouchKey && asCollider(this.collider).blockedAt(this.motion.x, this.motion.z, this.motion.y - PLAYER.eye, PLAYER.radius, PLAYER.height, PLAYER.step));
     this.crouchKey = crouched;
+    const height = crouched ? CROUCH_HEIGHT : PLAYER.height;
 
     if (this.spawned && !this.frozen && !this.deadFlag && this.inputEnabled) {
       const wish = wishSpeed(
@@ -186,9 +191,9 @@ export class FpsPlayer extends Behaviour {
         PLAYER.sprintSpeed,
       );
       const jump = !crouched && !!this.keys['Space'];
-      this.motion = stepPlayer(this.motion, wish.x, wish.z, jump, dt, this.solids);
+      this.motion = stepPlayer(this.motion, wish.x, wish.z, jump, dt, this.collider, { height });
     } else {
-      this.motion = stepPlayer(this.motion, 0, 0, false, dt, this.solids);
+      this.motion = stepPlayer(this.motion, 0, 0, false, dt, this.collider, { height });
     }
 
     // Sicht-Höhe weich Richtung Duck-/Stand-Ziel interpolieren

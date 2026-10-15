@@ -1,4 +1,4 @@
-import { mulberry32 } from '../logic/demo';
+import { mulberry32 } from '../logic/rng';
 
 /**
  * Animierter Menü-Hintergrund. Schnittstelle, damit später ein echter 3D-Flug durch

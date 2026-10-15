@@ -3,12 +3,13 @@ import type { Team } from '../logic/economy';
 import type { Pose } from '../logic/match';
 import { humanPartBoxes, type PartBox } from '../logic/hitbox';
 import { WEAPONS } from '../logic/weapons';
+import { WEAPON_GEOM, weaponGeom, type WeaponGeom } from '../logic/weaponGeom';
 import { worldGeometry } from '../weapons/models';
 import { CROUCH_DROP, LEG, fallPose, solveLegAngles, walkPose } from './soldierAnim';
+import { holdPlan, type HoldPlan } from './soldierHold';
 import {
-  SHOULDER_X, SHOULDER_Y, TORSO_PIVOT_Y, WEAPON_POS,
-  buildArmGeometry, buildShinGeometry, buildThighGeometry, buildTorsoGeometry, buildWeaponGeometry,
-  type ArmStance, type WeaponKind,
+  SHOULDER_X, SHOULDER_Y, TORSO_PIVOT_Y,
+  buildArmGeometry, buildShinGeometry, buildThighGeometry, buildTorsoGeometry,
 } from './soldierParts';
 
 /** Tönung der Materialien: lebendig = unverändert (Vertex-Farben), tot = abgedunkelt/entsättigt. */
@@ -47,7 +48,10 @@ export class Soldier {
   private readonly shinR: THREE.Mesh;
   private readonly gunMesh: THREE.Mesh;
   private readonly label: THREE.Sprite;
-  private stance: ArmStance = 'long';
+  /** Haltung der aktuellen Waffe (Hand-Ziele, Waffen-Pose; soldierHold.ts). */
+  private plan: HoldPlan = holdPlan(WEAPON_GEOM.knife!);
+  private geom: WeaponGeom = WEAPON_GEOM.knife!;
+  private dualSide = false;
   private weaponId = '';
   private walkPhase = 0;
   private walkAmp = 0;
@@ -86,9 +90,9 @@ export class Soldier {
     this.torsoMesh = new THREE.Mesh(empty(), this.matTop);
     this.armL = new THREE.Mesh(empty(), this.matTop);
     this.armR = new THREE.Mesh(empty(), this.matTop);
-    this.armL.position.set(-SHOULDER_X, SHOULDER_Y - TORSO_PIVOT_Y, 0);
-    this.armR.position.set(SHOULDER_X, SHOULDER_Y - TORSO_PIVOT_Y, 0);
-    this.weaponNode.position.set(WEAPON_POS.x, WEAPON_POS.y - TORSO_PIVOT_Y, WEAPON_POS.z);
+    // Der Soldat blickt nach +z: seine Linke liegt bei +x, die Rechte (Schusshand) bei −x
+    this.armL.position.set(SHOULDER_X, SHOULDER_Y - TORSO_PIVOT_Y, 0);
+    this.armR.position.set(-SHOULDER_X, SHOULDER_Y - TORSO_PIVOT_Y, 0);
     this.gunMesh = new THREE.Mesh(empty(), this.matGun);
     this.weaponNode.add(this.gunMesh);
     this.torso.add(this.torsoMesh, this.armL, this.armR, this.weaponNode);
@@ -136,8 +140,8 @@ export class Soldier {
   private buildBody(): void {
     const t = this.team;
     this.swapGeometry(this.torsoMesh, buildTorsoGeometry(t));
-    this.swapGeometry(this.armR, buildArmGeometry(t, 'R', this.stance));
-    this.swapGeometry(this.armL, buildArmGeometry(t, 'L', this.stance));
+    this.swapGeometry(this.armR, buildArmGeometry(t, 'R', this.plan.right));
+    this.swapGeometry(this.armL, buildArmGeometry(t, 'L', this.plan.left));
     this.swapGeometry(this.thighL, buildThighGeometry(t, 'L'));
     this.swapGeometry(this.thighR, buildThighGeometry(t, 'R'));
     this.swapGeometry(this.shinL, buildShinGeometry(t, 'L'));
@@ -206,26 +210,51 @@ export class Soldier {
     this.torso.position.y = hipY + w.bob;
     this.torso.rotation.y = w.twist;
     this.torso.rotation.x = Math.max(-0.5, Math.min(0.5, -pitch * 0.35)) + 0.12 * crouch;
-    this.armL.rotation.x = w.armSway;
-    this.armR.rotation.x = -w.armSway;
+    // Greifende Arme bleiben an der Waffe (sie hängt am Oberkörper); nur der freie linke Arm pendelt
+    this.armL.rotation.x = this.plan.leftGrips ? 0 : w.armSway;
+    this.armR.rotation.x = 0;
   }
 
   setWeapon(id: string): void {
     if (id === this.weaponId) return;
     this.weaponId = id;
-    const def = WEAPONS[id];
-    const type: WeaponKind = def ? def.type : 'unknown';
-    // Welt-LOD der prozeduralen Waffenmodelle (Lauf nach −Z, Ursprung = Griff) → um 180° drehen,
-    // weil der Soldat nach +Z hält. Geklont, da swapGeometry die alte Geometrie entsorgt.
-    const world = worldGeometry(def?.visual.model ?? id);
-    this.swapGeometry(this.gunMesh, world ? world.clone() : buildWeaponGeometry(type));
-    this.gunMesh.rotation.y = world ? Math.PI : 0;
-    // Kurze Waffen: linke Hand umfasst den Griff, lange: Vorderschaft
-    const stance: ArmStance = type === 'pistol' || type === 'knife' || type === 'grenade' || type === 'bomb' || type === 'unknown' ? 'short' : 'long';
-    if (stance !== this.stance) {
-      this.stance = stance;
-      this.swapGeometry(this.armL, buildArmGeometry(this.team, 'L', stance));
-    }
+    const model = WEAPONS[id]?.visual.model ?? id;
+    const geom = weaponGeom(model);
+    // Welt-LOD der prozeduralen Waffenmodelle (Lauf nach −Z, Ursprung = Griff) → um 180° um y gedreht,
+    // weil der Soldat nach +z hält (Modell-x der Schützen-Rechten landet bei −x = rechte Körperseite).
+    // Geklont, da swapGeometry die alte Geometrie entsorgt.
+    const world = worldGeometry(model);
+    this.swapGeometry(this.gunMesh, world ? world.clone() : new THREE.BufferGeometry());
+    this.gunMesh.rotation.y = Math.PI;
+    this.geom = geom ?? WEAPON_GEOM.knife!;
+    this.plan = holdPlan(this.geom);
+    this.weaponNode.position.set(this.plan.origin.x, this.plan.origin.y - TORSO_PIVOT_Y, this.plan.origin.z);
+    this.weaponNode.rotation.x = -this.plan.pitch; // Mündung nach oben = negative Drehung um x
+    this.buildArms();
+  }
+
+  /** Arme neu aufbauen (Hand-Ziele der aktuellen Waffe). */
+  private buildArms(): void {
+    this.swapGeometry(this.armR, buildArmGeometry(this.team, 'R', this.plan.right));
+    this.swapGeometry(this.armL, buildArmGeometry(this.team, 'L', this.plan.left));
+  }
+
+  /** Mündung für den nächsten Schuss: die Elites feuern abwechselnd links und rechts. */
+  shotMuzzleWorld(out: THREE.Vector3): THREE.Vector3 {
+    if (!this.geom.muzzle2) return this.muzzleWorld(out);
+    this.dualSide = !this.dualSide;
+    return this.muzzleWorld(out, this.dualSide);
+  }
+
+  /**
+   * Weltposition der Mündung der gehaltenen Waffe (Mündungsfeuer, Leuchtspur); `second` = zweite
+   * Pistole der Elites. Die Matrizen werden vorher aktualisiert (auch wenn noch kein Frame lief).
+   */
+  muzzleWorld(out: THREE.Vector3, second = false): THREE.Vector3 {
+    const m = (second ? this.geom.muzzle2 : undefined) ?? this.geom.muzzle;
+    this.root.updateWorldMatrix(true, true);
+    // Welt-Geometrie liegt als (x, y, −f) im gunMesh
+    return this.gunMesh.localToWorld(out.set(m[0], m[1], -m[2]));
   }
 
   setAlive(alive: boolean): void {

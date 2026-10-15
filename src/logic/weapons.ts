@@ -1,4 +1,7 @@
 import type { RecoilSpec } from './recoil';
+import { aimRotation } from './viewPlace';
+import { VIEW_SCALE } from './viewAnim';
+import { weaponGeom } from './weaponGeom';
 import rawWeapons from './weapons.json';
 
 export type { RecoilSpec };
@@ -23,7 +26,8 @@ export type WeaponVisual = {
   model: string;
   /** Kameraraum-Position (m) des Griffpunkts der rechten Hand (unten rechts vor der Kamera). */
   pos: V3;
-  /** Grund-Drehung (rad) der Waffe im Kameraraum (rx hebt, ry schwenkt die Mündung nach links). */
+  /** Grund-Drehung (rad) der Waffe im Kameraraum (rx hebt, ry schwenkt die Mündung nach links);
+   *  bei Schusswaffen aus pos und Mündung berechnet, sodass die Laufachse aufs Fadenkreuz zeigt (viewPlace.ts). */
   rot: V3;
 };
 
@@ -82,23 +86,31 @@ type RawWeapon = Omit<WeaponDef, 'magSize' | 'reserve' | 'visual' | 'pellets'> &
   visual?: Partial<WeaponVisual>;
 };
 
-/** Viewmodel-Haltung je Waffentyp (im JSON pro Waffe überschreibbar: visual.pos / visual.rot). */
-export const TYPE_VISUAL: Record<WeaponType, Omit<WeaponVisual, 'model'>> = {
-  knife: { pos: { x: 0.11, y: -0.115, z: -0.21 }, rot: { x: 0.12, y: 0.3, z: 0.2 } },
-  pistol: { pos: { x: 0.1, y: -0.12, z: -0.25 }, rot: { x: 0.04, y: 0.06, z: 0 } },
-  smg: { pos: { x: 0.13, y: -0.125, z: -0.21 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
-  rifle: { pos: { x: 0.135, y: -0.13, z: -0.21 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
-  sniper: { pos: { x: 0.14, y: -0.135, z: -0.2 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
-  shotgun: { pos: { x: 0.135, y: -0.13, z: -0.21 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
-  mg: { pos: { x: 0.14, y: -0.14, z: -0.2 }, rot: { x: 0.03, y: 0.03, z: -0.03 } },
-  grenade: { pos: { x: 0.1, y: -0.115, z: -0.23 }, rot: { x: 0.1, y: 0.2, z: 0.1 } },
-  bomb: { pos: { x: 0.06, y: -0.12, z: -0.24 }, rot: { x: 0.35, y: 0.15, z: 0 } },
+/**
+ * Viewmodel-Haltung je Waffentyp (im JSON pro Waffe überschreibbar: visual.pos / visual.rot).
+ * `aim`: Drehung x/y wird aus Position und Mündung berechnet (Laufachse → Fadenkreuz), `rot.z` = Rollwinkel.
+ * Ohne `aim` (Messer, Granaten, C4) gilt `rot` wie angegeben.
+ */
+export const TYPE_VISUAL: Record<WeaponType, Omit<WeaponVisual, 'model'> & { aim: boolean }> = {
+  knife: { pos: { x: 0.11, y: -0.115, z: -0.21 }, rot: { x: 0.12, y: 0.3, z: 0.2 }, aim: false },
+  pistol: { pos: { x: 0.115, y: -0.115, z: -0.3 }, rot: { x: 0, y: 0, z: 0 }, aim: true },
+  smg: { pos: { x: 0.14, y: -0.125, z: -0.27 }, rot: { x: 0, y: 0, z: -0.03 }, aim: true },
+  rifle: { pos: { x: 0.14, y: -0.125, z: -0.27 }, rot: { x: 0, y: 0, z: -0.03 }, aim: true },
+  sniper: { pos: { x: 0.145, y: -0.13, z: -0.27 }, rot: { x: 0, y: 0, z: -0.03 }, aim: true },
+  shotgun: { pos: { x: 0.14, y: -0.125, z: -0.27 }, rot: { x: 0, y: 0, z: -0.03 }, aim: true },
+  mg: { pos: { x: 0.15, y: -0.135, z: -0.27 }, rot: { x: 0, y: 0, z: -0.03 }, aim: true },
+  grenade: { pos: { x: 0.1, y: -0.115, z: -0.23 }, rot: { x: 0.1, y: 0.2, z: 0.1 }, aim: false },
+  bomb: { pos: { x: 0.06, y: -0.12, z: -0.24 }, rot: { x: 0.35, y: 0.15, z: 0 }, aim: false },
 };
 
 function normalize(raw: Record<string, RawWeapon>): Record<string, WeaponDef> {
   const out: Record<string, WeaponDef> = {};
   for (const [id, w] of Object.entries(raw)) {
     const base = TYPE_VISUAL[w.type];
+    const model = w.visual?.model ?? id;
+    const pos = w.visual?.pos ?? base.pos;
+    const geom = weaponGeom(model);
+    const rot = w.visual?.rot ?? (base.aim && geom ? aimRotation(pos, VIEW_SCALE, geom, base.rot.z) : base.rot);
     out[id] = {
       ...w,
       id,
@@ -106,9 +118,9 @@ function normalize(raw: Record<string, RawWeapon>): Record<string, WeaponDef> {
       reserve: w.reserve ?? Infinity,
       pellets: w.pellets ?? 1,
       visual: {
-        model: w.visual?.model ?? id,
-        pos: w.visual?.pos ?? base.pos,
-        rot: w.visual?.rot ?? base.rot,
+        model,
+        pos,
+        rot,
       },
     };
   }

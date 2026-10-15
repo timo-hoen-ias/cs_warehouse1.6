@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MENU_TRACKS, fadeFactor, musicGain, nextTrackIndex } from './music';
-import { mulberry32 } from './demo';
+import { mulberry32 } from './rng';
 
 describe('MENU_TRACKS', () => {
   it('1–3 Titel, alle mit Datei, Autor, Lizenz und Quelle', () => {

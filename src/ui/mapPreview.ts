@@ -1,4 +1,6 @@
-import { mulberry32 } from '../logic/demo';
+import { mulberry32 } from '../logic/rng';
+import { renderOverview, type Raster } from '../logic/overview';
+import { loadMapData } from '../maps';
 
 /** Karteneintrag, wie ihn die Registry liefert — Vorschau-/Radar-Bild optional (später). */
 export type MapLike = { id: string; name: string; description: string; radar?: unknown; preview?: unknown };
@@ -96,7 +98,49 @@ export function drawMapPreview(canvas: HTMLCanvasElement, m: MapLike): void {
   c.fillRect(0, 0, w, h);
 }
 
-/** Vorschau-Element: Bild aus der Registry oder gezeichneter Platzhalter. */
+const overviewCache = new Map<string, HTMLCanvasElement | null>();
+
+/** Draufsicht der Karte (logic/overview, wie das HUD-Radar) als Canvas; null, wenn die Karte nicht baubar ist. */
+function overviewCanvas(id: string): HTMLCanvasElement | null {
+  if (overviewCache.has(id)) return overviewCache.get(id)!;
+  let cv: HTMLCanvasElement | null = null;
+  try {
+    const r: Raster = renderOverview(loadMapData(id), { pxPerM: 3, radar: true });
+    cv = document.createElement('canvas');
+    cv.width = r.w;
+    cv.height = r.h;
+    cv.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.w, r.h), 0, 0);
+  } catch {
+    cv = null;
+  }
+  overviewCache.set(id, cv);
+  return cv;
+}
+
+/** Radar-Draufsicht eingepasst (contain) auf dunklem Raster-Hintergrund. */
+function drawOverviewPreview(canvas: HTMLCanvasElement, src: HTMLCanvasElement): void {
+  const c = canvas.getContext('2d');
+  if (!c) return;
+  const w = canvas.width;
+  const h = canvas.height;
+  const bg = c.createLinearGradient(0, 0, w, h);
+  bg.addColorStop(0, '#16202a');
+  bg.addColorStop(1, '#0c1117');
+  c.fillStyle = bg;
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = 'rgba(140,180,220,.07)';
+  const g = Math.max(8, Math.round(w / 16));
+  for (let x = 0; x < w; x += g) { c.beginPath(); c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, h); c.stroke(); }
+  for (let y = 0; y < h; y += g) { c.beginPath(); c.moveTo(0, y + 0.5); c.lineTo(w, y + 0.5); c.stroke(); }
+  const pad = Math.round(Math.min(w, h) * 0.06);
+  const k = Math.min((w - pad * 2) / src.width, (h - pad * 2) / src.height);
+  const dw = src.width * k;
+  const dh = src.height * k;
+  c.imageSmoothingEnabled = true;
+  c.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
+}
+
+/** Vorschau-Element: Bild aus der Registry, sonst Radar-Draufsicht der Karte, sonst stilisierter Platzhalter. */
 export function mapPreviewElement(m: MapLike, w = 320, h = 180): HTMLElement {
   const img = mapImage(m);
   if (img) {
@@ -109,6 +153,8 @@ export function mapPreviewElement(m: MapLike, w = 320, h = 180): HTMLElement {
   const cv = document.createElement('canvas');
   cv.width = w;
   cv.height = h;
-  drawMapPreview(cv, m);
+  const ov = overviewCanvas(m.id);
+  if (ov) drawOverviewPreview(cv, ov);
+  else drawMapPreview(cv, m);
   return cv;
 }

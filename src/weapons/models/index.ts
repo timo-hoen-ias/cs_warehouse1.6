@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { stretchMap } from '../../logic/stretch';
+import { weaponGeom } from '../../logic/weaponGeom';
 import { Builder, type Built, type Rig } from './builder';
 import { c4, flashbang, hegrenade, knife, smokegrenade } from './gear';
 import { awp, g3sg1, m249, m3, mac10, mp5, p90, scout, sg550, tmp, ump45, xm1014 } from './longguns';
@@ -30,13 +32,19 @@ export function hasWeaponModel(id: string): boolean {
   return id in BUILDERS;
 }
 
+/** Baukasten mit Tabellen-Daten (Anker) und Längsstauchung des Modells (logic/weaponGeom.ts). */
+function makeBuilder(lod: 'view' | 'world', id: string): Builder {
+  const geom = weaponGeom(id);
+  return new Builder(lod, { geom, stretch: geom?.fit ? stretchMap(geom.fit) : undefined });
+}
+
 export type ViewWeapon = Built & { id: string; rig: Rig };
 
 /** Baut ein Viewmodel neu (ohne Cache; für Tests/Vorlagen). */
 export function buildViewWeapon(id: string): ViewWeapon | null {
   const fn = BUILDERS[id];
   if (!fn) return null;
-  const b = new Builder('view');
+  const b = makeBuilder('view', id);
   const rig = fn(b);
   return { ...b.build(), id, rig };
 }
@@ -45,7 +53,7 @@ export function buildViewWeapon(id: string): ViewWeapon | null {
 export function buildWorldGeometry(id: string): THREE.BufferGeometry | null {
   const fn = BUILDERS[id];
   if (!fn) return null;
-  const b = new Builder('world');
+  const b = makeBuilder('world', id);
   fn(b);
   const g = b.buildWorld();
   g.userData.shared = true;
@@ -64,6 +72,50 @@ export function worldGeometry(id: string): THREE.BufferGeometry | null {
     worldCache.set(id, g);
   }
   return g;
+}
+
+const partsCache = new Map<string, THREE.BufferGeometry[]>();
+
+/**
+ * Teilgeometrien der Welt-LOD für liegende Waffen: normalerweise die eine Geometrie; bei Doppelwaffen
+ * (Elites) je eine Pistole (die zweite um ihren Seitenversatz zurückverschoben, also wie eine normale
+ * Pistole mit Griff bei x = 0). Gecacht und geteilt (nicht entsorgen).
+ */
+export function worldGeometryParts(id: string): THREE.BufferGeometry[] {
+  const hit = partsCache.get(id);
+  if (hit) return hit;
+  const geo = worldGeometry(id);
+  if (!geo) return [];
+  const second = weaponGeom(id)?.muzzle2;
+  let parts: THREE.BufferGeometry[] = [geo];
+  if (second) {
+    const pos = geo.getAttribute('position');
+    const names = Object.keys(geo.attributes);
+    const split = second[0] / 2;
+    const halves = [[] as number[], [] as number[]];
+    for (let t = 0; t < pos.count; t += 3) {
+      const cx = (pos.getX(t) + pos.getX(t + 1) + pos.getX(t + 2)) / 3;
+      halves[cx < split ? 1 : 0]!.push(t, t + 1, t + 2);
+    }
+    parts = halves.map((idx, k) => {
+      const g = new THREE.BufferGeometry();
+      for (const name of names) {
+        const a = geo.getAttribute(name) as THREE.BufferAttribute;
+        const out = new Float32Array(idx.length * a.itemSize);
+        idx.forEach((v, i) => {
+          for (let c = 0; c < a.itemSize; c++) out[i * a.itemSize + c] = a.array[v * a.itemSize + c]!;
+        });
+        g.setAttribute(name, new THREE.BufferAttribute(out, a.itemSize));
+      }
+      if (k === 1) g.translate(-second[0], 0, 0);
+      g.computeBoundingBox();
+      g.computeBoundingSphere();
+      g.userData.shared = true;
+      return g;
+    });
+  }
+  partsCache.set(id, parts);
+  return parts;
 }
 
 const VIEW_CACHE_MAX = 6;

@@ -81,6 +81,9 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     title: 'Ton',
     controls: [
       percentControl('volume', 'Gesamtlautstärke'),
+      percentControl('volumeEffects', 'Effekte', 'Schüsse, Schritte, Explosionen'),
+      percentControl('volumeAmbience', 'Umgebung', 'Hallenbrummen, Wind, Maschinen'),
+      percentControl('volumeUi', 'Oberfläche', 'Menü, Treffer-Rückmeldung, Rundensignale'),
       percentControl('musicVolume', 'Menümusik'),
       { kind: 'toggle', key: 'musicMuted', label: 'Menümusik stumm' },
     ],

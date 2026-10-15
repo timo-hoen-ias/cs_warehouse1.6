@@ -1,4 +1,4 @@
-import { makeRig, type Builder, type Rig } from './builder';
+import { TBL, makeRig, type Builder, type Rig } from './builder';
 import { C, barrel, curvedMag, foreBack, gripAxis, rail, rect, scope, triggerGroup } from './common';
 
 /** Sturmgewehre (Koordinaten siehe builder.ts). */
@@ -51,9 +51,9 @@ export function ak47(b: Builder): Rig {
     for (let i = 0; i < 4; i++) b.box([0.027, 0.004, 0.06], [0, -0.01 - i * 0.04, 0.15 + i * i * 0.004 + i * 0.006], C.gun, { d: true, rot: [-0.2 - i * 0.08, 0, 0] });
   });
   b.anchor('magHold', [0, -0.085, 0.175], { axis: [0, 0.94, -0.33], back: [-1, 0, 0], r: 0.018, part: 'mag' });
-  b.anchor('muzzle', [0, bore, 0.785]);
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(0.32), back: [1, 0, 0], r: 0.017, trigger: true });
-  b.anchor('gripL', [0, 0.074, 0.4], { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.024 });
+  b.anchor('muzzle', TBL);
+  b.anchor('gripR', TBL, { axis: gripAxis(0.32), back: [1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripL', TBL, { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.024 });
   return makeRig('rifle', { reload: 'mag', charge: 'slide', cycle: 'slide', travel: { slide: 0.085, charge: 0.085, bolt: 0, boltLift: 0, pump: 0, mag: 0.06, cover: 0, pin: 0 }, magDir: [0, -0.95, -0.3], magAway: [-0.15, -1, 0] });
 }
 
@@ -93,9 +93,9 @@ export function m4a1(b: Builder): Rig {
     b.box([0.025, 0.01, 0.07], [0, -0.155, 0.13], C.gun, { rot: [-0.15, 0, 0] });
   });
   b.anchor('magHold', [0, -0.085, 0.13], { axis: [0, 0.98, -0.18], back: [-1, 0, 0], r: 0.018, part: 'mag' });
-  b.anchor('muzzle', [0, bore, 0.7]);
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(0.42), back: [1, 0, 0], r: 0.017, trigger: true });
-  b.anchor('gripL', [0, bore, 0.33], { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.024 });
+  b.anchor('muzzle', TBL);
+  b.anchor('gripR', TBL, { axis: gripAxis(0.42), back: [1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripL', TBL, { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.024 });
   return makeRig('rifle', { reload: 'mag', charge: 'charge', cycle: 'none', travel: { slide: 0, charge: 0.065, bolt: 0, boltLift: 0, pump: 0, mag: 0.06, cover: 0, pin: 0 }, magDir: [0, -0.99, -0.12] });
 }
 
@@ -135,9 +135,9 @@ export function galil(b: Builder): Rig {
     b.ext(curvedMag(0.1, 0.167, 0.032, 0.21, 0.05), 0.028, C.gun, { bevel: 0.002 });
   });
   b.anchor('magHold', [0, -0.09, 0.165], { axis: [0, 0.96, -0.28], back: [-1, 0, 0], r: 0.018, part: 'mag' });
-  b.anchor('muzzle', [0, bore, 0.795]);
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(0.32), back: [1, 0, 0], r: 0.017, trigger: true });
-  b.anchor('gripL', [0, 0.078, 0.4], { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.025 });
+  b.anchor('muzzle', TBL);
+  b.anchor('gripR', TBL, { axis: gripAxis(0.32), back: [1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripL', TBL, { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.025 });
   return makeRig('rifle', { reload: 'mag', charge: 'slide', cycle: 'slide', travel: { slide: 0.08, charge: 0.08, bolt: 0, boltLift: 0, pump: 0, mag: 0.06, cover: 0, pin: 0 }, magDir: [0, -0.96, -0.25] });
 }
 
@@ -173,9 +173,9 @@ export function famas(b: Builder): Rig {
     b.ext(curvedMag(-0.2, -0.14, 0.03, 0.17, 0.02), 0.024, C.gunLight, { bevel: 0.002 });
   });
   b.anchor('magHold', [0, -0.08, -0.16], { axis: [0, 1, -0.1], back: [-1, 0, 0], r: 0.017, part: 'mag' });
-  b.anchor('muzzle', [0, bore, 0.5]);
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(0.3), back: [1, 0, 0], r: 0.017, trigger: true });
-  b.anchor('gripL', [0, 0.065, 0.24], { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.03 });
+  b.anchor('muzzle', TBL);
+  b.anchor('gripR', TBL, { axis: gripAxis(0.3), back: [1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripL', TBL, { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.03 });
   return makeRig('rifle', { reload: 'mag', charge: 'charge', cycle: 'none', travel: { slide: 0, charge: 0.06, bolt: 0, boltLift: 0, pump: 0, mag: 0.06, cover: 0, pin: 0 }, magDir: [0, -1, -0.05] });
 }
 
@@ -207,9 +207,9 @@ export function aug(b: Builder): Rig {
     b.ext(curvedMag(-0.19, -0.13, 0.02, 0.17, 0.03), 0.026, 0x2a2e2a, { bevel: 0.002 });
   });
   b.anchor('magHold', [0, -0.08, -0.15], { axis: [0, 1, -0.15], back: [-1, 0, 0], r: 0.017, part: 'mag' });
-  b.anchor('muzzle', [0, bore, 0.52]);
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(0.3), back: [1, 0, 0], r: 0.017, trigger: true });
-  b.anchor('gripL', [0, -0.015, 0.218], { axis: gripAxis(0.12), back: [-1, 0, 0.2], r: 0.017 });
+  b.anchor('muzzle', TBL);
+  b.anchor('gripR', TBL, { axis: gripAxis(0.3), back: [1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripL', TBL, { axis: gripAxis(0.12), back: [-1, 0, 0.2], r: 0.017 });
   return makeRig('rifle', { reload: 'mag', charge: 'charge', cycle: 'none', travel: { slide: 0, charge: 0.07, bolt: 0, boltLift: 0, pump: 0, mag: 0.06, cover: 0, pin: 0 }, magDir: [0, -0.99, -0.15] });
 }
 
@@ -238,8 +238,8 @@ export function sg552(b: Builder): Rig {
     b.ext(curvedMag(0.095, 0.157, 0.04, 0.2, 0.06), 0.026, C.amber, { bevel: 0.002 });
   });
   b.anchor('magHold', [0, -0.085, 0.16], { axis: [0, 0.95, -0.3], back: [-1, 0, 0], r: 0.018, part: 'mag' });
-  b.anchor('muzzle', [0, bore, 0.555]);
-  b.anchor('gripR', [0, 0, 0], { axis: gripAxis(0.32), back: [1, 0, 0], r: 0.017, trigger: true });
-  b.anchor('gripL', [0, 0.073, 0.31], { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.025 });
+  b.anchor('muzzle', TBL);
+  b.anchor('gripR', TBL, { axis: gripAxis(0.32), back: [1, 0, 0], r: 0.017, trigger: true });
+  b.anchor('gripL', TBL, { axis: [0, 0, 1], back: foreBack(-0.35), r: 0.025 });
   return makeRig('rifle', { reload: 'mag', charge: 'slide', cycle: 'slide', travel: { slide: 0.07, charge: 0.07, bolt: 0, boltLift: 0, pump: 0, mag: 0.06, cover: 0, pin: 0 }, magDir: [0, -0.95, -0.3] });
 }

@@ -1,6 +1,6 @@
 import './theme.css';
 import './menu.css';
-import { MAPS, mapById } from '../logic/maps';
+import { MAPS, mapById } from '../maps';
 import { roomCode, sanitizeName } from '../logic/net';
 import { ROUND } from '../logic/round';
 import { BOMB } from '../logic/bombs';

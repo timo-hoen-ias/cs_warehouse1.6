@@ -1,351 +1,289 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { LevelFile, Prop } from '../shared/level';
-import { computeSolids, type SolidBox } from '../logic/level';
-import { BASE_H, LEVEL_GAP, SLOT, cellLocalPosition, cellSize, gangPlätze, isCatchAll, layoutRacks, type RackPlacement } from '../logic/layout';
-import { propSolid } from '../logic/props';
-import { mulberry32 } from '../logic/demo';
-import { cageTexture, containerTexture, crateTexture, exitSignTexture, floorTexture, palletTexture, signTexture, spotTexture, wallTexture } from './textures';
-import { buildCeiling, floorLightMap } from './Ceiling';
+import type { DecorKind, Facing, MapData, MaterialId } from '../logic/mapkit';
+import { LEVEL_HIGH, LEVEL_LOW, buildLevelMesh, sampleLight, type LevelBake } from '../logic/levelmesh';
+import { luminance, type RGB } from '../logic/bake';
+import { decalTexture, glowTexture, materialTexture, serverFrontTexture, serverLedTexture, setTextureQuality, signTexture } from './textures';
+import { decorGeometry, decorGlows } from './decor';
 
 export type LevelBuild = {
   group: THREE.Group;
-  solids: SolidBox[];
-  /** Begehbare Innenfläche (für Radar). */
-  inner: { minX: number; maxX: number; minZ: number; maxZ: number };
-  /** Hallenhöhe (Unterkante Dach). */
-  height: number;
+  bake: LevelBake;
+  /** Gebackenes Licht an einem Punkt (für Figuren/Viewmodel-Helligkeit). */
+  probe(x: number, y: number, z: number): RGB;
+  stats: { meshes: number; verts: number; tris: number; instances: number; ms: number };
 };
 
-const CONTAINER_COLORS = ['#b5432b', '#2b6cb0', '#2f855a', '#b7791f'];
-const POST = 0.09;
-const BEAM_H = 0.12;
+/**
+ * Baut die Kartendarstellung: Levelgeometrie je Material/Kachel mit gebackenem
+ * Vertex-Licht (unbeleuchtete Materialien → sehr günstig, auch in Software-GL),
+ * instanzierte Deko, Schilder, Bodenmarkierungen, Himmel mit Sonne und Skyline,
+ * auf „hoch“ zusätzlich Lichtkegel unter den Hallenleuchten.
+ */
+export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): LevelBuild {
+  const t0 = performance.now();
+  setTextureQuality(quality);
+  const group = new THREE.Group();
+  group.name = 'level';
+  const { parts, bake } = buildLevelMesh(map, quality === 'high' ? LEVEL_HIGH : LEVEL_LOW);
+  const stats = { meshes: 0, verts: 0, tris: 0, instances: 0, ms: 0 };
 
-/** Instanz-Sammler: ein InstancedMesh je Bauteil für das ganze Level (wenige Draw-Calls). */
-class Instances {
-  private readonly list: { m: THREE.Matrix4; c?: THREE.Color }[] = [];
-  constructor(private readonly geo: THREE.BufferGeometry, private readonly mat: THREE.Material, private readonly shadow = true) {}
-  add(x: number, y: number, z: number, sx = 1, sy = 1, sz = 1, color?: THREE.Color): void {
-    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz));
-    this.list.push({ m, c: color });
+  // ---------------------------------------------------------------- Levelgeometrie
+  const mats = new Map<MaterialId, THREE.MeshBasicMaterial>();
+  const matFor = (m: MaterialId): THREE.MeshBasicMaterial => {
+    let mat = mats.get(m);
+    if (!mat) {
+      mat = new THREE.MeshBasicMaterial({ vertexColors: true, map: m === 'emissive' ? null : materialTexture(m) });
+      if (m === 'cage') {
+        mat.alphaTest = 0.5;
+        mat.side = THREE.DoubleSide;
+      }
+      mats.set(m, mat);
+    }
+    return mat;
+  };
+  for (const p of parts) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(p.positions, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(p.uvs, 2));
+    geo.setAttribute('color', new THREE.BufferAttribute(p.colors, 3));
+    geo.setIndex(new THREE.BufferAttribute(p.indices, 1));
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(...p.center), p.radius);
+    const mesh = new THREE.Mesh(geo, matFor(p.mat));
+    mesh.matrixAutoUpdate = false;
+    mesh.name = `lvl-${p.mat}`;
+    group.add(mesh);
+    stats.meshes++;
+    stats.verts += p.positions.length / 3;
+    stats.tris += p.indices.length / 3;
   }
-  build(): THREE.InstancedMesh | null {
-    if (!this.list.length) return null;
-    const mesh = new THREE.InstancedMesh(this.geo, this.mat, this.list.length);
-    this.list.forEach((e, i) => {
-      mesh.setMatrixAt(i, e.m);
-      if (e.c) mesh.setColorAt(i, e.c);
+
+  const light = (x: number, y: number, z: number, n: [number, number, number] = [0, 1, 0]): RGB => sampleLight(bake, [x, y, z], n);
+
+  // ---------------------------------------------------------------- Deko (instanziert)
+  const byKind = new Map<DecorKind, typeof map.decor>();
+  for (const d of map.decor) {
+    const list = byKind.get(d.kind);
+    if (list) list.push(d);
+    else byKind.set(d.kind, [d]);
+  }
+  const m4 = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const tmpC = new THREE.Color();
+  const instanced = (kind: DecorKind, geo: THREE.BufferGeometry, mat: THREE.Material, list: typeof map.decor, glow: boolean): void => {
+    const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach((d, i) => {
+      q.setFromAxisAngle(up, d.rot ?? 0);
+      const s = d.scale ?? [1, 1, 1];
+      m4.compose(new THREE.Vector3(...d.pos), q, new THREE.Vector3(s[0], s[1], s[2]));
+      mesh.setMatrixAt(i, m4);
+      tmpC.set(d.tint ?? 0xffffff).convertSRGBToLinear();
+      const L = glow ? ([1, 1, 1] as RGB) : decorLight(d);
+      mesh.setColorAt(i, new THREE.Color(tmpC.r * L[0], tmpC.g * L[1], tmpC.b * L[2]));
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.castShadow = this.shadow;
-    mesh.receiveShadow = true;
-    return mesh;
+    mesh.name = `decor-${kind}`;
+    mesh.computeBoundingSphere();
+    group.add(mesh);
+    stats.instances += list.length;
+  };
+  /** Licht für eine Deko-Instanz: Mittel aus Oben- und Seitenproben knapp über dem Objekt (nicht im eigenen Kollisionskörper). */
+  const decorLight = (d: (typeof map.decor)[number]): RGB => {
+    const h = (DECOR_HEIGHT[d.kind] ?? 1) * (d.scale?.[1] ?? 1);
+    const y = d.pos[1] + (d.kind.startsWith('pipe') || d.kind.startsWith('cable') ? Math.min(h, 4) / 2 : h + 0.25);
+    // Hellste freie Probe (Proben in Wänden/Decken wären schwarz) etwas gedämpft
+    let best: RGB = [0, 0, 0];
+    let sum: RGB = [0, 0, 0];
+    for (const n of [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]] as [number, number, number][]) {
+      const c = light(d.pos[0] + n[0] * 0.6, y, d.pos[2] + n[2] * 0.6, n);
+      sum = [sum[0] + c[0], sum[1] + c[1], sum[2] + c[2]];
+      if (luminance(c) > luminance(best)) best = c;
+    }
+    return [best[0] * 0.6 + sum[0] * 0.08, best[1] * 0.6 + sum[1] * 0.08, best[2] * 0.6 + sum[2] * 0.08];
+  };
+  const decorMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+  for (const [kind, list] of byKind) {
+    instanced(kind, decorGeometry(kind, quality === 'low'), decorMat, list, decorGlows(kind));
+    if (kind === 'serverRack') {
+      // Front- und Rückseite mit Einschüben + additive Status-LEDs (leuchten auch im Dunkeln)
+      const panel = (z: number, flip: boolean): THREE.BufferGeometry => {
+        const g = new THREE.PlaneGeometry(0.54, 1.88);
+        if (flip) g.rotateY(Math.PI);
+        return g.translate(0, 1.0, z);
+      };
+      const front = new THREE.MeshBasicMaterial({ map: serverFrontTexture(), color: 0xd0d8e0 });
+      instanced('serverLeds', mergeGeometries([panel(0.505, false), panel(-0.505, true)])!, front, list.map((d) => ({ ...d, tint: 0xffffff })), false);
+      const leds = new THREE.MeshBasicMaterial({ map: serverLedTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+      instanced('serverLeds', mergeGeometries([panel(0.512, false), panel(-0.512, true)])!, leds, list.map((d) => ({ ...d, tint: 0xffffff })), true);
+    }
   }
-}
 
-/**
- * Baut ein Level (LevelFile) als drei.js-Gruppe: Boden mit Markierungen, Wände,
- * Regale mit echter Struktur (Steher, Traversen, Paletten, Kartons — instanziert),
- * Requisiten, Zwischenebenen/Rampe, Beschilderung, Hallendach. Kollision läuft
- * über dieselben soliden Boxen (Regale/Wände aus computeSolids + Props + Strukturen).
- */
-export function buildLevelView(level: LevelFile, quality: 'high' | 'low' = 'high'): LevelBuild {
-  const group = new THREE.Group();
-  const props = level.props ?? [];
-  const structures = level.structures ?? [];
-  const solids = [...computeSolids(level.lager), ...props.map(propSolid), ...structures];
-  const racks = layoutRacks(level.lager.lagerorte);
-
-  const walls = solids.filter((s) => s.kind === 'wall');
-  const byLabel = (l: string) => walls.find((w) => w.label === l)!;
-  const inner = { minX: byLabel('wand-west').maxX, maxX: byLabel('wand-ost').minX, minZ: byLabel('wand-nord').maxZ, maxZ: byLabel('wand-sued').minZ };
-  const height = walls[0]?.maxY ?? 6;
-
-  buildFloor(group, inner, racks);
-  buildCeiling(group, inner, height, quality);
-  buildExitSigns(group, inner);
-  for (const b of walls) {
-    const tex = wallTexture().clone();
-    tex.needsUpdate = true;
-    tex.repeat.set(Math.max(b.maxX - b.minX, b.maxZ - b.minZ) / 4, 1);
-    addSolidBox(group, b, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 }));
-  }
-  buildRacks(group, racks);
-  for (const p of props) addProp(group, p);
-  for (const st of structures) addStructure(group, st);
-  buildSigns(group, level, height);
-
-  // Bombenspots als Boden-Decals
-  for (const [letter, v] of [['A', level.zones.a], ['B', level.zones.b]] as const) {
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(5, 5),
-      new THREE.MeshBasicMaterial({ map: spotTexture(letter), transparent: true, opacity: 0.85, depthWrite: false }),
-    );
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(v[0], 0.02, v[2]);
+  // ---------------------------------------------------------------- Schilder
+  const facingRot: Record<Facing, number> = { pz: 0, nz: Math.PI, px: Math.PI / 2, nx: -Math.PI / 2 };
+  const facingN: Record<Facing, [number, number, number]> = { pz: [0, 0, 1], nz: [0, 0, -1], px: [1, 0, 0], nx: [-1, 0, 0] };
+  for (const s of map.signs) {
+    const color = '#' + (s.color ?? 0xffd040).toString(16).padStart(6, '0');
+    const bg = '#' + (s.bg ?? 0x16191d).toString(16).padStart(6, '0');
+    const tex = signTexture(s.text, color, bg, s.sub);
+    const L = light(s.pos[0], s.pos[1], s.pos[2], facingN[s.facing]);
+    const k = Math.max(0.55, Math.min(1.3, luminance(L) * 1.4));
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, color: new THREE.Color(k, k, k) });
+    // Textur: obere Hälfte = Schild
+    const geo = new THREE.PlaneGeometry(s.w, s.h);
+    const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
+    for (let i = 0; i < uv.count; i++) uv.setY(i, 0.5 + uv.getY(i) * 0.5);
+    const mesh = new THREE.Mesh(geo, mat);
+    const n = facingN[s.facing];
+    mesh.position.set(s.pos[0] + n[0] * 0.03, s.pos[1], s.pos[2] + n[2] * 0.03);
+    mesh.rotation.y = facingRot[s.facing];
     group.add(mesh);
   }
-  return { group, solids, inner, height };
-}
 
-// ---------------------------------------------------------------- Regale
+  // ---------------------------------------------------------------- Bodenmarkierungen
+  for (const d of map.decals) {
+    const L = light(d.pos[0], d.pos[1], d.pos[2]);
+    const c = new THREE.Color(d.color ?? 0xffffff).convertSRGBToLinear();
+    const mat = new THREE.MeshBasicMaterial({
+      map: d.kind === 'line' ? null : decalTexture(d.kind, d.text),
+      transparent: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+      opacity: d.kind === 'grid' ? 0.7 : d.kind === 'stain' ? 0.9 : 0.85,
+      color: new THREE.Color(c.r * L[0], c.g * L[1], c.b * L[2]),
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(d.size[0], d.size[1]), mat);
+    mesh.rotation.order = 'YXZ';
+    mesh.rotation.set(-Math.PI / 2, d.rot ?? 0, 0);
+    mesh.position.set(d.pos[0], d.pos[1], d.pos[2]);
+    mesh.renderOrder = 1;
+    group.add(mesh);
+  }
 
-function buildRacks(group: THREE.Group, racks: RackPlacement[]): void {
-  const rnd = mulberry32(31);
-  const steel = new THREE.MeshStandardMaterial({ color: 0x2f5fb3, roughness: 0.45, metalness: 0.55 });
-  const orange = new THREE.MeshStandardMaterial({ color: 0xe8601c, roughness: 0.5, metalness: 0.4 });
-  const wood = new THREE.MeshStandardMaterial({ map: palletTexture(), roughness: 0.9 });
-  const carton = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });
-  // Kleinteile werfen keine Schatten (Schattenpass wäre sonst der teuerste Teil des Frames)
-  const posts = new Instances(new THREE.BoxGeometry(POST, 1, POST), steel, false);
-  const beams = new Instances(new THREE.BoxGeometry(1, BEAM_H, 0.07), orange, false);
-  const pallets = new Instances(new THREE.BoxGeometry(1, 1, 1), wood, false);
-  const cartons = new Instances(new THREE.BoxGeometry(1, 1, 1), carton, false);
-  const backMat = new THREE.MeshStandardMaterial({ color: 0x1d2127, roughness: 1, side: THREE.DoubleSide });
-  const shades = [0xb08a5a, 0xc39a67, 0x9c7a4c, 0xd1b48c, 0x8a6c45, 0xbfa37a];
+  // ---------------------------------------------------------------- Himmel, Sonne, Skyline
+  group.add(buildSky(map));
 
-  for (const r of racks) {
-    const [ox, , oz] = r.origin;
-    const w = r.size.w;
-    const d = r.size.d;
-    const h = r.size.h;
-    if (!r.flat) {
-      // Steher je Slot-Grenze, vorne und hinten
-      for (let i = 0; i <= r.depth; i++) {
-        const z = oz - d / 2 + i * SLOT;
-        for (const sx of [-1, 1]) posts.add(ox + sx * (w / 2 - POST / 2), h / 2, z, 1, h, 1);
-      }
-      // Traversen je Ebene (vorne/hinten über die ganze Tiefe)
-      for (let lv = 0; lv <= r.levels; lv++) {
-        const y = Math.min(h - BEAM_H / 2, BASE_H + lv * (r.cellH + LEVEL_GAP) - BEAM_H / 2);
-        for (const sx of [-1, 1]) beams.add(ox + sx * (w / 2 - 0.035), y, oz, d, 1, 1);
-      }
-      // Rückwand in der Regalmitte → keine Sicht durch leere Fächer (Kollision = Box)
-      const back = new THREE.Mesh(new THREE.PlaneGeometry(d, h), backMat);
-      back.rotation.y = Math.PI / 2;
-      back.position.set(ox, h / 2, oz);
-      group.add(back);
+  // ---------------------------------------------------------------- Lichtkegel (nur hoch)
+  if (quality === 'high') {
+    const coneGeo = new THREE.CylinderGeometry(0.35, 2.6, 5.5, 16, 1, true).translate(0, -2.75, 0);
+    const cols = new Float32Array(coneGeo.getAttribute('position').count * 3);
+    const pos = coneGeo.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      const k = Math.max(0, 1 + pos.getY(i) / 5.5) ** 2 * 0.035;
+      cols[i * 3] = k;
+      cols[i * 3 + 1] = k * 0.92;
+      cols[i * 3 + 2] = k * 0.78;
     }
-    // Paletten + Kartons je Platz mit Bestand
-    for (const platz of gangPlätze(r.ort, r.kind, r.gang)) {
-      if (isCatchAll(platz)) continue;
-      const [lx, ly, lz] = cellLocalPosition(platz, r);
-      const c = cellSize(platz);
-      const baseY = ly - c.h / 2;
-      const filled = platz.bestaende.length > 0 || rnd() < 0.35;
-      pallets.add(ox + lx, baseY + 0.07, oz + lz, c.w * 0.95, 0.14, c.d * 0.95);
-      if (!filled) continue;
-      const n = 1 + Math.floor(rnd() * 2);
-      const bh = Math.max(0.2, (c.h - 0.2) * (0.45 + rnd() * 0.5));
-      for (let k = 0; k < n; k++) {
-        const bw = c.w * (n === 1 ? 0.82 : 0.4);
-        const bx = ox + lx + (n === 1 ? 0 : (k === 0 ? -1 : 1) * c.w * 0.22);
-        const color = new THREE.Color(shades[Math.floor(rnd() * shades.length)]!);
-        cartons.add(bx, baseY + 0.14 + bh / 2, oz + lz, bw, bh, c.d * 0.8, color);
-      }
+    coneGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+    const coneMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true });
+    const lamps = map.decor.filter((d) => d.kind === 'lampHall');
+    if (lamps.length) {
+      const cones = new THREE.InstancedMesh(coneGeo, coneMat, lamps.length);
+      lamps.forEach((d, i) => cones.setMatrixAt(i, m4.makeTranslation(d.pos[0], d.pos[1] - 0.25, d.pos[2])));
+      cones.instanceMatrix.needsUpdate = true;
+      cones.renderOrder = 2;
+      cones.computeBoundingSphere();
+      group.add(cones);
+    }
+    // Leuchthöfe um alle Lampen
+    const glowMat = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffe6c0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.55 });
+    for (const l of map.lights) {
+      if (l.kind === 'window') continue;
+      const sp = new THREE.Sprite(glowMat);
+      sp.position.set(l.pos[0], l.pos[1] + 0.12, l.pos[2]);
+      const sz = l.kind === 'tube' ? 1.4 : 1.1;
+      sp.scale.set(sz, sz, sz);
+      group.add(sp);
     }
   }
-  for (const inst of [posts, beams, pallets, cartons]) {
-    const m = inst.build();
-    if (m) group.add(m);
-  }
-}
 
-// ---------------------------------------------------------------- Boden / Dach / Schilder
-
-/** Bodenplatte bis zur Innenkante der Wände + gelbe Sicherheitsmarkierungen um Regale. */
-function buildFloor(group: THREE.Group, inner: LevelBuild['inner'], racks: RackPlacement[]): void {
-  const w = inner.maxX - inner.minX;
-  const d = inner.maxZ - inner.minZ;
-  const t = floorTexture().clone();
-  t.needsUpdate = true;
-  t.repeat.set(w / 2, d / 2);
-  // Gebackene Licht-Map: Lichtflecken unter den Hallenstrahlern
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, lightMap: floorLightMap(inner), lightMapIntensity: 0.35 }));
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set((inner.minX + inner.maxX) / 2, 0, (inner.minZ + inner.maxZ) / 2);
-  mesh.receiveShadow = true;
-  group.add(mesh);
-
-  // Markierungen: Rahmen 0.4 m außerhalb jeder Regal-Grundfläche, 0.1 m breit (ein Mesh)
-  const geos: THREE.BufferGeometry[] = [];
-  const strip = (x: number, z: number, sx: number, sz: number): void => {
-    const g = new THREE.PlaneGeometry(sx, sz);
-    g.rotateX(-Math.PI / 2);
-    g.translate(x, 0.012, z);
-    geos.push(g);
+  // Lichtsonde (gecacht auf 2-m-Raster)
+  const probes = new Map<string, RGB>();
+  const probe = (x: number, y: number, z: number): RGB => {
+    const k = `${Math.round(x / 2)},${Math.round(y / 2)},${Math.round(z / 2)}`;
+    let v = probes.get(k);
+    if (!v) {
+      const a = light(Math.round(x / 2) * 2, Math.round(y / 2) * 2 + 1.2, Math.round(z / 2) * 2, [0, 1, 0]);
+      const b = light(Math.round(x / 2) * 2, Math.round(y / 2) * 2 + 1.2, Math.round(z / 2) * 2, [0.7, 0.2, 0.7]);
+      v = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+      probes.set(k, v);
+    }
+    return v;
   };
-  for (const r of racks) {
-    const [ox, , oz] = r.origin;
-    const hw = r.size.w / 2 + 0.4;
-    const hd = r.size.d / 2 + 0.4;
-    strip(ox, oz - hd, hw * 2, 0.1);
-    strip(ox, oz + hd, hw * 2, 0.1);
-    strip(ox - hw, oz, 0.1, hd * 2);
-    strip(ox + hw, oz, 0.1, hd * 2);
-  }
-  if (geos.length) {
-    const merged = mergeGeometries(geos, false);
-    if (merged) {
-      const marks = new THREE.Mesh(merged, new THREE.MeshBasicMaterial({ color: 0xd9b400, transparent: true, opacity: 0.75, depthWrite: false }));
-      group.add(marks);
-    }
-    for (const g of geos) g.dispose();
-  }
+
+  stats.ms = performance.now() - t0;
+  return { group, bake, probe, stats };
 }
 
-/** Grüne Notausgang-Schilder mittig an jeder Wand (leuchtend). */
-function buildExitSigns(group: THREE.Group, inner: LevelBuild['inner']): void {
-  const mat = new THREE.MeshBasicMaterial({ map: exitSignTexture() });
-  const geo = new THREE.PlaneGeometry(1.2, 1.2);
-  const place = (x: number, z: number, rotY: number): void => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, 3.0, z);
-    m.rotation.y = rotY;
-    group.add(m);
+/** Ungefähre Höhe der Deko-Formen (für Lichtproben über dem Objekt). */
+const DECOR_HEIGHT: Partial<Record<DecorKind, number>> = { barrel: 0.9, drum: 0.8, forklift: 2.3, serverRack: 2.1, ibc: 1.2, wheel: 0.6, fanUnit: 0.4, cone: 0.6, extinguisher: 0.6, fencePost: 1, pipeY: 1 };
+
+/** Himmelskuppel mit Verlauf, Sonnenscheibe und Industrie-Skyline (folgt der Kamera). */
+function buildSky(map: MapData): THREE.Object3D {
+  const root = new THREE.Group();
+  root.name = 'sky';
+  const geo = new THREE.SphereGeometry(200, 32, 16);
+  const pos = geo.getAttribute('position');
+  const cols = new Float32Array(pos.count * 3);
+  const top = new THREE.Color(map.env.skyTop);
+  const hor = new THREE.Color(map.env.skyHorizon);
+  const fog = new THREE.Color(map.env.fogColor);
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) / 200;
+    if (y >= 0) c.copy(hor).lerp(top, Math.pow(y, 0.55));
+    else c.copy(hor).lerp(fog, Math.min(1, -y * 4));
+    cols[i * 3] = c.r;
+    cols[i * 3 + 1] = c.g;
+    cols[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  const dome = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+  dome.renderOrder = -100;
+  root.add(dome);
+  // Sonne
+  const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xfff0c8, fog: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
+  const sd = new THREE.Vector3(...map.env.sunDir).normalize();
+  sun.position.copy(sd.multiplyScalar(180));
+  sun.scale.set(42, 42, 42);
+  sun.renderOrder = -99;
+  root.add(sun);
+  // Skyline: dunkle Hallen, Kräne, Schornsteine am Horizont
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, 2048, 128);
+  let seed = 7;
+  const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const sil = new THREE.Color(map.env.fogColor).multiplyScalar(0.62);
+  ctx.fillStyle = `rgb(${sil.r * 255 | 0},${sil.g * 255 | 0},${sil.b * 255 | 0})`;
+  for (let x = 0; x < 2048;) {
+    const w = 40 + rnd() * 140;
+    const h = 18 + rnd() * 46;
+    ctx.fillRect(x, 128 - h, w, h);
+    if (rnd() < 0.25) ctx.fillRect(x + w * 0.3, 128 - h - 40 - rnd() * 30, 6, 60); // Schornstein
+    if (rnd() < 0.15) {
+      ctx.fillRect(x + w * 0.5, 128 - h - 70, 5, 70);
+      ctx.fillRect(x + w * 0.5 - 50, 128 - h - 70, 110, 5); // Kran
+    }
+    x += w + rnd() * 30;
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.repeat.set(2, 1);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(190, 190, 34, 48, 1, true), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+  band.position.y = 4;
+  band.renderOrder = -98;
+  root.add(band);
+  // Kuppel folgt der Kamera (nie abgeschnitten, keine Parallaxe)
+  dome.onBeforeRender = (_r, _s, cam) => {
+    root.position.set(cam.position.x, cam.position.y * 0.15, cam.position.z);
+    root.updateMatrixWorld(true);
   };
-  const cx = (inner.minX + inner.maxX) / 2;
-  const cz = (inner.minZ + inner.maxZ) / 2;
-  place(cx, inner.minZ + 0.02, 0);
-  place(cx, inner.maxZ - 0.02, Math.PI);
-  place(inner.minX + 0.02, cz, Math.PI / 2);
-  place(inner.maxX - 0.02, cz, -Math.PI / 2);
-}
-
-/** Hängende Schilder: Bereiche (Wareneingang/Versand/Spots) + Gangnummern. */
-function buildSigns(group: THREE.Group, level: LevelFile, height: number): void {
-  const sign = (text: string, color: string, x: number, z: number, rotY = 0, w = 4): void => {
-    const tex = signTexture(text, color);
-    tex.repeat.set(1, 0.3);
-    tex.offset.set(0, 0.35);
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
-    // Zwei einseitige Flächen Rücken an Rücken → Text von beiden Seiten lesbar (nicht gespiegelt)
-    for (const flip of [0, Math.PI]) {
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 0.3), mat);
-      mesh.position.set(x, height - 1.4, z);
-      mesh.rotation.y = rotY + flip;
-      group.add(mesh);
-    }
-    const chain = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.9, 0.03), new THREE.MeshBasicMaterial({ color: 0x777777 }));
-    chain.position.set(x, height - 0.5, z);
-    group.add(chain);
-  };
-  const z = level.zones;
-  sign('WARENEINGANG', '#ffb070', z.t[0], z.t[2] + 4, 0, 5);
-  sign('VERSAND', '#8fc0ff', z.ct[0], z.ct[2] - 4, 0, 5);
-  sign('BOMBENSPOT A', '#ff5a4a', z.a[0], z.a[2], Math.PI / 2, 4.5);
-  sign('BOMBENSPOT B', '#ffb13a', z.b[0], z.b[2], Math.PI / 2, 4.5);
-  const racks = layoutRacks(level.lager.lagerorte);
-  const seen = new Set<string>();
-  let n = 1;
-  for (const r of racks) {
-    const key = r.ort.lagerkennung;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    sign(`GANG ${n++} · ${key}`, '#dfe6ee', r.origin[0], r.origin[2] - r.size.d / 2 - 1.5, 0, 3);
-  }
-}
-
-// ---------------------------------------------------------------- Boxen
-
-function addSolidBox(group: THREE.Group, b: SolidBox, mat: THREE.Material | THREE.Material[]): THREE.Mesh {
-  const geo = new THREE.BoxGeometry(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ);
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
-}
-
-const STRUCT_MATS: Partial<Record<SolidBox['kind'], THREE.Material>> = {};
-function structMat(kind: SolidBox['kind']): THREE.Material {
-  let m = STRUCT_MATS[kind];
-  if (m) return m;
-  switch (kind) {
-    case 'platform': m = new THREE.MeshStandardMaterial({ map: cageTexture(), color: 0x8a949c, roughness: 0.6, metalness: 0.5 }); break;
-    case 'step': m = new THREE.MeshStandardMaterial({ color: 0x6a6f76, roughness: 0.95 }); break;
-    case 'pillar': m = new THREE.MeshStandardMaterial({ color: 0x2f5fb3, roughness: 0.5, metalness: 0.5 }); break;
-    case 'rail': m = new THREE.MeshStandardMaterial({ color: 0xd9b400, roughness: 0.5, metalness: 0.4 }); break;
-    case 'dock': m = new THREE.MeshStandardMaterial({ map: floorTexture(), color: 0x9aa0a8, roughness: 0.95 }); break;
-    default: m = new THREE.MeshStandardMaterial({ color: 0x888888 });
-  }
-  STRUCT_MATS[kind] = m;
-  return m;
-}
-
-/** Struktur-Teil rendern: Plattform (Gitterrost), Stufen (Beton), Stützen (Stahl), Geländer (gelb), Rampe (Beton). */
-function addStructure(group: THREE.Group, s: SolidBox): void {
-  if (s.kind === 'rail') {
-    addRail(group, s);
-    return;
-  }
-  addSolidBox(group, s, structMat(s.kind));
-  if (s.kind === 'dock') {
-    const edge = new THREE.Mesh(new THREE.BoxGeometry(s.maxX - s.minX, 0.02, 0.3), new THREE.MeshBasicMaterial({ color: 0xd9b400 }));
-    edge.position.set((s.minX + s.maxX) / 2, s.maxY + 0.01, s.minZ + 0.15);
-    group.add(edge);
-  }
-}
-
-/** Geländer als offenes Stahlgitter: Handlauf, Knieleiste, Pfosten (Kollision bleibt die volle Box). */
-function addRail(group: THREE.Group, s: SolidBox): void {
-  const mat = structMat('rail');
-  const alongX = s.maxX - s.minX >= s.maxZ - s.minZ;
-  const len = alongX ? s.maxX - s.minX : s.maxZ - s.minZ;
-  const cx = (s.minX + s.maxX) / 2;
-  const cz = (s.minZ + s.maxZ) / 2;
-  const geos: THREE.BufferGeometry[] = [];
-  const bar = (y: number, h: number): void => {
-    const g = new THREE.BoxGeometry(alongX ? len : 0.06, h, alongX ? 0.06 : len);
-    g.translate(cx, y, cz);
-    geos.push(g);
-  };
-  bar(s.maxY - 0.03, 0.06); // Handlauf
-  bar(s.minY + (s.maxY - s.minY) * 0.5, 0.04); // Knieleiste
-  bar(s.minY + 0.05, 0.1); // Fußleiste
-  const n = Math.max(2, Math.round(len / 1.2) + 1);
-  for (let i = 0; i < n; i++) {
-    const t = -len / 2 + (len * i) / (n - 1);
-    const g = new THREE.BoxGeometry(0.05, s.maxY - s.minY, 0.05);
-    g.translate(alongX ? cx + t : cx, (s.minY + s.maxY) / 2, alongX ? cz : cz + t);
-    geos.push(g);
-  }
-  const merged = mergeGeometries(geos, false);
-  for (const g of geos) g.dispose();
-  if (!merged) return;
-  const mesh = new THREE.Mesh(merged, mat);
-  mesh.castShadow = true;
-  group.add(mesh);
-}
-
-/** Requisite rendern (Paletten-Stapel, Gitterbox, Kiste, Container). */
-function addProp(group: THREE.Group, p: Prop): void {
-  const s = propSolid(p);
-  let mat: THREE.Material;
-  switch (p.kind) {
-    case 'pallet': {
-      const t = palletTexture().clone();
-      t.needsUpdate = true;
-      t.repeat.set(1, Math.max(1, Math.round(p.size[1] / 0.55)));
-      mat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 });
-      break;
-    }
-    case 'cage':
-      mat = new THREE.MeshStandardMaterial({ map: cageTexture(), roughness: 0.6, metalness: 0.3 });
-      break;
-    case 'crate':
-      mat = new THREE.MeshStandardMaterial({ map: crateTexture(), roughness: 0.9 });
-      break;
-    case 'container': {
-      const color = CONTAINER_COLORS[Math.abs(Math.round(p.pos[0] + p.pos[2])) % CONTAINER_COLORS.length]!;
-      const t = containerTexture(color).clone();
-      t.needsUpdate = true;
-      t.repeat.set(Math.max(1, Math.round(Math.max(p.size[0], p.size[2]) / 1.2)), 1);
-      mat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0.25 });
-      break;
-    }
-  }
-  addSolidBox(group, s, mat);
+  return root;
 }

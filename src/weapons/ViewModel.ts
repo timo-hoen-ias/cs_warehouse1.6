@@ -1,12 +1,13 @@
 import { Behaviour, registerType } from '@needle-tools/engine';
 import * as THREE from 'three';
 import { WEAPONS, type WeaponDef } from '../logic/weapons';
+import { weaponGeom } from '../logic/weaponGeom';
 import { nearestSolidXz, type SolidBox } from '../logic/level';
 import { PLAYER } from '../logic/move';
 import {
   ARM_HINT, KICK, VIEW_SCALE, ViewAnimator, advanceViewBob, boltCycleClip, breathe, cycleClip, drawClip, dryFireClip,
   emptyPose, inspectClip, kickImpulse, knifeClip, plantClip, pullPinClip, pumpClip, reloadClip, sprintPose, springStep,
-  strafeLean, throwClip, viewBobAmount, walkBob, type AnimFamily, type Pose, type Spring,
+  strafeLean, throwClip, viewBobAmount, walkBob, type AnimFamily, type Clip, type Pose, type Spring,
 } from '../logic/viewAnim';
 import { acquireView, type ViewWeapon } from './models';
 import { armMaterial, forearmGeometry, handGeometry, type Team } from './models/arms';
@@ -32,6 +33,9 @@ const WALL_PROBE_X = 0.18; // Abtastpunkt seitlich der Mündung (m)
 
 /** Patrone in der linken Hand (Hand-Raum) beim Schrot-Nachladen. */
 const SHELL_IN_HAND = new THREE.Vector3(-0.005, 0.03, 0.0);
+
+/** Auswurfrichtung im Modellraum [x, y, f]: nach rechts, leicht nach oben und hinten. */
+const DEFAULT_EJECT_DIR = [1, 0.8, -0.3] as const;
 
 type HandTarget = { pos: THREE.Vector3; quat: THREE.Quaternion };
 
@@ -71,6 +75,7 @@ export class ViewModel extends Behaviour {
   private readonly kickRise: Spring = { x: 0, v: 0 };
   private readonly kickRoll: Spring = { x: 0, v: 0 };
 
+  private previewHold = false;
   private loadSeq = 0;
   private time = 0;
   /** Schlitten nach letztem Schuss hinten (rechts / links bei Doppelpistole). */
@@ -111,6 +116,7 @@ export class ViewModel extends Behaviour {
   private readonly tmpRight = new THREE.Vector3();
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpM = new THREE.Matrix4();
+  private readonly tmpQ = new THREE.Quaternion();
   private readonly tmpS = new THREE.Vector3();
   private readonly tL: HandTarget = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
   private readonly tR: HandTarget = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
@@ -200,6 +206,35 @@ export class ViewModel extends Behaviour {
     this.anim.play(drawClip(this.family, w.rig.charge), 0);
     this.applyPose(0);
     this.onReady?.();
+  }
+
+  /** Laufende Animation verwerfen und Ruhepose setzen (Labor/Sichtprüfung). */
+  settle(): void {
+    this.previewHold = false;
+    this.anim.clear();
+    this.applyPose(0);
+  }
+
+  /**
+   * Labor/Sichtprüfung: Clip (Nachladen, Ziehen, Inspizieren …) bei Anteil `frac` (0..1) einfrieren;
+   * `settle()` hebt das wieder auf. Mit der echten Nachladezeit der Waffe.
+   */
+  preview(kind: 'reload' | 'reloadEmpty' | 'draw' | 'inspect' | 'cycle', frac: number): void {
+    const w = this.weapon;
+    const def = this.def;
+    if (!w || !def) return;
+    this.anim.clear();
+    let clip: Clip | null;
+    if (kind === 'draw') clip = drawClip(this.family, w.rig.charge);
+    else if (kind === 'inspect') clip = inspectClip(this.family);
+    else if (kind === 'cycle') clip = boltCycleClip(def.cycle ?? 1);
+    else clip = reloadClip(w.rig.reload, { duration: def.reloadTime, empty: kind === 'reloadEmpty', charge: w.rig.charge, shells: 3 });
+    if (!clip) return;
+    this.anim.play(clip, 0);
+    this.anim.tick(clip.duration * Math.min(0.999, Math.max(0.001, frac)));
+    this.previewHold = true;
+    this.anim.sample(this.pose);
+    this.applyPose(0);
   }
 
   /** Teamfarben der Arme (T: Wüsten-Tarn, CT: Navy). */
@@ -318,6 +353,11 @@ export class ViewModel extends Behaviour {
     return !!this.weapon;
   }
 
+  /** Modell-Id der gezeigten Waffe (Debug/Labor). */
+  modelId(): string {
+    return this.weapon?.id ?? '';
+  }
+
   /** Name der laufenden Animation (Debug/Tests), null = Ruhe. */
   animName(): string | null {
     return this.anim.current();
@@ -350,6 +390,22 @@ export class ViewModel extends Behaviour {
     return out;
   }
 
+  /**
+   * Auswurffenster der Waffe (Weltraum) und Auswurfrichtung (normiert) aus der Geometrie-Tabelle;
+   * bei Doppelpistolen die zuletzt feuernde. null, wenn die Waffe nichts auswirft (Messer, Granate, C4).
+   */
+  ejectWorld(pos = new THREE.Vector3(), dir = new THREE.Vector3()): { pos: THREE.Vector3; dir: THREE.Vector3 } | null {
+    const w = this.weapon;
+    if (!w) return null;
+    const node = (this.fireSide === 1 ? w.anchors.eject2 : undefined) ?? w.anchors.eject;
+    if (!node) return null;
+    const d = weaponGeom(this.def?.visual.model ?? w.id)?.ejectDir ?? DEFAULT_EJECT_DIR;
+    node.getWorldPosition(pos);
+    // Modell [x, y, f] → three (x, y, −f), dann mit der Weltdrehung des Ankers
+    dir.set(d[0], d[1], -d[2]).normalize().applyQuaternion(node.getWorldQuaternion(this.tmpQ));
+    return { pos, dir };
+  }
+
   // ---------------------------------------------------------------- Frame
 
   update(): void {
@@ -362,7 +418,7 @@ export class ViewModel extends Behaviour {
     }
     this.trackMotion(dt);
     if (!this.weapon) return;
-    this.anim.tick(dt);
+    if (!this.previewHold) this.anim.tick(dt);
     this.anim.sample(this.pose);
     springStep(this.kickBack, 0, KICK.freq, KICK.zeta, dt);
     springStep(this.kickRise, 0, KICK.freq, KICK.zeta, dt);

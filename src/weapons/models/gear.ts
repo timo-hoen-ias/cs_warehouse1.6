@@ -1,4 +1,4 @@
-import { makeRig, type Builder, type Rig } from './builder';
+import { TBL, makeRig, type Builder, type Rig } from './builder';
 import { C } from './common';
 
 /** Messer, Granaten, C4 (Koordinaten siehe builder.ts). */
@@ -13,11 +13,11 @@ export function knife(b: Builder): Rig {
   b.ext([[-0.065, -0.013], [0.045, -0.016], [0.045, 0.014], [-0.065, 0.014]], 0.024, C.poly, { m: 'poly', bevel: 0.004 });
   for (let i = 0; i < 4; i++) b.box([0.026, 0.004, 0.006], [0, -0.016, -0.04 + i * 0.022], C.rubber, { m: 'poly', d: true });
   b.cyl(0.013, 0.012, 0.016, [0, 0, -0.072], C.steel, { sides: 10 });
-  b.anchor('muzzle', [0, 0.003, 0.24]);
+  b.anchor('muzzle', TBL);
   // Faust um den Griff, Klinge nach vorn
-  b.anchor('gripR', [0, 0, 0], { axis: [0, 0.1, 1], back: [0.35, 0.94, 0], r: 0.013 });
+  b.anchor('gripR', TBL, { axis: [0, 0.1, 1], back: [0.35, 0.94, 0], r: 0.013 });
   // linke Faust locker unten links (Deckung)
-  b.anchor('gripL', [-0.26, 0.0, 0.03], { axis: [0.3, 0.8, 0.5], back: [-0.7, 0.3, -0.3], r: 0.011 });
+  b.anchor('gripL', TBL, { axis: [0.3, 0.8, 0.5], back: [-0.7, 0.3, -0.3], r: 0.011 });
   return makeRig('knife');
 }
 
@@ -39,9 +39,9 @@ function grenade(b: Builder, s: NadeSpec): Rig {
     b.cyl(0.0015, 0.0015, 0.024, [-0.01, t + 0.012, 0], C.silver, { axis: 'x', sides: 5 });
     b.torus(0.011, 0.0018, [-0.031, t + 0.012, 0], C.silver, { sides: 12, rot: [Math.PI / 2, 0, 0] });
   });
-  b.anchor('muzzle', [0, t + 0.02, 0.02]);
-  b.anchor('gripR', [0, 0, 0], { axis: [0, 1, 0.2], back: [1, 0, 0], r: 0.03 });
-  b.anchor('gripL', [-0.04, t + 0.008, 0.0], { axis: [0, 0.3, 1], back: [-0.6, -0.8, 0], r: 0.008, part: 'pin' });
+  b.anchor('muzzle', TBL);
+  b.anchor('gripR', TBL, { axis: [0, 1, 0.2], back: [1, 0, 0], r: 0.03 });
+  b.anchor('gripL', TBL, { axis: [0, 0.3, 1], back: [-0.6, -0.8, 0], r: 0.008, part: 'pin' });
   return makeRig('grenade', { travel: { slide: 0, charge: 0, bolt: 0, boltLift: 0, pump: 0, mag: 0, cover: 0, pin: 0.07 }, pinDir: [-1, -0.2, 0.3] });
 }
 
@@ -106,9 +106,9 @@ export function c4(b: Builder): Rig {
   wire(0.0, 0x2a5ad0, -0.012, -0.06);
   wire(0.03, 0xe0c020, -0.01, -0.055);
   b.anchor('keypad', [cx, cy + 0.06, 0.035], { axis: [0, 0, 1], back: [0, 1, 0], r: 0.01 });
-  b.anchor('muzzle', [cx, cy, 0.15]);
+  b.anchor('muzzle', TBL);
   // Hände halten den Block seitlich unten
-  b.anchor('gripR', [0, -0.008, 0.02], { axis: [0, 0, 1], back: [1, -0.4, 0], r: 0.026 });
-  b.anchor('gripL', [cx * 2, -0.008, 0.02], { axis: [0, 0, 1], back: [-1, -0.4, 0], r: 0.026 });
+  b.anchor('gripR', TBL, { axis: [0, 0, 1], back: [1, -0.4, 0], r: 0.026 });
+  b.anchor('gripL', TBL, { axis: [0, 0, 1], back: [-1, -0.4, 0], r: 0.026 });
   return makeRig('bomb');
 }

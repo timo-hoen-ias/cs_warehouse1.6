@@ -1,26 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { LagerDaten } from '../shared/types';
-import { computeSolids } from './level';
+import type { SolidBox } from './level';
 import type { PlayerMotion } from './move';
 import { PLAYER, blocksAt, groundHeight, pointFree, resolveAxis, stepPlayer, wishSpeed } from './move';
+import { COL, Collider, type ColItem } from './collision';
 
-const lager: LagerDaten = {
-  mandant: 1,
-  lagerorte: [
-    {
-      lagerkennung: 'TST1',
-      bezeichnung: 'Test',
-      lagertechnik: 'LTD3HR',
-      dims: { d1: 1, d2: 2, d3: 2 },
-      plaetze: [
-        { platzId: 1, dim: { d1: 0, d2: 0, d3: 0 }, ebene: 0, kurz: 'A', platzbezeichnung: 'g', masse: { hoehe: 0, breite: 0, laenge: 0 }, maxGewicht: 0, bestaende: [] },
-        { platzId: 2, dim: { d1: 1, d2: 1, d3: 1 }, ebene: 0, kurz: 'P', platzbezeichnung: 'p1', masse: { hoehe: 60, breite: 110, laenge: 160 }, maxGewicht: 500, bestaende: [] },
-        { platzId: 3, dim: { d1: 1, d2: 2, d3: 2 }, ebene: 0, kurz: 'Q', platzbezeichnung: 'p2', masse: { hoehe: 60, breite: 110, laenge: 160 }, maxGewicht: 500, bestaende: [] },
-      ],
-    },
-  ],
-};
-const solids = computeSolids(lager);
+// Kleine Testhalle: Regal (Block) + vier Wände
+const solids: SolidBox[] = [
+  { kind: 'rack', minX: 2, maxX: 3.2, minY: 0, maxY: 6, minZ: 90, maxZ: 110, label: 'regal' },
+  { kind: 'wall', minX: -20, maxX: 20, minY: 0, maxY: 8, minZ: 80, maxZ: 80.5, label: 'wand-nord' },
+  { kind: 'wall', minX: -20, maxX: 20, minY: 0, maxY: 8, minZ: 119.5, maxZ: 120, label: 'wand-sued' },
+  { kind: 'wall', minX: -20, maxX: -19.5, minY: 0, maxY: 8, minZ: 80, maxZ: 120, label: 'wand-west' },
+  { kind: 'wall', minX: 19.5, maxX: 20, minY: 0, maxY: 8, minZ: 80, maxZ: 120, label: 'wand-ost' },
+];
 
 describe('stepPlayer Vertikal', () => {
   it('bleibt am Boden (y=eye) und wird grounded', () => {
@@ -196,5 +187,96 @@ describe('Vertikalität: Stufen, Kisten, Plattformen', () => {
     m = run(m, 4, 0, false, 100, [catwalk]);
     expect(m.x).toBeGreaterThan(5);
     expect(m.y).toBeCloseTo(PLAYER.eye, 5);
+  });
+});
+
+describe('Rampen, Decken, Kanten (Collider)', () => {
+  const ramp = (minX: number, maxX: number, minY: number, maxY: number, dir: ColItem['ramp'] = 'px'): ColItem =>
+    ({ minX, maxX, minY, maxY, minZ: -2, maxZ: 2, mask: COL.all, ramp: dir });
+  const slab = (minX: number, maxX: number, minY: number, maxY: number, minZ = -2, maxZ = 2): ColItem =>
+    ({ minX, maxX, minY, maxY, minZ, maxZ, mask: COL.all });
+  const run = (m: PlayerMotion, mx: number, mz: number, steps: number, w: Collider, jump = false): { m: PlayerMotion; maxDy: number; airFrames: number } => {
+    let maxDy = 0;
+    let airFrames = 0;
+    for (let i = 0; i < steps; i++) {
+      const prev = m.y;
+      m = stepPlayer(m, mx, mz, jump && i === 0, 1 / 60, w);
+      maxDy = Math.max(maxDy, Math.abs(m.y - prev));
+      if (!m.grounded) airFrames++;
+    }
+    return { m, maxDy, airFrames };
+  };
+
+  it('läuft eine 30°-Rampe gleichmäßig hinauf und wieder hinunter, ohne zu hüpfen', () => {
+    const h = Math.tan(Math.PI / 6) * 6; // 6 m lang, 30°
+    const w = new Collider([ramp(2, 8, 0, h), slab(8, 14, 0, h)], { floorY: 0 });
+    let r = run({ x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true }, 4.2, 0, 150, w);
+    expect(r.m.x).toBeGreaterThan(9);
+    expect(r.m.y).toBeCloseTo(PLAYER.eye + h, 3);
+    expect(r.airFrames).toBe(0);
+    // auf halber Rampe: Höhe folgt der Schräge
+    r = run({ x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true }, 4.2, 0, 50, w);
+    expect(r.m.y - PLAYER.eye).toBeCloseTo((r.m.x - 2) * Math.tan(Math.PI / 6), 1);
+    // bergab: bleibt am Boden (kein Fallen/Hüpfen)
+    const down = run({ x: 10, y: PLAYER.eye + h, z: 0, vy: 0, grounded: true }, -6.2, 0, 120, w);
+    expect(down.m.x).toBeLessThan(1);
+    expect(down.m.y).toBeCloseTo(PLAYER.eye, 3);
+    expect(down.airFrames).toBe(0);
+  });
+
+  it('zu steile Rampe (60°) blockiert wie eine Wand', () => {
+    const w = new Collider([ramp(2, 4, 0, 2 * Math.tan(Math.PI / 3))], { floorY: 0 });
+    const r = run({ x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true }, 4, 0, 120, w);
+    expect(r.m.x).toBeLessThan(2.2);
+    expect(r.m.y).toBeLessThan(PLAYER.eye + 0.6);
+  });
+
+  it('von der Seite blockiert der hohe Teil einer Rampe, der niedrige ist Stufe', () => {
+    const w = new Collider([{ minX: 0, maxX: 2, minZ: 0, maxZ: 10, minY: 0, maxY: 3, mask: COL.all, ramp: 'pz' }], { floorY: 0 });
+    // bei z=8 ist die Rampe 2.4 m hoch → Wand
+    let r = run({ x: -2, y: PLAYER.eye, z: 8, vy: 0, grounded: true }, 4, 0, 60, w);
+    expect(r.m.x).toBeLessThanOrEqual(-PLAYER.radius + 1e-6);
+    // bei z=1 nur 0.3 m → hinaufsteigen
+    r = run({ x: -2, y: PLAYER.eye, z: 1, vy: 0, grounded: true }, 4, 0, 40, w);
+    expect(r.m.x).toBeGreaterThan(0.5);
+    expect(r.m.y).toBeGreaterThan(PLAYER.eye + 0.2);
+  });
+
+  it('Kopf stößt beim Springen unter einem niedrigen Laufsteg an und wird nicht seitlich weggeschoben', () => {
+    const w = new Collider([slab(-3, 3, 2.2, 2.4)], { floorY: 0 });
+    let m: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+    let maxFeet = 0;
+    for (let i = 0; i < 60; i++) {
+      m = stepPlayer(m, 0, 0, i === 0, 1 / 60, w);
+      maxFeet = Math.max(maxFeet, m.y - PLAYER.eye);
+    }
+    expect(maxFeet).toBeLessThanOrEqual(2.2 - PLAYER.height + 1e-6);
+    expect(m.x).toBe(0);
+    expect(m.grounded).toBe(true);
+  });
+
+  it('niedriger Durchgang (1.5 m) blockiert im Stand', () => {
+    const w = new Collider([slab(2, 4, 1.5, 3)], { floorY: 0 });
+    const r = run({ x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true }, 4, 0, 60, w);
+    expect(r.m.x).toBeLessThanOrEqual(2 - PLAYER.radius + 1e-6);
+  });
+
+  it('Boden unter null (Tunnel) und Fallen von einer Kante', () => {
+    const w = new Collider([slab(-5, 5, -4.3, -4), slab(5, 15, -0.3, 0)], { floorY: -50 });
+    const r = run({ x: 10, y: PLAYER.eye, z: 0, vy: 0, grounded: true }, -4, 0, 120, w);
+    expect(r.m.x).toBeLessThan(4);
+    expect(r.m.y).toBeCloseTo(PLAYER.eye - 4, 3);
+    expect(r.m.grounded).toBe(true);
+  });
+});
+
+describe('Zeitschritte', () => {
+  it('große Schritte werden unterteilt: 0.1 s legt so viel Weg zurück wie 2 × 0.05 s', () => {
+    const start: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+    const big = stepPlayer(start, 4, 0, false, 0.1, []);
+    const a = stepPlayer(start, 4, 0, false, 0.05, []);
+    const b = stepPlayer(a, 4, 0, false, 0.05, []);
+    expect(big.x).toBeCloseTo(0.4, 6);
+    expect(big.x).toBeCloseTo(b.x, 6);
   });
 });

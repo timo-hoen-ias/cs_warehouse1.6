@@ -7,12 +7,10 @@ bun.lockb
 dist
 build.log
 
-# Env & Datenbank-Zugangsdaten
+# Env
 .env
 .env.*
-!.env.example
 
-# lokale Levels (aus DB gebacken) bewusst NICHT ignorieren → werden committet
 # Needle-Editor-Artefakte
 src/generated/
 include/three/
@@ -29,3 +27,7 @@ smoke.png
 
 # Vom Needle-Tooling angelegter Symlink auf .agents/skills
 .github/skills/
+
+# Arbeitskopien der Hilfs-Agenten
+.claude/worktrees/
+.claude/skills/
