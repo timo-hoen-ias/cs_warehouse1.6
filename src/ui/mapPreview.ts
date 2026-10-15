@@ -105,7 +105,7 @@ function overviewCanvas(id: string): HTMLCanvasElement | null {
   if (overviewCache.has(id)) return overviewCache.get(id)!;
   let cv: HTMLCanvasElement | null = null;
   try {
-    const r: Raster = renderOverview(loadMapData(id), { pxPerM: 3, radar: true });
+    const r: Raster = renderOverview(loadMapData(id), { pxPerM: 2 });
     cv = document.createElement('canvas');
     cv.width = r.w;
     cv.height = r.h;

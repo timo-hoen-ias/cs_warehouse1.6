@@ -147,7 +147,7 @@ class MainMenu {
       <aside class="mm-side">
         <div class="mm-logo">${logoSvg()}</div>
         <nav class="mm-nav">${nav}</nav>
-        <div class="mm-ver">Version ${GAME_VERSION} · Needle Engine · ${MAPS.length} Karten</div>
+        <div class="mm-ver">Version ${GAME_VERSION} · Needle Engine · ${MAPS.length} ${MAPS.length === 1 ? 'Karte' : 'Karten'}</div>
       </aside>
       <main class="mm-stage">
         <section class="mm-screen" data-screen="main">${this.homeHtml()}</section>
@@ -229,7 +229,7 @@ class MainMenu {
 
   private applySettings(s: Settings): void {
     this.music.setGain(musicGain(s));
-    uiSound.setVolume(s.volume);
+    uiSound.setVolume(s.volume * s.volumeUi);
     const mute = this.q('#mm-mute');
     const silent = musicGain(s) === 0;
     mute.innerHTML = silent ? ICON.speakerOff : ICON.speakerOn;
