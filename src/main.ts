@@ -225,6 +225,8 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
       name: setup.serverName, maxPlayers: setup.maxPlayers, pw: passwordDigest(setup.room, setup.password), listed: setup.listed, hold: setup.lobby,
       // Karte und Bots wandern mit dem Snapshot (Beitretende laden dieselbe Karte, Host-Migration behält die Bots)
       map: mapId, fillTo: setup.fillTo, botSkill: setup.botSkill,
+      // Teamschaden: Entscheidung des Hosts, wandert mit dem Snapshot zu allen (und durch Host-Migration)
+      friendlyFire: setup.friendlyFire,
     }
     : null;
 
@@ -238,6 +240,8 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
   driver.sfx = sfx;
   driver.options = {
     localName: setup.name, team: setup.team, fillTo: setup.fillTo, botSkill: setup.botSkill,
+    // Beitretende übernehmen die Regel vom Host (Snapshot), nur Einzelspieler/Ersteller legen sie fest
+    ...(setup.mode === 'join' ? {} : { friendlyFire: setup.friendlyFire }),
     lobby: lobbyCfg,
     passwordDigest: setup.mode === 'join' && setup.password ? passwordDigest(setup.room, setup.password) : null,
   };
@@ -291,6 +295,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
         maxPlayers: cfg?.maxPlayers ?? setup.maxPlayers,
         serverName: cfg?.name ?? `Raum ${setup.room}`,
         hasPassword: !!cfg?.hasPassword,
+        friendlyFire: driver.friendlyFire,
       });
     };
 
@@ -304,7 +309,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
         room: setup.room, name: cfg.name, map: mapId,
         players: all.filter((p) => !p.bot).length, maxPlayers: cfg.maxPlayers, bots: all.filter((p) => p.bot).length,
         phase: driver.lobbyHeld ? 'lobby' : m.winner ? 'ended' : m.round.phase,
-        round: m.round.round, score: [m.round.tRounds, m.round.ctRounds], hasPassword: cfg.hasPassword, version: GAME_VERSION,
+        round: m.round.round, score: [m.round.tRounds, m.round.ctRounds], hasPassword: cfg.hasPassword, friendlyFire: cfg.friendlyFire, version: GAME_VERSION,
       };
     };
     // Die Discovery-Verbindung braucht nur der Host (Clients melden nichts); nach einer

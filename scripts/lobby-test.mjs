@@ -84,7 +84,7 @@ async function run() {
     const server = encodeURIComponent(`ws://localhost:${RELAY_PORT}/socket`);
     a = await browser(CDP_A, 'A');
     b = await browser(CDP_B, 'B');
-    await a.navigate(`${BASE}?auto=1&host=1&lobby=1&room=${ROOM}&sname=Testlager&pw=geheim&max=4&fill=2&name=Anna&team=T&quality=low&server=${server}`);
+    await a.navigate(`${BASE}?auto=1&host=1&lobby=1&room=${ROOM}&sname=Testlager&pw=geheim&max=4&fill=2&ff=1&name=Anna&team=T&quality=low&server=${server}`);
 
     // 1) Host läuft, Serverlobby hält das Aufwärmen
     const la = await a.waitFor('globalThis.__lobby?.()', (v) => v.host && v.held, 60000);
@@ -92,12 +92,18 @@ async function run() {
     const hostDigest = await a.evJson('globalThis.__driver?.lobbyCfg?.pw');
     if (la?.held && la.cfg?.name === 'Testlager' && la.cfg?.hasPassword === true && !('pw' in la.cfg) && /^[0-9a-f]{16}$/.test(hostDigest ?? '')) ok(`Host mit Serverlobby: ${la.cfg.name}, max ${la.cfg.maxPlayers}, Passwort nur als Prüfsumme im Host`);
     else fail('Host/Lobby fehlt: ' + JSON.stringify(la));
+    const hostFf = await a.evJson('globalThis.__driver?.match?.friendlyFire');
+    if (la?.cfg?.friendlyFire === true && hostFf === true) ok('Host: Friendly Fire an (?ff=1) in Konfiguration und Match');
+    else fail(`Friendly Fire beim Host nicht gesetzt: cfg=${JSON.stringify(la?.cfg)} match=${hostFf}`);
 
     // 2) Browser B: Hauptmenü → Serverbrowser findet den Server über den Discovery-Raum
     await b.navigate(`${BASE}?menu=browser&quality=low&server=${server}`);
     const row = await b.waitFor(`(() => { const r = document.querySelector('tr[data-room="${ROOM}"]'); return r ? { text: r.textContent, lock: !!r.querySelector('.lock svg') } : null; })()`, (v) => /Testlager/.test(v.text) && /ms/.test(v.text), 40000);
     if (row && /Testlager/.test(row.text) && row.lock && /1\/4/.test(row.text) && /Lobby/.test(row.text) && /ms/.test(row.text)) ok(`Serverbrowser: ${row.text.replace(/\s+/g, ' ').trim()}`);
     else fail('Server nicht (vollständig) gefunden: ' + JSON.stringify(row));
+    const ffBadge = await b.evJson(`document.querySelector('tr[data-room="${ROOM}"] .ff')?.textContent ?? null`);
+    if (ffBadge === 'FF') ok('Serverbrowser zeigt das FF-Kennzeichen');
+    else fail('Kein FF-Kennzeichen im Serverbrowser: ' + JSON.stringify(ffBadge));
     await b.shot('30_serverbrowser.png');
 
     // 3) Falsches Passwort → Host lehnt ab → zurück im Menü mit Meldung
@@ -123,8 +129,11 @@ async function run() {
     const leak = await b.evJson(`JSON.stringify(globalThis.__lobby?.() ?? null).includes(${JSON.stringify(hostDigest ?? 'x')})`);
     if (mirror && mirror.cfg?.hasPassword === true && leak === false) ok('Client kennt nur „hat Passwort“, nicht die Prüfsumme des Hosts');
     else fail(`Prüfsumme beim Client sichtbar: ${JSON.stringify(mirror)} leak=${leak}`);
+    const mirrorFf = await b.waitFor('globalThis.__driver?.match?.friendlyFire', (v) => v === true, 15000);
+    if (mirrorFf === true && mirror?.cfg?.friendlyFire === true) ok('Client übernimmt Friendly Fire vom Host (Snapshot + Lobby-Konfiguration)');
+    else fail(`Friendly Fire beim Client fehlt: ${mirrorFf} ${JSON.stringify(mirror?.cfg)}`);
     const lobbyUi = await b.waitFor('document.querySelector("#lobby.on")?.textContent', (v) => /Warte auf den Host/.test(v), 15000);
-    if (lobbyUi) ok('Serverlobby beim Client sichtbar (wartet auf Host)');
+    if (lobbyUi && /Friendly Fire an/.test(lobbyUi)) ok('Serverlobby beim Client sichtbar (wartet auf Host, zeigt „Friendly Fire an“)');
     else fail('Serverlobby-Overlay beim Client fehlt');
     const hostUi = await a.waitFor('document.querySelector("#lobby-start") ? document.querySelector("#lobby").textContent : null', (v) => /Anna/.test(v), 15000);
     if (hostUi) ok('Host sieht „Spiel starten“ und die Spielerliste');

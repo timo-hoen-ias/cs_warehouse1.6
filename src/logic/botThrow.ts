@@ -46,6 +46,8 @@ export type SolveOpts = {
   mustSee?: XYZ[];
   /** Sichtprüfung (Kollisionswelt), nötig mit mustSee. */
   clear?: (a: XYZ, b: XYZ) => boolean;
+  /** Zündpunkte aussortieren (z. B. bei Teamkameraden); sucht dann einen anderen Wurf. */
+  reject?: (land: XYZ) => boolean;
 };
 
 /**
@@ -77,6 +79,7 @@ export function solveThrow(solids: Blockers, kind: GrenadeKind, eye: XYZ, target
           const up = { x: r.at.x, y: r.at.y + 0.1, z: r.at.z };
           if (!opts.mustSee.some((p) => opts.clear!(up, p))) continue;
         }
+        if (opts.reject?.(r.at)) continue;
         best = { kind, eye, dir, strength, land: r.at, err };
         if (err < tol * 0.35) return best;
       }

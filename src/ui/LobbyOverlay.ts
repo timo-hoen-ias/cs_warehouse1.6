@@ -2,6 +2,7 @@ import './theme.css';
 import './hud.css';
 import './lobby.css';
 import type { Team } from '../logic/economy';
+import { friendlyFireText } from '../logic/friendlyFire';
 import { escapeHtml, intText } from '../logic/hudFormat';
 import { computeUiScale } from '../logic/uiScale';
 import { ICON } from './icons';
@@ -20,6 +21,8 @@ export type LobbyView = {
   maxPlayers: number;
   serverName: string;
   hasPassword: boolean;
+  /** Teamschaden an (Host-Regel). */
+  friendlyFire: boolean;
 };
 
 /**
@@ -140,7 +143,7 @@ export class LobbyOverlay {
       : '<div style="color:var(--c-mute)">Noch keine Nachrichten. Sag Hallo!</div>';
     const log = this.k('log');
     log.scrollTop = log.scrollHeight;
-    this.k('note').textContent = `${humans}/${v.maxPlayers} Spieler${v.hasPassword ? ' · passwortgeschützt' : ''} · freie Plätze füllen Bots auf`;
+    this.k('note').textContent = `${humans}/${v.maxPlayers} Spieler${v.hasPassword ? ' · passwortgeschützt' : ''} · ${friendlyFireText(v.friendlyFire)} · freie Plätze füllen Bots auf`;
     this.k('startWrap').innerHTML = v.isHost
       ? '<button class="ui-btn primary big" data-act="start" id="lobby-start">▶ Spiel starten</button>'
       : '<span class="lob-wait"><i></i>Warte auf den Host …</span>';

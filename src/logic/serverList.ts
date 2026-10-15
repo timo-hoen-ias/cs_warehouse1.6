@@ -35,6 +35,8 @@ export type Heartbeat = {
   round: number;
   score: [number, number];
   hasPassword: boolean;
+  /** Friendly Fire an (Teamschaden). */
+  friendlyFire: boolean;
   version: string;
   region?: string;
   /** Antwort auf eine Anfrage: Absender-ID + dessen Zeitstempel (für die Latenz). */
@@ -94,6 +96,7 @@ export function sanitizeHeartbeat(raw: unknown): Heartbeat | null {
     round: int(r.round, 0, 99, 0),
     score: [int(score[0], 0, 99, 0), int(score[1], 0, 99, 0)],
     hasPassword: r.hasPassword === true,
+    friendlyFire: r.friendlyFire === true,
     version: cleanText(r.version, 16, '?'),
   };
   const region = cleanText(r.region, 24);

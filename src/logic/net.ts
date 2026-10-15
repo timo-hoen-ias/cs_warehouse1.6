@@ -106,6 +106,8 @@ export type Snapshot = {
   drops?: { id: number; weapon: string; p: [number, number, number] }[];
   /** Öffentliche Server-Konfiguration (Name, Limit, „hat Passwort“, Lobby, Karte, Bots) — übersteht Host-Migration. */
   lobby?: PublicLobby | null;
+  /** Friendly Fire an (Host-Option, Standard aus); fehlt bei älteren Hosts = aus. */
+  ff?: boolean;
 };
 
 /**
@@ -154,6 +156,7 @@ export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapsho
     smokes: extra.smokes.map((s) => ({ p: [s.pos.x, s.pos.y, s.pos.z], r: s.radius, t: s.timeLeft })),
     bombPos: extra.bombPos,
     drops: extra.drops ?? [],
+    ff: m.friendlyFire,
     ...(extra.lobby !== undefined ? { lobby: extra.lobby } : {}),
   };
 }
@@ -168,6 +171,7 @@ export function applySnapshot(m: MatchState, s: Snapshot): void {
   m.lossStreak = { ...s.lossStreak };
   m.winner = s.winner;
   m.matchEndTimer = s.matchEndTimer;
+  m.friendlyFire = s.ff === true;
   const seen = new Set<string>();
   for (const ps of s.players) {
     seen.add(ps.id);

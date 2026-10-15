@@ -27,6 +27,8 @@ describe('sanitizeSavedSetup', () => {
     const s = sanitizeSavedSetup({ name: '<b>Neo</b>', mapId: 'de_alt', team: 'CT', fillTo: 99, botSkill: 3, server: 'javascript:x', maxPlayers: 1, listed: false, password: 'x' }, 'de_x', ['de_x']);
     expect(s).toMatchObject({ name: 'bNeo/b', mapId: 'de_x', team: 'CT', fillTo: 32, botSkill: 1, server: '', maxPlayers: 2, listed: false, password: '' });
     expect(sanitizeSavedSetup({ mapId: 'de_y' }, 'de_x', ['de_x', 'de_y']).mapId).toBe('de_y');
+    expect(sanitizeSavedSetup({ friendlyFire: true }, 'de_x', ['de_x']).friendlyFire).toBe(true);
+    expect(sanitizeSavedSetup({ friendlyFire: 'ja' }, 'de_x', ['de_x']).friendlyFire).toBe(false);
   });
 });
 
@@ -136,6 +138,14 @@ describe('parseLaunch', () => {
   it('?auto=1&fill=4 startet offline mit Standardkarte (Smoke-Test)', () => {
     const l = parseLaunch('?auto=1&fill=4&quality=low', 'de_x');
     expect(l.auto).toMatchObject({ mode: 'offline', mapId: 'de_x', fillTo: 4, team: 'T', name: 'Smoke', room: '', lobby: false });
+  });
+
+  it('Friendly Fire: Standard aus, ?ff=1 schaltet es ein, Einladungslink verrät es nicht', () => {
+    expect(defaultSetup('de_x').friendlyFire).toBe(false);
+    expect(parseLaunch('?auto=1', 'de_x').auto!.friendlyFire).toBe(false);
+    expect(parseLaunch('?auto=1&ff=1', 'de_x').auto!.friendlyFire).toBe(true);
+    expect(parseLaunch('?auto=1&ff=0', 'de_x').auto!.friendlyFire).toBe(false);
+    expect(new URL(roomLink('http://h/?auto=1&ff=1', 'AAAAA', 'de_x')).searchParams.has('ff')).toBe(false);
   });
 
   it('?auto=1 mit Raum tritt bei (Netztest)', () => {

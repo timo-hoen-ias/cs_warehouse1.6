@@ -3,8 +3,11 @@ import { analyzeMap } from './botMap';
 import { BotSystem, botSkill, type BotActions } from './botSystem';
 import { buildBotTestMap } from './botTestMap';
 import { compileMap } from './mapcompile';
-import { addPlayer, beginRound, newMatch, type MatchState } from './match';
+import { addPlayer, beginRound, newMatch, type MatchPlayer, type MatchState } from './match';
+import { resolveRay } from './combat';
+import { humanPartBoxes } from './hitbox';
 import { mulberry32 } from './rng';
+import { WEAPONS } from './weapons';
 import type { XYZ } from './nav';
 
 const map = compileMap(buildBotTestMap());
@@ -89,6 +92,68 @@ describe('Bot-System', () => {
     expect(bots.know.T.enemies.has('bot-1')).toBe(true);
     // Funk nicht gespammt
     expect(log.radio.length).toBeLessThanOrEqual(4);
+  });
+
+  it('enge Gasse: kein Schuss trifft je einen Kameraden, und es wird trotzdem auf den Gegner geschossen', () => {
+    const { m, bots } = setup(3);
+    const { act } = recorder();
+    m.round.phase = 'live';
+    m.round.timer = 115;
+    // Drei T hintereinander im Mittelgang (z 66/60/54), drei CT am anderen Ende, Blick zueinander
+    const ts = Object.values(m.players).filter((p) => p.team === 'T');
+    const cts = Object.values(m.players).filter((p) => p.team === 'CT');
+    ts.forEach((p, i) => { p.pose = { x: 40, y: 0, z: 66 - i * 6, yaw: 0, pitch: 0 }; bots.place(p); });
+    cts.forEach((p, i) => { p.pose = { x: 39 + i, y: 0, z: 36, yaw: Math.PI, pitch: 0 }; bots.place(p); });
+    let shots = 0;
+    let teamHits = 0;
+    const checking: BotActions = {
+      ...act,
+      fire: (id, w, o, dirs) => {
+        const shooter = m.players[id]!;
+        const targets = Object.values(m.players).filter((p) => p.alive && p.id !== id).map((p) => ({ id: p.id, parts: humanPartBoxes({ x: p.pose.x, y: p.pose.y, z: p.pose.z }, bots.crouching(p.id) ? 0.75 : 1) }));
+        for (const d of dirs) {
+          const hit = resolveRay(o, d, WEAPONS[w]!.range, map.collider, targets, id);
+          shots++;
+          if (hit.kind === 'target' && m.players[hit.id]!.team === shooter.team) teamHits++;
+        }
+      },
+    };
+    const w = { match: m, smokes: [], bombPos: null, dropped: null, crouching: () => false };
+    for (let i = 0; i < 400; i++) { m.time += 0.05; bots.tick(w, 0.05, checking); }
+    expect(shots).toBeGreaterThan(10);
+    expect(teamHits).toBe(0);
+  });
+
+  it('Kamerad steht im Weg: der Schütze tritt erst zur Seite und schießt dann (nie aus der Linie)', () => {
+    const { m, bots } = setup(2);
+    const { act } = recorder();
+    m.round.phase = 'live';
+    m.round.timer = 115;
+    const [t1, t2] = Object.values(m.players).filter((p) => p.team === 'T') as [MatchPlayer, MatchPlayer];
+    const ct = Object.values(m.players).find((p) => p.team === 'CT')!;
+    t1.pose = { x: 40, y: 0, z: 56, yaw: 0, pitch: 0 };
+    t2.pose = { x: 40, y: 0, z: 52, yaw: 0, pitch: 0 };
+    ct.pose = { x: 40, y: 0, z: 34, yaw: Math.PI, pitch: 0 };
+    for (const p of [t1, t2, ct]) bots.place(p);
+    const w = { match: m, smokes: [], bombPos: null, dropped: null, crouching: () => false };
+    // t2 wird festgehalten und steht genau in der Linie t1 → CT
+    const put = (x: number): void => {
+      const b = bots.body(t2.id)!;
+      b.pose.x = b.motion.x = x;
+      b.pose.z = b.motion.z = 52;
+      t2.pose = { ...b.pose };
+    };
+    const shotsAt: Record<string, number[]> = { [t1.id]: [], [t2.id]: [] };
+    const rec: BotActions = { ...act, fire: (id) => { shotsAt[id]?.push(m.players[id]!.pose.x); } };
+    for (let i = 0; i < 100; i++) {
+      m.time += 0.05;
+      put(40);
+      bots.tick(w, 0.05, rec);
+    }
+    expect(shotsAt[t2.id]!.length).toBeGreaterThan(0);
+    expect(shotsAt[t1.id]!.length).toBeGreaterThan(0);
+    // t1 hat sich erst aus der Linie hinter t2 bewegt (≥ 0.7 m Versatz bei 4 m Abstand zu t2)
+    for (const x of shotsAt[t1.id]!) expect(Math.abs(x - 40)).toBeGreaterThanOrEqual(0.7);
   });
 
   it('Ereignisse: Schuss gehört → Wissen; Kill → als tot markiert, Kamerad gefallen', () => {

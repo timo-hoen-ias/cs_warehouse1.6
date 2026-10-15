@@ -6,6 +6,7 @@ import { resolveRay, type ShotTarget } from './combat';
 import { capDrops, dropOnDeath, droppedBomb, tryPickup, type DroppedItem } from './drops';
 import type { Team } from './economy';
 import { GRENADE, flashStrength, heDamageAt, stepGrenade, throwGrenade, type GrenadeState, type Smoke } from './grenade';
+import { DEFAULT_FRIENDLY_FIRE } from './friendlyFire';
 import { bombInput } from './hostRules';
 import { consumeGrenade, bestWeapon } from './loadout';
 import type { CompiledMap } from './mapcompile';
@@ -44,7 +45,7 @@ export type RoundStats = {
   tZones: string[];
   kills: number;
   /** Wo starben T bzw. CT (Zonenname)? */
-  deaths: { team: Team; zone: string }[];
+  deaths: { team: Team; zone: string; /** Vom eigenen Team getötet (Teamkill)? */ teamKill: boolean }[];
   /** Längste Festsitz-Zeit eines Bots (s). */
   maxStuck: number;
   /** Längste Zeit ohne Bewegung eines lebenden Bots während der Runde (s). */
@@ -59,7 +60,14 @@ export type RoundStats = {
   nades: number;
 };
 
-export type SimOpts = { perTeam: number; skill: number; seed: number; dt?: number };
+export type SimOpts = {
+  perTeam: number;
+  skill: number;
+  seed: number;
+  dt?: number;
+  /** Friendly Fire (Teamschaden); Standard wie im Spiel: aus. */
+  friendlyFire?: boolean;
+};
 
 export class HeadlessMatch {
   readonly map: CompiledMap;
@@ -89,6 +97,7 @@ export class HeadlessMatch {
     this.rnd = mulberry32(opts.seed * 977 + 3);
     this.dt = opts.dt ?? 0.05;
     this.match = newMatch();
+    this.match.friendlyFire = opts.friendlyFire ?? DEFAULT_FRIENDLY_FIRE;
     for (let i = 0; i < opts.perTeam * 2; i++) {
       const p = addPlayer(this.match, `bot-${i}`, `Bot ${i}`, { bot: true, team: i % 2 === 0 ? 'T' : 'CT' });
       this.bots.add(p);
@@ -239,7 +248,8 @@ export class HeadlessMatch {
     if (this.cur) {
       this.cur.kills++;
       const z = zoneAt(this.info, victim.pose);
-      this.cur.deaths.push({ team: victim.team, zone: z >= 0 ? this.info.zones[z]!.name : '?' });
+      const k = killer ? m.players[killer] : undefined;
+      this.cur.deaths.push({ team: victim.team, zone: z >= 0 ? this.info.zones[z]!.name : '?', teamKill: !!k && k.id !== victim.id && k.team === victim.team });
     }
     this.bots.notify({ k: 'kill', victim: victim.id, killer, pos: { x: victim.pose.x, y: victim.pose.y, z: victim.pose.z } }, m);
     for (const item of dropOnDeath(victim.loadout, { x: victim.pose.x, y: victim.pose.y, z: victim.pose.z }, () => this.dropSeq++)) {
@@ -365,6 +375,8 @@ export function summarize(stats: readonly RoundStats[]): Record<string, number |
     timeouts: stats.filter((s) => s.reason === 'Zeit abgelaufen').length,
     avgDuration: +(stats.reduce((a, s) => a + s.duration, 0) / n).toFixed(1),
     avgKills: +(stats.reduce((a, s) => a + s.kills, 0) / n).toFixed(1),
+    deaths: stats.reduce((a, s) => a + s.deaths.length, 0),
+    teamKills: stats.reduce((a, s) => a + s.deaths.filter((d) => d.teamKill).length, 0),
     maxStuck: +Math.max(0, ...stats.map((s) => s.maxStuck)).toFixed(1),
     maxIdle: +Math.max(0, ...stats.map((s) => s.maxIdle)).toFixed(1),
     wallViolations: stats.reduce((a, s) => a + s.wallViolations, 0),

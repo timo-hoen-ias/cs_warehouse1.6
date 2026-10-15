@@ -129,6 +129,7 @@
 .mm-table tbody tr.bad { opacity: .45; }
 .mm-table .nm { font-weight: 700; color: #fff; }
 .mm-table .code { font: 600 calc(12 * var(--u)) var(--font-mono); color: var(--c-mute); margin-left: calc(8 * var(--u)); }
+.mm-table .ff { font: 800 calc(10 * var(--u)) var(--font-mono); color: var(--c-bad); border: 1px solid currentColor; border-radius: calc(3 * var(--u)); padding: 0 calc(4 * var(--u)); margin-left: calc(8 * var(--u)); letter-spacing: .06em; }
 .mm-table .lock svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); fill: var(--c-accent); vertical-align: -2px; }
 .mm-table .lat.good { color: var(--c-ok); }
 .mm-table .lat.ok { color: var(--c-warn); }

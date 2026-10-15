@@ -234,7 +234,8 @@ describe('de_speicherstadt: Balance (Sichtlinien, Laufzeiten)', () => {
 
 /**
  * Balance-Wächter: Bot-Simulation (5 gegen 5, Skill 0.6, 4 Seeds × 20 Runden). Vor dem Umbau ≈ 38 % T (Autor: 31 %), B nur ≈ 35 %.
- * Die Schwellen sind weit, weil die Simulation je Seed stark streut (Economy-Schneeball, Teamkills in Warteschlangen).
+ * Die Schwellen sind weit, weil die Simulation je Seed stark streut (Economy-Schneeball). Läuft mit dem Spiel-Standard (Friendly Fire aus, Bots
+ * schießen nie durch Kameraden): ohne die früheren Teamkills der T-Warteschlangen liegt die T-Quote bei ≈ 64 % (vorher ≈ 46 %), siehe IMPLEMENTIERUNGSPLAN M6.2.
  */
 describe('de_speicherstadt: Balance (Bot-Simulation)', () => {
   it('T gewinnen 30–70 % der Runden, es wird auf beiden Spots gepflanzt, niemand sitzt fest', () => {

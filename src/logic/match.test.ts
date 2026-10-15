@@ -131,11 +131,57 @@ describe('applyHit', () => {
     expect(v.hp).toBe(hp1 - far.dmg);
   });
 
-  it('Teamkill: Kill −1 und Geldstrafe', () => {
+  it('Teamkill (Friendly Fire an): Kill −1 und Geldstrafe', () => {
     const m = setup();
+    m.friendlyFire = true;
     applyHit(m, 'b2', 'h1', WEAPONS['awp']!, 'head');
     expect(m.players['h1']!.kills).toBe(-1);
     expect(m.players['h1']!.money.amount).toBe(ECONOMY.startMoney - MATCH.teamKillPenalty);
+  });
+
+  describe('Friendly Fire als Server-Option', () => {
+    it('Standard ist aus', () => {
+      expect(newMatch().friendlyFire).toBe(false);
+    });
+
+    it('aus: Kugel/Messer verletzen Teamkameraden nicht — kein Schaden, keine Rüstung, kein Teamkill, keine Strafe', () => {
+      const m = setup();
+      m.players['b2']!.loadout.armor = 100;
+      for (const w of ['awp', 'ak47', 'knife']) {
+        expect(applyHit(m, 'b2', 'h1', WEAPONS[w]!, 'head', 1)).toBeNull();
+      }
+      const b2 = m.players['b2']!;
+      expect(b2.hp).toBe(100);
+      expect(b2.alive).toBe(true);
+      expect(b2.loadout.armor).toBe(100);
+      expect(m.players['h1']!.kills).toBe(0);
+      expect(m.players['h1']!.money.amount).toBe(ECONOMY.startMoney);
+      expect(m.feed).toHaveLength(0);
+    });
+
+    it('aus: Gegner werden weiter getroffen', () => {
+      const m = setup();
+      const r = applyHit(m, 'b1', 'h1', WEAPONS['ak47']!, 'body', 5)!;
+      expect(r.dmg).toBeGreaterThan(0);
+      expect(m.players['b1']!.hp).toBeLessThan(100);
+    });
+
+    it('aus: HE verletzt Kameraden nicht, den Werfer selbst aber schon; Bombe/Sturz ohne Angreifer wirken immer', () => {
+      const m = setup();
+      expect(applyExplosion(m, 'b2', 'h1', 80)).toBeNull();
+      expect(m.players['b2']!.hp).toBe(100);
+      expect(applyExplosion(m, 'h1', 'h1', 40)!.dmg).toBe(40);
+      expect(applyExplosion(m, 'b2', null, 30, 1)!.dmg).toBe(30);
+      expect(applyFall(m, 'b2', 10)!.dmg).toBe(10);
+      expect(applyExplosion(m, 'b1', 'h1', 50)!.dmg).toBe(50);
+    });
+
+    it('an: HE und Kugeln verletzen Kameraden (Teamkill bestraft)', () => {
+      const m = setup();
+      m.friendlyFire = true;
+      expect(applyExplosion(m, 'b2', 'h1', 120)!.killed).toBe(true);
+      expect(m.players['h1']!.kills).toBe(-1);
+    });
   });
 
   it('Explosion: Rüstung dämpft, 0 Schaden ignoriert', () => {

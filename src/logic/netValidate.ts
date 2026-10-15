@@ -270,6 +270,7 @@ export function parseSnapshot(raw: unknown): Snapshot | null {
       return o && p ? [{ p, r: clampNum(o.r, 0, 20, 0), t: clampNum(o.t, 0, 60, 0) }] : [];
     }),
     bombPos: r.bombPos === null || r.bombPos === undefined ? null : vec3(r.bombPos),
+    ff: r.ff === true,
   };
   if (drops) {
     snap.drops = drops.flatMap((x) => {

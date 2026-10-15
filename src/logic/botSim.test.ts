@@ -58,6 +58,32 @@ describe('Headless-Simulation de_lagerstaub (5 gegen 5)', () => {
   });
 }, 120_000);
 
+describe('Headless-Simulation: Teamkills und Friendly Fire', () => {
+  const map = compileMap(loadMapData('de_lagerstaub'));
+  const play = (friendlyFire?: boolean) => [1, 2].flatMap((seed) => {
+    const sim = new HeadlessMatch(map, { perTeam: 5, skill: 0.6, seed, ...(friendlyFire === undefined ? {} : { friendlyFire }) });
+    sim.runRounds(12);
+    return sim.stats;
+  });
+
+  it('Standard wie im Spiel: Friendly Fire aus', () => {
+    expect(new HeadlessMatch(map, { perTeam: 2, skill: 0.6, seed: 1 }).match.friendlyFire).toBe(false);
+    expect(new HeadlessMatch(map, { perTeam: 2, skill: 0.6, seed: 1, friendlyFire: true }).match.friendlyFire).toBe(true);
+  });
+
+  it('Bots schießen nicht durch Kameraden: auch mit Friendly Fire an sind Teamkills selten (vorher ≈ 16 % aller Tode)', () => {
+    const s = summarize(play(true));
+    expect(s.deaths as number).toBeGreaterThan(80);
+    expect((s.teamKills as number) / (s.deaths as number)).toBeLessThanOrEqual(0.02);
+  });
+
+  it('Friendly Fire aus: es gibt keine Teamkills', () => {
+    const s = summarize(play());
+    expect(s.deaths as number).toBeGreaterThan(80);
+    expect(s.teamKills).toBe(0);
+  });
+}, 120_000);
+
 describe('Headless-Simulation Testkarte (3 gegen 3)', () => {
   it('Runden laufen kartenunabhängig durch (auch ohne Callouts)', () => {
     let plants = 0;

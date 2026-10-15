@@ -4,6 +4,7 @@ import { MAPS, mapById } from '../maps';
 import { roomCode, sanitizeName } from '../logic/net';
 import { ROUND } from '../logic/round';
 import { BOMB } from '../logic/bombs';
+import { MATCH } from '../logic/match';
 import { formatClock, escapeHtml } from '../logic/hudFormat';
 import {
   BOT_DIFFICULTIES, MENU_ENTRIES, SCREEN_TITLES, clampMaxPlayers, currentScreen, difficultyForSkill, fillForTeamSize, goBack, initialMenu,
@@ -13,6 +14,7 @@ import {
   GAME_VERSION, filterServers, joinBlockReason, latencyInfo, normalizeRoomCode, playersText, serverStatusText, sortServers, validRoomCode,
   type ServerEntry, type ServerFilter, type ServerList, type ServerSortKey,
 } from '../logic/serverList';
+import { friendlyFireText } from '../logic/friendlyFire';
 import { MAX_PLAYERS_MAX, MAX_PLAYERS_MIN } from '../logic/lobby';
 import { musicGain } from '../logic/music';
 import { computeUiScale } from '../logic/uiScale';
@@ -341,12 +343,18 @@ class MainMenu {
     return `<div class="ui-seg" data-seg="skill">${BOT_DIFFICULTIES.map((x) => `<button data-v="${x.skill}" class="${x.id === d.id ? 'on' : ''}">${escapeHtml(x.label)}</button>`).join('')}</div>`;
   }
 
+  /** Schalter „Friendly Fire“ (Einzelspieler und Server erstellen). */
+  private friendlyFireField(): string {
+    return `<div class="mm-field"><label class="mm-check"><span>Friendly Fire (Teamschaden)</span><input type="checkbox" class="ui-toggle" data-chk="friendlyFire" ${this.setup.friendlyFire ? 'checked' : ''}></label><small>Aus (Standard): Kugeln, Messer und HE verletzen Teamkameraden nicht — Blendgranaten blenden weiter. An: Teamkill kostet einen Kill und ${MATCH.teamKillPenalty} $.</small></div>`;
+  }
+
   private renderSingle(): void {
     const size = teamSizeForFill(this.setup.fillTo);
     const body = `<div class="mm-setup"><div>${this.mapCards()}</div><div class="mm-form">
       <div class="mm-field"><span class="ui-label">Team</span>${this.teamSeg()}</div>
       <div class="mm-field"><span class="ui-label">Teamgröße</span><div class="row"><input type="range" class="ui-range" min="1" max="8" step="1" value="${size}" data-range="teamsize"><span class="val" id="mm-teamsize">${size} gegen ${size}</span></div><small>Freie Plätze füllen Bots auf — in beiden Teams.</small></div>
       <div class="mm-field"><span class="ui-label">Bot-Schwierigkeit</span>${this.diffSeg()}</div>
+      ${this.friendlyFireField()}
       <div class="mm-facts"><div class="mm-fact"><b>${formatClock(ROUND.roundTime)}</b><span>Rundenzeit</span></div><div class="mm-fact"><b>${BOMB.fuseTime} s</b><span>Bombenzünder</span></div><div class="mm-fact"><b>${ROUND.scoreToWin}</b><span>Siege zum Match</span></div></div>
     </div></div>`;
     const footer = `<span class="note">Offline gegen Bots · Karte: <b id="mm-mapname">${escapeHtml(mapById(this.setup.mapId).name)}</b></span><span class="grow"></span><button class="ui-btn primary big" data-act="start-single" data-autofocus>▶ Spiel starten</button>`;
@@ -366,6 +374,7 @@ class MainMenu {
       <div class="mm-field"><span class="ui-label">Mit Bots auffüllen bis</span><div class="row"><input type="range" class="ui-range" min="0" max="16" step="1" value="${s.fillTo}" data-range="fill"><span class="val" id="mm-fill">${s.fillTo ? `${s.fillTo} Spieler` : 'keine Bots'}</span></div></div>
       <div class="mm-field"><span class="ui-label">Bot-Schwierigkeit</span>${this.diffSeg()}</div>
       <div class="mm-field"><span class="ui-label">Dein Team</span>${this.teamSeg()}</div>
+      ${this.friendlyFireField()}
       <div class="mm-field"><label class="ui-label" for="mm-pw">Passwort (optional)</label><input id="mm-pw" class="ui-input" type="password" maxlength="32" placeholder="leer = offen" value="${escapeHtml(s.password)}" autocomplete="new-password"></div>
       <label class="mm-check"><span>Im Serverbrowser anzeigen</span><input type="checkbox" class="ui-toggle" data-chk="listed" ${s.listed ? 'checked' : ''}></label>
       <label class="mm-check"><span>Serverlobby: Start erst durch dich (Aufwärmen bis dahin)</span><input type="checkbox" class="ui-toggle" data-chk="lobby" ${s.lobby ? 'checked' : ''}></label>
@@ -437,7 +446,7 @@ class MainMenu {
       wrap.innerHTML = `<table class="mm-table"><thead><tr><th style="width:28px"></th>${th('name', 'Name')}${th('map', 'Karte')}${th('players', 'Spieler')}${th('latency', 'Latenz')}${th('status', 'Status')}</tr></thead><tbody>${list.map((e) => {
         const lat = latencyInfo(e.latency);
         const bad = joinBlockReason(e);
-        return `<tr data-room="${escapeHtml(e.room)}" class="${e.room === this.selected ? 'sel' : ''}${bad ? ' bad' : ''}" title="${escapeHtml(bad ?? 'Doppelklick zum Beitreten')}"><td class="lock">${e.hasPassword ? ICON.lock : ''}</td><td><span class="nm">${escapeHtml(e.name)}</span><span class="code">${escapeHtml(e.room)}</span></td><td class="map">${escapeHtml(e.map)}</td><td>${escapeHtml(playersText(e))}</td><td class="lat ${lat.level}">${escapeHtml(lat.text)}</td><td>${escapeHtml(serverStatusText(e))}</td></tr>`;
+        return `<tr data-room="${escapeHtml(e.room)}" class="${e.room === this.selected ? 'sel' : ''}${bad ? ' bad' : ''}" title="${escapeHtml(bad ?? 'Doppelklick zum Beitreten')}"><td class="lock">${e.hasPassword ? ICON.lock : ''}</td><td><span class="nm">${escapeHtml(e.name)}</span><span class="code">${escapeHtml(e.room)}</span>${e.friendlyFire ? `<span class="ff" title="${escapeHtml(friendlyFireText(true))}: Teamschaden zählt">FF</span>` : ''}</td><td class="map">${escapeHtml(e.map)}</td><td>${escapeHtml(playersText(e))}</td><td class="lat ${lat.level}">${escapeHtml(lat.text)}</td><td>${escapeHtml(serverStatusText(e))}</td></tr>`;
       }).join('')}</tbody></table>`;
     }
     const btn = this.root.querySelector<HTMLButtonElement>('#mm-join-sel');

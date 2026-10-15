@@ -231,6 +231,117 @@ describe('Bot-Gehirn: Aufträge', () => {
   });
 });
 
+describe('Bot-Gehirn: Rücksicht auf Kameraden', () => {
+  const spot = { x: 10, y: 0, z: 18 };
+  const foe = enemy({ x: 3, y: 0, z: 30 }, 14);
+  // Kamerad auf der Schusslinie spot → foe (Mitte)
+  const inLine = { x: 6.5, y: 0, z: 24 };
+  const beside = { x: 12.5, y: 0, z: 22 };
+
+  /** Bis zum ersten Schuss laufen lassen (Reaktionszeit, Gegenlenken); liefert die letzte Absicht. */
+  function fireReady(b: BotBrain, mates: XYZ[]): ReturnType<BotBrain['think']> {
+    let it = b.think(input({ visible: [foe], mates, pos: spot }));
+    for (let i = 0; i < 40 && !it.fire && !it.held; i++) it = b.think(input({ visible: [foe], mates, pos: spot, now: 50 + i * 0.05 }));
+    return it;
+  }
+
+  it('Kamerad in der Schusslinie: Feuer halten, seitlich treten, den Kameraden melden', () => {
+    const it = fireReady(new BotBrain('c1', 'CT', 0.6, mulberry32(21)), [inLine]);
+    expect(it.fire).toBeNull();
+    expect(it.held).toMatchObject({ mate: 0 });
+    expect(it.held!.to.z).toBeGreaterThan(spot.z);
+    expect(it.state).toContain('Kamerad im Schussfeld');
+    expect(it.strafe).not.toBeNull();
+    expect(Math.hypot(it.strafe!.x, it.strafe!.z)).toBeCloseTo(1);
+    // Seitenschritt senkrecht zur Schusslinie
+    const dir = { x: foe.pos.x - spot.x, z: foe.pos.z - spot.z };
+    expect(Math.abs(it.strafe!.x * dir.x + it.strafe!.z * dir.z)).toBeLessThan(0.2 * Math.hypot(dir.x, dir.z));
+    expect(['walk', 'run']).toContain(it.speed);
+  });
+
+  it('Kamerad seitlich neben der Linie oder nicht vorhanden: normales Feuer', () => {
+    expect(fireReady(new BotBrain('c1', 'CT', 0.6, mulberry32(21)), [beside]).fire).not.toBeNull();
+    expect(fireReady(new BotBrain('c1', 'CT', 0.6, mulberry32(21)), []).fire).not.toBeNull();
+  });
+
+  it('Kamerad verlässt die Linie: der Bot schießt wieder', () => {
+    const b = new BotBrain('c1', 'CT', 0.6, mulberry32(21));
+    expect(fireReady(b, [inLine]).fire).toBeNull();
+    const it = b.think(input({ visible: [foe], mates: [beside], pos: spot, now: 52 }));
+    expect(it.fire).not.toBeNull();
+    expect(it.held).toBeUndefined();
+  });
+
+  it('wer einen Kameraden am Schießen hindert und selbst nicht kämpft, tritt aus dessen Linie', () => {
+    const b = new BotBrain('c2', 'CT', 0.6, mulberry32(22));
+    const line = { from: { x: 10, y: 1.65, z: 10 }, to: { x: 10, y: 1.1, z: 40 } };
+    const me = { x: 10.2, y: 0, z: 18 };
+    const it = b.think(input({ pos: me, blocking: [line] }));
+    expect(it.strafe).not.toBeNull();
+    expect(it.strafe!.x).toBeGreaterThan(0.9); // mein Versatz ist +x → weiter nach +x
+    expect(it.state).toContain('weicht aus');
+    // Steht man ohnehin nicht in der Linie, passiert nichts
+    expect(b.think(input({ pos: { x: 14, y: 0, z: 18 }, blocking: [line] })).strafe).toBeNull();
+    // Im Kampf (Gegner sichtbar) bleibt der Bot, der Schütze weicht aus
+    const fighter = new BotBrain('c3', 'CT', 0.6, mulberry32(23));
+    const f = fighter.think(input({ pos: me, blocking: [line], visible: [enemy({ x: 12, y: 0, z: 40 }, 20)] }));
+    expect(f.state).not.toContain('weicht aus');
+  });
+
+  it('beim Pflanzen oder Entschärfen weicht man nicht aus', () => {
+    const b = new BotBrain('t9', 'T', 0.6, mulberry32(24));
+    const plant = makeTask({ kind: 'plant', label: 'Pflanzen', goal: { x: 10, y: 0, z: 18 }, speed: 'run' });
+    const line = { from: { x: 10, y: 1.65, z: 10 }, to: { x: 10, y: 1.1, z: 40 } };
+    const lo = armed('T');
+    giveWeapon(lo, 'c4');
+    const it = b.think(input({ pos: { x: 10.1, y: 0, z: 18 }, lo, task: plant, blocking: [line] }));
+    expect(it.use).toBe(true);
+    expect(it.state).not.toContain('weicht aus');
+  });
+
+  it('Halter wirft keine HE auf Gegner, die direkt bei einem Kameraden stehen', () => {
+    const mk = () => {
+      const b = new BotBrain('c1', 'CT', 0.6, mulberry32(15));
+      const lo = armed();
+      lo.grenades.he = 1;
+      const hold = makeTask({ kind: 'hold', label: 'Halten', goal: { x: 5.5, y: 0, z: 13.5 }, look: [{ x: 3, y: 0, z: 26 }], speed: 'run' });
+      b.think(input({ task: hold, lo, pos: { x: 5.5, y: 0, z: 13.5 }, now: 40 }));
+      const k = newKnowledge('CT');
+      report(k, sighting(info, 'a', { x: 3, y: 0, z: 30 }, 49, 'heard'));
+      report(k, sighting(info, 'b', { x: 4, y: 0, z: 32 }, 49, 'heard'));
+      return { b, step: (now: number, ms: XYZ[]) => b.think(input({ task: hold, lo, pos: { x: 5.5, y: 0, z: 13.5 }, know: k, mates: ms, now })) };
+    };
+    // Kameraden mitten im Wirkungsbereich: kein Wurf
+    const bad = mk();
+    expect(bad.step(50, [{ x: 3.5, y: 0, z: 30 }, { x: 4.5, y: 0, z: 31 }]).state).not.toBe('Granate (he)');
+    // Kameraden weit weg: Wurf wie gehabt
+    const ok = mk();
+    expect(ok.step(50, [{ x: 40, y: 0, z: 76 }]).state).toBe('Granate (he)');
+  });
+
+  it('laufender Wurf wird abgebrochen, wenn ein Kamerad in die Zone läuft', () => {
+    const b = new BotBrain('c1', 'CT', 0.6, mulberry32(15));
+    const lo = armed();
+    lo.grenades.he = 1;
+    const hold = makeTask({ kind: 'hold', label: 'Halten', goal: { x: 5.5, y: 0, z: 13.5 }, look: [{ x: 3, y: 0, z: 26 }], speed: 'run' });
+    const at = { x: 5.5, y: 0, z: 13.5 };
+    b.think(input({ task: hold, lo, pos: at, now: 40 }));
+    const k = newKnowledge('CT');
+    report(k, sighting(info, 'a', { x: 3, y: 0, z: 30 }, 49, 'heard'));
+    report(k, sighting(info, 'b', { x: 4, y: 0, z: 32 }, 49, 'heard'));
+    let it = b.think(input({ task: hold, lo, pos: at, know: k, now: 50 }));
+    expect(it.state).toBe('Granate (he)');
+    const runner = { x: 3.5, y: 0, z: 30.5 };
+    const states = new Set<string>();
+    for (let i = 1; i < 12; i++) {
+      it = b.think(input({ task: hold, lo, pos: at, know: k, mates: [runner], now: 50 + i * 0.05, weapon: 'hegrenade' }));
+      expect(it.throwNade).toBeNull();
+      states.add(it.state);
+    }
+    expect([...states].some((s) => s.includes('Wurf abgebrochen'))).toBe(true);
+  });
+});
+
 describe('Deckung finden', () => {
   it('Deckung hinter einer dünnen Wand zählt nur, wenn sie zu Fuß nahe erreichbar ist', () => {
     // Freie Fläche, dünne Wand (x = 0, z −20..20); Bot links der Wand, Bedrohung links weiter weg:
