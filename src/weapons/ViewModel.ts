@@ -473,10 +473,10 @@ export class ViewModel extends Behaviour {
     const busy = this.anim.current();
 
     // Sprint: Waffe senken (nicht kurz nach einem Schuss oder während Aktionen)
-    const sprintTarget = this.sprinting && this.speed > PLAYER.walkSpeed * 0.9 && this.time - this.lastFire > 0.4 && (!busy || busy === 'draw') ? 1 : 0;
+    const sprintTarget = this.sprinting && this.speed > PLAYER.runSpeed * 0.65 && this.time - this.lastFire > 0.4 && (!busy || busy === 'draw') ? 1 : 0;
     this.sprintW += (sprintTarget - this.sprintW) * (1 - Math.exp(-7 * dt));
 
-    const bobAmt = viewBobAmount(this.speed, PLAYER.walkSpeed, this.crouching) * (1 + this.sprintW * 0.5);
+    const bobAmt = viewBobAmount(this.speed, PLAYER.runSpeed * 0.7, this.crouching) * (1 + this.sprintW * 0.5);
     const bob = walkBob(this.bobPhase, bobAmt);
     const br = breathe(this.time, this.speed > 0.5 ? 0.3 : 1);
     const lean = strafeLean(this.lateral);

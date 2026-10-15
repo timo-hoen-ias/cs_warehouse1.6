@@ -95,6 +95,9 @@ describe('Schritte', () => {
     expect(stepGain(5, true)).toBe(0);
     expect(stepGain(2, false)).toBe(0);
     expect(stepGain(4.2, false)).toBeGreaterThan(0);
+    // Shift-Schleichen mit dem Messer (52 % von 6.2 m/s) ist lautlos, Rennen nicht
+    expect(stepGain(6.2 * 0.52, false)).toBe(0);
+    expect(stepGain(6.2, false)).toBeGreaterThan(0);
     expect(stepGain(6.2, false)).toBeGreaterThan(stepGain(4.2, false));
     expect(stepGain(6.2, false)).toBeCloseTo(1);
   });

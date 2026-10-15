@@ -3,10 +3,11 @@
 // Szene rendert, Runde wird live, Schuss trifft Bot, Eliminierung beendet Runde,
 // Granate fliegt, Wand-Decal, Viewmodel, Kauf; keine Console-Fehler.
 // Aufruf: bun scripts/smoke.mjs   (Dev-Server muss auf :3000 laufen)
-//   Browser: Edge (Windows-Standard) oder per Env BROWSER=/pfad/zu/chromium
+//   Browser: Edge (Windows-Standard) oder per Env BROWSER=/pfad/zu/chromium; CDP_PORT (Standard 9223), URL
 
 const BROWSER = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const CDP_PORT = 9223;
+// Parallel laufende Sitzungen: CDP-Port per Umgebung abweichend setzen (CDP_PORT=9308)
+const CDP_PORT = Number(process.env.CDP_PORT ?? 9223);
 const URL = process.env.URL ?? 'http://localhost:3000/?auto=1&fill=4&quality=low';
 const TIMEOUT = 20000;
 
@@ -150,6 +151,97 @@ async function run() {
     const bmh = bm ? bm.y - (bm.ry ?? 0) : 0;
     if (bm && bmh > 1.0 && bmh < 1.75 && bmd > 0.3 && bmd < 1.2) ok(`Mündung des Bots: ${bmd.toFixed(2)} m vor dem Körper, Höhe ${bmh.toFixed(2)} über den Füßen`);
     else fail(`Mündung des Bots unplausibel: ${JSON.stringify(bm)}`);
+
+    // 6c) Bewegung wie CS 1.6: Tempo je Waffe (Messer 6.2, AWP 5.2, gezoomt 3.7 m/s), Shift-Schleichen leise, Strg-Ducken, Sprunghöhe, Sturzschaden
+    await evJson('globalThis.__pauseBots?.(60000)');
+    await ev('globalThis.__weapon("knife")');
+    const home = await evJson('globalThis.__pos?.()');
+    const openRun = await evJson('globalThis.__openRun?.()');
+    if (openRun?.free >= 12) ok(`Anlaufstrecke: ${openRun.free} m frei`);
+    else fail('keine freie Anlaufstrecke: ' + JSON.stringify(openRun));
+    const holdKeys = (codes, ms) => ev(`new Promise((res) => {
+      const codes = ${JSON.stringify(codes)};
+      for (const code of codes) document.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+      const p0 = globalThis.__pos();
+      let max = 0, maxY = 0;
+      const t0 = performance.now();
+      const loop = () => {
+        const p = globalThis.__pos();
+        max = Math.max(max, p.speed); maxY = Math.max(maxY, p.y - p0.y);
+        if (performance.now() - t0 < ${ms}) requestAnimationFrame(loop);
+        else { for (const code of codes) document.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true })); res(JSON.stringify({ max, maxY, run: p.run })); }
+      };
+      loop();
+    })`).then((v) => JSON.parse(v ?? 'null'));
+    const reset = async () => { await ev(`globalThis.__teleport(${home.x}, ${home.z}, ${openRun.yaw}, ${home.y})`); await sleep(400); };
+    const steps = async () => (await evJson('globalThis.__audio?.()'))?.played?.step ?? 0;
+    const inRange = (v, lo, hi) => v >= lo && v <= hi;
+    await reset();
+    const kRun = await holdKeys(['KeyW'], 1500);
+    if (inRange(kRun?.max, 5.7, 6.35)) ok(`Messer-Lauftempo: ${kRun.max.toFixed(2)} m/s (Soll 6.2)`);
+    else fail('Messer-Lauftempo: ' + JSON.stringify(kRun));
+    await reset();
+    const stepsBeforeRun = await steps();
+    await holdKeys(['KeyW'], 2500);
+    const stepsRun = (await steps()) - stepsBeforeRun;
+    await reset();
+    const kWalk = await holdKeys(['KeyW', 'ShiftLeft'], 1500);
+    if (inRange(kWalk?.max, 3.0, 3.45)) ok(`Schleichen (Shift): ${kWalk.max.toFixed(2)} m/s (Soll 3.2)`);
+    else fail('Schleichen (Shift): ' + JSON.stringify(kWalk));
+    await reset();
+    const stepsBeforeWalk = await steps();
+    await holdKeys(['KeyW', 'ShiftLeft'], 1800);
+    const stepsWalk = (await steps()) - stepsBeforeWalk;
+    if (stepsRun >= 1 && stepsWalk === 0) ok(`Schritte: Rennen ${stepsRun} Geräusche, Schleichen ${stepsWalk} (leise)`);
+    else fail(`Schrittgeräusche: Rennen ${stepsRun}, Schleichen ${stepsWalk}`);
+    await reset();
+    const kDuck = await holdKeys(['KeyW', 'ControlLeft'], 1500);
+    if (inRange(kDuck?.max, 1.9, 2.3)) ok(`Ducken (Strg): ${kDuck.max.toFixed(2)} m/s (Soll 2.1)`);
+    else fail('Ducken (Strg): ' + JSON.stringify(kDuck));
+    await ev('globalThis.__zoom("awp").then((v) => JSON.stringify(v))');
+    await ev('globalThis.__unzoom()');
+    await sleep(400);
+    await reset();
+    const awpRun = await holdKeys(['KeyW'], 1500);
+    if (inRange(awpRun?.max, 4.9, 5.35)) ok(`AWP-Lauftempo: ${awpRun.max.toFixed(2)} m/s (Soll 5.2 — langsamer als das Messer)`);
+    else fail('AWP-Lauftempo: ' + JSON.stringify(awpRun));
+    await ev('globalThis.__zoom("awp").then((v) => JSON.stringify(v))');
+    await reset();
+    const awpScoped = await holdKeys(['KeyW'], 1500);
+    if (inRange(awpScoped?.max, 3.4, 3.95)) ok(`AWP gezoomt: ${awpScoped.max.toFixed(2)} m/s (Soll 3.7)`);
+    else fail('AWP gezoomt: ' + JSON.stringify(awpScoped));
+    await ev('globalThis.__unzoom()');
+    await ev('globalThis.__weapon("knife")');
+    await reset();
+    const jump = await holdKeys(['Space'], 1100);
+    if (inRange(jump?.maxY, 0.95, 1.25)) ok(`Sprunghöhe: ${jump.maxY.toFixed(2)} m (Soll ≈ 1.1)`);
+    else fail('Sprunghöhe: ' + JSON.stringify(jump));
+    // Sturz: 3 m harmlos, 8 m ≈ 30 HP Schaden (Host rechnet)
+    const d3 = await evJson('globalThis.__dropTest?.(3)');
+    await waitFor('globalThis.__pos?.()', (v) => v.air, 5000, 100);
+    await waitFor('globalThis.__pos?.()', (v) => !v.air, 20000, 250); // Software-Rendering: Bildrate niedrig, Spielzeit läuft langsamer
+    await sleep(600);
+    const p3 = await evJson('globalThis.__pos?.()');
+    if (!d3?.error && p3?.hp === 100) ok('Sturz aus 3 m: kein Schaden');
+    else fail(`Sturz aus 3 m: ${JSON.stringify(d3)} hp=${p3?.hp}`);
+    const d8 = await evJson('globalThis.__dropTest?.(8)');
+    await waitFor('globalThis.__pos?.()', (v) => v.air, 5000, 100);
+    await waitFor('globalThis.__pos?.()', (v) => !v.air, 30000, 250);
+    await sleep(800);
+    const p8 = await evJson('globalThis.__pos?.()');
+    if (!d8?.error && p8 && p8.hp < 90 && p8.hp > 50) ok(`Sturz aus 8 m: ${100 - p8.hp} HP Schaden`);
+    else fail(`Sturz aus 8 m: ${JSON.stringify(d8)} hp=${p8?.hp}`);
+
+    // 6d) Dynamisches Licht: Explosion/Mündungsfeuer landen im Pool und im Shader-Array (Einzelstufe niedrig: 2, hoch: 6 Lichter)
+    await evJson('globalThis.__lightTest?.("he", 4)');
+    const dl = await waitFor('globalThis.__dynLights?.()', (v) => v.active >= 1, 4000, 100);
+    if (dl?.active >= 1 && (dl.max === 2 || dl.max === 6)) ok(`Dynamisches Licht: ${dl.active} aktiv, Pool ${dl.pool}, max ${dl.max}`);
+    else fail('Dynamisches Licht fehlt: ' + JSON.stringify(dl));
+    await evJson('globalThis.__lightTest?.("muzzle", 3)');
+    await waitFor('globalThis.__dynLights?.()', (v) => v.pool === 0, 15000, 200); // klingt ab → Pool leer
+    const dl2 = await evJson('globalThis.__dynLights?.()');
+    if (dl2?.pool === 0) ok('Dynamisches Licht klingt ab (Pool leer)');
+    else fail('Dynamisches Licht bleibt hängen: ' + JSON.stringify(dl2));
 
     // 7) Schuss auf Gegner-Bot (AWP, Körpermitte, 4 m)
     const before = await evJson('globalThis.__enemyHp?.()');

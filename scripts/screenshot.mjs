@@ -1,7 +1,7 @@
 // Screenshot der laufenden Dev-URL (CDP, headless Chromium/Edge) — zum Sichtprüfen.
 // Aufruf: BROWSER=/opt/pw-browsers/chromium bun scripts/screenshot.mjs [out.png] [wartezeit ms] [js-vorher]
 const BROWSER = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const CDP_PORT = 9224;
+const CDP_PORT = Number(process.env.CDP_PORT ?? 9224);
 const URL = process.env.URL ?? 'http://localhost:3000/';
 const OUT = process.argv[2] ?? 'smoke.png';
 const WAIT = Number(process.argv[3] ?? 6000);

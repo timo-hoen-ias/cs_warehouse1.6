@@ -16,7 +16,8 @@ import type { MatchPlayer, MatchState, Pose } from './match';
 import type { XYZ } from './nav';
 import { BOT_RADIO, radioAllowed, type BotRadioKey } from './radio';
 import { mulberry32 } from './rng';
-import { WEAPONS, type GrenadeKind } from './weapons';
+import { PLAYER } from './move';
+import { WEAPONS, weaponSpeed, type GrenadeKind } from './weapons';
 
 /**
  * Bot-System (pure): verbindet Karten-Analyse, Team-Trainer (T/CT), Wahrnehmung,
@@ -397,6 +398,7 @@ export class BotSystem {
     }
     p.weapon = u.weapon;
     const def = WEAPONS[u.weapon] ?? WEAPONS['knife']!;
+    u.body.speedScale = weaponSpeed(def) / PLAYER.runSpeed; // CS: schwere Waffen bremsen auch Bots
     const g = p.loadout.guns[u.weapon];
     if (g) tickGun(g, def, dt);
     if (it.reload && g && u.switchT <= 0) startReload(g, def);

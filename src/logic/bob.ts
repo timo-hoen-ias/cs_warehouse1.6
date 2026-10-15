@@ -1,11 +1,11 @@
-/** Headbob-Parameter (subtiler CS-Light-Stil). */
+/** Headbob-Parameter (dezenter CS-1.6-Stil: kaum sichtbares Auf und Ab; kein Kamera-Roll im Spiel). */
 export const BOB = {
   /** Radiant Phase pro gelaufenem Meter (Schritttempo folgt Geschwindigkeit). */
   freq: 2.4,
   /** Maximale vertikale Auslenkung (m) beim Laufen. */
-  amp: 0.022,
+  amp: 0.016,
   /** Maximale seitliche Auslenkung (m). */
-  side: 0.006,
+  side: 0.004,
   /** Maximale Roll-Neigung der Kamera (rad). */
   roll: 0.0016,
   /** Dämpfungsfaktor fürs Ducken (weniger Bob). */

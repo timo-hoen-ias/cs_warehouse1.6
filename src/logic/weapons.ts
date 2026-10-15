@@ -2,6 +2,7 @@ import type { RecoilSpec } from './recoil';
 import { aimRotation } from './viewPlace';
 import { VIEW_SCALE } from './viewAnim';
 import { weaponGeom } from './weaponGeom';
+import { u2m } from './units';
 import rawWeapons from './weapons.json';
 
 export type { RecoilSpec };
@@ -58,6 +59,12 @@ export type WeaponDef = {
   spreadPerShot: number;
   /** Extra-Streuung bei Bewegung (Radiant). */
   moveSpread: number;
+  /** Extra-Streuung in der Luft (Sprung/Fall, Radiant); fehlt bei Nahkampf/Granaten/Bombe. */
+  airSpread?: number;
+  /** Maximales Lauftempo mit dieser Waffe in CS-Einheiten pro Sekunde (Messer 250, AK 221, AWP 210 …). */
+  maxSpeed: number;
+  /** Lauftempo mit Zielfernrohr (CS: AWP 150, Scout 220); fehlt = unverändert. */
+  scopedSpeed?: number;
   /** Max. effektive Reichweite in Metern (Granaten: Wurfweite-Referenz). */
   range: number;
   /** 'hit' (Hitscan), 'melee' (Nahkampf), 'throw' (Granate), 'plant' (Bombe). */
@@ -201,6 +208,15 @@ export function nextZoomLevel(def: WeaponDef, level: number): number {
 export function zoomFov(def: WeaponDef, level: number, base: number): number {
   if (!def.zoom || level <= 0) return base;
   return def.zoom[Math.min(level, def.zoom.length) - 1] ?? base;
+}
+
+/**
+ * Maximales Lauftempo (m/s) mit der Waffe in der Hand — CS-Tabelle in Meter umgerechnet
+ * (Messer 250 u/s = 6,2 m/s). Mit Zielfernrohr ggf. langsamer. Grundlage für Spieler und Bots;
+ * Gehen (Shift) und Ducken sind Faktoren darauf (`move.ts`).
+ */
+export function weaponSpeed(def: WeaponDef, scoped = false): number {
+  return u2m(scoped && def.scopedSpeed ? def.scopedSpeed : def.maxSpeed);
 }
 
 /** Schussdistanz-Abfall (CS: Schaden sinkt mit der Entfernung; Sniper kaum). */

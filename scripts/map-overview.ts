@@ -65,7 +65,7 @@ for (const id of ids) {
   const row = (label: string, from: { x: number; y: number; z: number }, to: { x: number; y: number; z: number } | undefined): string => {
     if (!to) return `${label}: —`;
     const len = routeLength(g, from, to);
-    return `${label.padEnd(10)} ${len.toFixed(0).padStart(4)} m  · Laufen ${(len / PLAYER.walkSpeed).toFixed(1).padStart(5)} s · Sprint ${(len / PLAYER.sprintSpeed).toFixed(1).padStart(5)} s`;
+    return `${label.padEnd(10)} ${len.toFixed(0).padStart(4)} m  · Laufen ${(len / PLAYER.runSpeed).toFixed(1).padStart(5)} s · Schleichen ${(len / PLAYER.walkSpeed).toFixed(1).padStart(5)} s`;
   };
   console.log(`\n${id} (${data.name}) → ${out}`);
   console.log(`  Brushes ${data.brushes.length}, Deko ${data.decor.length}, Lichter ${data.lights.length}, Bereiche ${data.areas.length}`);

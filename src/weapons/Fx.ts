@@ -1,6 +1,7 @@
 import { Behaviour, registerType } from '@needle-tools/engine';
 import * as THREE from 'three';
 import type { Vec3 } from '../logic/hitbox';
+import type { DynamicLights } from '../level/DynamicLights';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -18,6 +19,8 @@ type LiveFx = { obj: THREE.Object3D; life: number; tick: (dt: number, life: numb
 @registerType
 export class Fx extends Behaviour {
   onHitmarker?: (killed: boolean) => void;
+  /** Dynamisches Licht auf der Levelgeometrie (Mündungsfeuer erhellt kurz die Umgebung). */
+  lights?: DynamicLights;
 
   private readonly root = new THREE.Group();
   private readonly active = new Set<LiveFx>();
@@ -85,6 +88,7 @@ export class Fx extends Behaviour {
     }
     this.muzzleLight.position.copy(p);
     this.muzzleLight.intensity = 30;
+    this.lights?.muzzle(muzzleWorld, size);
 
     const flash = this.starFlash(size);
     flash.position.copy(p);

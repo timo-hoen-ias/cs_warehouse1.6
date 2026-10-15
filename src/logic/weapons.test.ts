@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUY_CATEGORIES, EQUIPMENT, TYPE_VISUAL, WEAPONS, currentSpread, hitDamage, nextZoomLevel, rangeFalloff, reloadAmount, reloadDuration, shotInterval, teamCanUse, weaponsInCategory, zoomFov } from './weapons';
+import { BUY_CATEGORIES, EQUIPMENT, TYPE_VISUAL, WEAPONS, currentSpread, hitDamage, nextZoomLevel, rangeFalloff, reloadAmount, reloadDuration, shotInterval, teamCanUse, weaponSpeed, weaponsInCategory, zoomFov } from './weapons';
 
 const ak = WEAPONS['ak47']!;
 const awp = WEAPONS['awp']!;
@@ -194,5 +194,42 @@ describe('Zoom', () => {
   it('Messerstich ist stärker und kürzer als der normale Hieb', () => {
     expect(WEAPONS['knife_stab']!.damage).toBeGreaterThan(WEAPONS['knife']!.damage);
     expect(WEAPONS['knife_stab']!.range).toBeLessThanOrEqual(WEAPONS['knife']!.range);
+  });
+});
+
+describe('weaponSpeed (CS-Lauftempo je Waffe)', () => {
+  it('Messer = 250 u/s = 6,2 m/s (Referenz der Kartenlaufzeiten)', () => {
+    expect(weaponSpeed(WEAPONS['knife']!)).toBeCloseTo(6.2, 6);
+    expect(WEAPONS['knife']!.maxSpeed).toBe(250);
+  });
+
+  it('CS-1.6-Tabelle in u/s', () => {
+    const table: Record<string, number> = {
+      glock: 250, usp: 250, deagle: 250, mp5: 250, p90: 245, ump45: 250, m3: 230, xm1014: 240, ak47: 221, m4a1: 230,
+      famas: 220, galil: 240, aug: 221, sg552: 235, scout: 260, awp: 210, g3sg1: 210, sg550: 210, m249: 220,
+      c4: 250, hegrenade: 250, flashbang: 250, smokegrenade: 250,
+    };
+    for (const [id, u] of Object.entries(table)) expect(WEAPONS[id]!.maxSpeed, id).toBe(u);
+  });
+
+  it('schwere Waffen sind langsamer als das Messer, der Scout schneller', () => {
+    expect(weaponSpeed(WEAPONS['ak47']!)).toBeLessThan(weaponSpeed(WEAPONS['knife']!));
+    expect(weaponSpeed(WEAPONS['awp']!)).toBeLessThan(weaponSpeed(WEAPONS['ak47']!));
+    expect(weaponSpeed(WEAPONS['scout']!)).toBeGreaterThan(weaponSpeed(WEAPONS['knife']!));
+  });
+
+  it('Zielfernrohr bremst (AWP 150 u/s), Waffen ohne scopedSpeed bleiben gleich', () => {
+    const awpDef = WEAPONS['awp']!;
+    expect(weaponSpeed(awpDef, true)).toBeCloseTo(150 * 0.0248, 6);
+    expect(weaponSpeed(awpDef, true)).toBeLessThan(weaponSpeed(awpDef, false));
+    expect(weaponSpeed(WEAPONS['ak47']!, true)).toBe(weaponSpeed(WEAPONS['ak47']!, false));
+  });
+
+  it('alle Waffen: Tempo positiv und höchstens 260 u/s; Schusswaffen haben Luft-Streuung', () => {
+    for (const w of Object.values(WEAPONS)) {
+      expect(w.maxSpeed, w.id).toBeGreaterThan(0);
+      expect(w.maxSpeed, w.id).toBeLessThanOrEqual(260);
+      if (w.mode === 'hit') expect(w.airSpread ?? 0, w.id).toBeGreaterThan(w.moveSpread);
+    }
   });
 });

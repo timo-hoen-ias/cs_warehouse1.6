@@ -47,9 +47,9 @@ Menümusik: Derek „JoJo“ Stegall, Tracks aus dem Red-Eclipse-Soundpaket (<ht
 | Taste | Aktion |
 |---|---|
 | W A S D | Bewegen |
-| Shift | Sprinten |
-| Strg | Ducken |
-| Leertaste | Springen |
+| Shift | Leise gehen (Schleichen, 52 % Tempo, keine Schritte zu hören) |
+| Strg | Ducken (34 % Tempo); in der Luft Beine anziehen = Hocksprung |
+| Leertaste | Springen (für den nächsten Sprung neu drücken) |
 | Linke Maustaste | Schießen |
 | Rechte Maustaste | Zielfernrohr (AWP, Scout, G3SG1, SG 550, AUG, SG 552) / schwerer Messerstich / kurzer Granatenwurf |
 | R | Nachladen |
@@ -91,7 +91,7 @@ Menümusik: Derek „JoJo“ Stegall, Tracks aus dem Red-Eclipse-Soundpaket (<ht
 | `de_kuehlhaus` | **Kühlhaus** — de_nuke als Tiefkühl-Logistikzentrum im Winterlicht: T-Spawn im Außenbereich mit Silos (Ammoniak-/Kältespeicher), Garage, Haupteingang → Lobby → Hütte (Quietschtür) → **Halle A** mit Himmel (Laufsteg +4.5 m) und Hölle, **Spot B direkt darunter im Keller** (Datenraum, −5 m). Verbindungen: Rampenraum (Lobby → Keller), Lüftung (Treppenschacht A ↔ B), Geheimgang (Hof → Tunnel → B), Kellertreppe aus dem Kontrollraum der CT, Dachweg (Garagendach → Westdach → Himmel). Bombenziele: IT-Serverschränke an der Kältemaschine (A) und im Datenraum (B). |
 | `de_gueterbahnhof` | **Güterbahnhof** — de_train als Bahn-Logistikzentrum (≈ 184 × 172 m, Ebenen −1.4 … +8.4 m): T-Hof mit den Ausgängen Efeu (efeubewachsener Außengang), Hauptgang und Ostgang; überdachtes Gleisfeld A (Gleise 1–5 mit Güterwagen, Hängekran-Kranbahn, Himmel-Galerie über dem Sandwich, Leiterraum-Treppe, Popdog-Revisionsgrube, Bombenzug mit IT-Wagen „Serverschrank A“), Mitte mit Altzug, Packhallen-Dachterrasse und Stellwerk-Balkon (Sniper-Nest), Z-Verbindung nach Gleisfeld B (Serverinsel zwischen zwei Gleisen, Obere Empore, Untere/Obere Halle B), CT-Hof mit Lokschuppen. |
 
-Laufzeiten (Sprint) Lagerstaub: T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
+Laufzeiten (Laufen mit dem Messer, 6.2 m/s) Lagerstaub: T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
 Laufzeiten Kühlhaus: T → A ≈ 22 s, T → B ≈ 22 s (Geheimgang), CT → A ≈ 7 s, CT → B ≈ 14 s (Kellertreppe), Mitte (Lobby) T ≈ 12 s / CT ≈ 16 s.
 Das Kartenformat und eine Anleitung für neue Karten stehen in [`docs/KARTENFORMAT.md`](docs/KARTENFORMAT.md).
 Eine Draufsicht (PNG) samt Laufzeiten erzeugt `bun run overview [karten-id] [datei.png] [px-pro-meter] [--areas]`.

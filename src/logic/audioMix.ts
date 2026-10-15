@@ -87,8 +87,8 @@ export function dist(a: V3, b: V3): number {
 // ----------------------------------------------------------------------------- Schritte
 
 export const STEP = {
-  /** Unter dieser Geschwindigkeit (m/s) lautlos (CS: Shift-Schleichen). */
-  minSpeed: 2.6,
+  /** Unter dieser Geschwindigkeit (m/s) lautlos: 140 u/s (CS: Shift-Schleichen = 52 % von 250 u/s ≈ 3.2 m/s bleibt darunter). */
+  minSpeed: 3.47,
   /** Schrittlänge = base + perSpeed · v (m). */
   strideBase: 1.15,
   stridePerSpeed: 0.12,

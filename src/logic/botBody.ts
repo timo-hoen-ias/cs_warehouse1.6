@@ -15,7 +15,7 @@ import { findPath, nearestNode, type NavGraph, type XYZ } from './nav';
 export const BODY = {
   run: PLAYER.sprintSpeed * 0.96,
   walk: PLAYER.walkSpeed,
-  /** Schleichen: unter der Hörschwelle der Schritte (STEP.minSpeed 2.6). */
+  /** Schleichen: unter der Hörschwelle der Schritte (STEP.minSpeed 3.47). */
   sneak: 2.4,
   crouch: PLAYER.crouchSpeed,
   /** Drehrate (rad/s): ruhig bzw. im Kampf (+ Skill-Anteil). */
@@ -66,6 +66,8 @@ export class BotBody {
   crouch = false;
   /** Horizontale Geschwindigkeit (m/s) im letzten Schritt. */
   speed = 0;
+  /** Tempo-Faktor der gehaltenen Waffe (`weaponSpeed(def) / PLAYER.runSpeed`: Messer 1, AK 0.88, AWP 0.84). */
+  speedScale = 1;
   /** Sekunden ohne Bewegung (Gegenlenken, Genauigkeit). */
   stillFor = 0;
   /** Summe der Zeit, in der der Bot laufen wollte, aber festsaß (Statistik). */
@@ -133,7 +135,7 @@ export class BotBody {
     let vx = 0;
     let vz = 0;
     const want = it.speed === 'stop' ? 0 : it.speed === 'sneak' ? BODY.sneak : it.speed === 'walk' ? BODY.walk : BODY.run;
-    const speed = this.crouch ? Math.min(want, BODY.crouch) : want;
+    const speed = (this.crouch ? Math.min(want, BODY.crouch) : want) * this.speedScale;
     let wantsMove = false;
     if (speed > 0 && it.strafe) {
       const nx = this.pose.x + it.strafe.x * 0.7;
