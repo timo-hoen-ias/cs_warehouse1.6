@@ -134,6 +134,46 @@ export function decorGeometry(kind: DecorKind, low = false): THREE.BufferGeometr
     case 'fanUnit':
       g = build([box(0.9, 0.3, 0.7, 0, 0.15, 0, 0xc8ccd0), cyl(0.28, 0.04, 0, 0.31, 0, 0x2a2a2a, 'y', 12)]);
       break;
+    case 'tank': {
+      // stehender Behälter (Silo/Ammoniak-Speicher): Radius 1, Höhe 1, Schweißnähte und Sockelring proportional zur Höhe
+      const seg = low ? 12 : 24;
+      const parts: Part[] = [cyl(1, 1, 0, 0.5, 0, 0xffffff, 'y', seg), cyl(1.03, 0.02, 0, 0.012, 0, 0x6a727a, 'y', seg)];
+      for (const f of [0.2, 0.4, 0.6, 0.8]) parts.push(cyl(1.012, 0.012, 0, f, 0, 0xb8c2cb, 'y', seg));
+      g = build(parts);
+      break;
+    }
+    case 'tankDome': {
+      const seg = low ? 12 : 24;
+      g = build([{ geo: new THREE.SphereGeometry(1, seg, Math.max(4, seg / 3), 0, Math.PI * 2, 0, Math.PI / 2), color: 0xffffff }, cyl(0.07, 0.12, 0.3, 1.02, 0.2, 0x404448, 'y', 8)]);
+      break;
+    }
+    case 'stripCurtain': {
+      // Kühlraum-Streifenvorhang: Breite 1, Höhe 1, neun Lamellen leicht versetzt, Laufschiene oben
+      const parts: Part[] = [box(1.04, 0.06, 0.07, 0, 0.99, 0, 0x6a727a)];
+      for (let i = 0; i < 9; i++) parts.push(box(0.105, 0.96, 0.014, -0.45 + i * 0.1125, 0.48, i % 2 ? 0.012 : -0.012, i % 3 === 0 ? 0xc4dcea : 0xd8e8f0));
+      g = build(parts);
+      break;
+    }
+    case 'compressor':
+      // Schraubenverdichter-Aggregat auf Grundrahmen: Motor, Verdichter, Ölabscheider, Rohre
+      g = build([
+        box(2.6, 0.22, 1.4, 0, 0.11, 0, 0x3a3f44),
+        cyl(0.42, 1.2, -0.7, 0.85, 0, 0x2f6fb5, 'x', low ? 8 : 14),
+        box(0.9, 0.85, 0.85, 0.5, 0.65, 0, 0x8a9298),
+        cyl(0.36, 1.55, 0.95, 1.0, 0.5, 0xd8dde2, 'y', low ? 8 : 12),
+        cyl(0.09, 1.2, 0.5, 1.4, -0.2, 0x9aa0a6, 'y', 8),
+        cyl(0.09, 1.4, 0.2, 1.4, -0.2, 0x9aa0a6, 'x', 8),
+        box(0.3, 0.2, 0.05, -0.7, 1.35, 0.44, 0xffd040, true),
+      ]);
+      break;
+    case 'condenser': {
+      // luftgekühlter Verflüssiger: Gehäuse auf Füßen, drei Ventilatoren oben
+      const parts: Part[] = [box(3.2, 1.1, 1.5, 0, 1.15, 0, 0xdde4e9), box(3.3, 0.06, 1.6, 0, 1.72, 0, 0x8a9298)];
+      for (const x of [-1.05, 1.05]) for (const z of [-0.55, 0.55]) parts.push(box(0.12, 0.6, 0.12, x, 0.3, z, 0x4a5258));
+      for (const x of [-1.05, 0, 1.05]) parts.push(cyl(0.46, 0.05, x, 1.78, 0, 0x1e2124, 'y', low ? 8 : 14), cyl(0.12, 0.08, x, 1.8, 0, 0x8a9298, 'y', 6));
+      g = build(parts);
+      break;
+    }
     default:
       g = build([box(0.5, 0.5, 0.5, 0, 0.25, 0, 0xff00ff)]);
   }

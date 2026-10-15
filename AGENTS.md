@@ -40,6 +40,9 @@ Stack: Needle Engine 5.x (Vite + TypeScript, kein React), Bun 1.4, Vitest.
 - Netzwerk: Host authoritativ (Dienstältester im Raum), Clients senden Posen/Schüsse/Käufe, Host sendet
   Snapshots + Ereignisse (`src/logic/net.ts`, `src/game/MatchDriver.ts`). Neue Spielregeln immer als pure
   Funktion in `src/logic/` + Test, der Driver ruft sie nur auf. Eingaben fremder Clients auf dem Host prüfen.
+- **Bots** sind pure Logik (`src/logic/bot*.ts`, Einstieg `BotSystem`), kartenunabhängig aus Navigation/Callouts/Spots
+  abgeleitet; Änderungen am Bot-Verhalten mit `bun scripts/bot-sim.ts` (Headless-Statistik) prüfen, der Simulationstest
+  `botSim.test.ts` muss grün bleiben.
 - Spielzeit nie direkt aus `context.time.deltaTime` (auf 0.1 s gedeckelt) für Timer verwenden, sondern über den
   Driver (eigene Uhr, Teilschritte).
 - Vor größeren Refactors/Features `IMPLEMENTIERUNGSPLAN.md` lesen und nach Abschluss aktualisieren.

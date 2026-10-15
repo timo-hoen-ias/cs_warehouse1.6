@@ -19,7 +19,8 @@ export type MaterialId =
   | 'concrete' | 'concreteDark' | 'asphalt' | 'paving' | 'plaster' | 'brick' | 'wallPaint' | 'wallTile'
   | 'corrugated' | 'corrugatedDark' | 'metal' | 'steel' | 'grating' | 'wood' | 'crate' | 'pallet' | 'wrap'
   | 'carton' | 'hazard' | 'tile' | 'roof' | 'container' | 'rubber' | 'cage' | 'server' | 'door' | 'gate'
-  | 'epoxy' | 'gravel' | 'black' | 'white' | 'emissive' | 'sky' | 'window' | 'skylight' | 'vent';
+  | 'epoxy' | 'gravel' | 'foliage' | 'rust' | 'black' | 'white' | 'emissive' | 'sky' | 'window' | 'skylight' | 'vent'
+  | 'panel' | 'frost';
 
 /** Standard-Oberfläche (Schrittklang) und Texturmaßstab je Material. */
 export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
@@ -51,7 +52,9 @@ export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
   door: { surface: 'metal', uv: 2.2 },
   gate: { surface: 'metal', uv: 3 },
   epoxy: { surface: 'tile', uv: 4 },
-  gravel: { surface: 'gravel', uv: 3 },
+  gravel: { surface: 'gravel', uv: 5 },
+  foliage: { surface: 'concrete', uv: 2 },
+  rust: { surface: 'metal', uv: 3 },
   black: { surface: 'metal', uv: 2 },
   white: { surface: 'metal', uv: 2 },
   emissive: { surface: 'metal', uv: 1 },
@@ -59,6 +62,8 @@ export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
   window: { surface: 'metal', uv: 2 },
   skylight: { surface: 'metal', uv: 2 },
   vent: { surface: 'metal', uv: 1 },
+  panel: { surface: 'metal', uv: 2.4 },
+  frost: { surface: 'tile', uv: 2 },
 };
 
 /** Kollision eines Brushes: alles, nur Bewegung (Clip/Geländer), nur Strahlen, oder nichts (Deko). */
@@ -94,7 +99,8 @@ export type Brush = {
 export type DecorKind =
   | 'barrel' | 'drum' | 'pipeX' | 'pipeZ' | 'pipeY' | 'wheel' | 'lampHall' | 'lampWall' | 'lampTube' | 'lampPost'
   | 'forklift' | 'serverRack' | 'serverLeds' | 'ibc' | 'fencePost' | 'conveyorRoller' | 'cone' | 'extinguisher'
-  | 'cableTrayX' | 'cableTrayZ' | 'fanUnit' | 'rail';
+  | 'cableTrayX' | 'cableTrayZ' | 'fanUnit' | 'rail'
+  | 'tank' | 'tankDome' | 'stripCurtain' | 'compressor' | 'condenser';
 
 export type Decor = {
   kind: DecorKind;
@@ -120,7 +126,7 @@ export type MapLight = {
 
 /** Bodenmarkierungen und Schilder (nur Darstellung). */
 export type Decal = {
-  kind: 'line' | 'stripes' | 'letter' | 'arrow' | 'stain' | 'grid' | 'text';
+  kind: 'line' | 'stripes' | 'letter' | 'arrow' | 'stain' | 'grid' | 'text' | 'frost';
   /** Mitte, knapp über dem Boden. */
   pos: Vec3;
   size: [number, number];
@@ -136,6 +142,17 @@ export type Area = { name: string; min: Vec3; max: Vec3 };
 export type Site = { id: 'A' | 'B'; name: string; min: Vec3; max: Vec3; plant: Vec3 };
 export type Spawn = { team: Team; pos: Vec3; yaw: number };
 export type BuyZone = { team: Team; min: Vec3; max: Vec3 };
+
+/**
+ * Optionale Bot-Hinweise (Bots funktionieren ohne; Hinweise werten nur auf):
+ * `hold`/`sniper` = gute Halte-/Scharfschützenposition (optional nur für ein Team/einen Spot),
+ * `plant` = bevorzugter Pflanzplatz, `smoke` = bewährter Rauchwurf (von `from` auf `target`,
+ * wird vor der Nutzung mit der Granatenphysik geprüft).
+ */
+export type BotHint =
+  | { kind: 'hold' | 'sniper'; pos: Vec3; team?: Team; site?: 'A' | 'B' }
+  | { kind: 'plant'; pos: Vec3; site: 'A' | 'B' }
+  | { kind: 'smoke'; from: Vec3; target: Vec3; team: Team; site?: 'A' | 'B' };
 
 export type MapEnv = {
   /** Richtung ZUR Sonne (normiert). */
@@ -168,6 +185,8 @@ export type MapData = {
   buyZones: BuyZone[];
   acoustics: { zones: AcousticZone[]; emitters: AmbientEmitter[] };
   env: MapEnv;
+  /** Optionale Bot-Hinweise (Halte-/Pflanzplätze, Rauchwürfe). */
+  botHints?: BotHint[];
 };
 
 /** Öffnung in einer Wand: Bereich entlang der Wand (from..to) und Höhe (bottom..top, absolut). */
@@ -301,6 +320,25 @@ export class MapBuilder {
     }
   }
 
+  /**
+   * Laufsteg (Stahlrost) über dem Rechteck mit Oberkante y; Geländer an den Längsseiten
+   * (`rails`: beide, keine oder nur die Seite mit kleinerem/größerem Querwert `a`/`b`).
+   */
+  walkway(x0: number, z0: number, x1: number, z1: number, y: number, opts: { rails?: 'both' | 'none' | 'a' | 'b'; thick?: number; tint?: number; railTint?: number } = {}): Brush {
+    const { rails = 'both', thick = 0.25, tint = 0x5a6a7a, railTint } = opts;
+    const minX = Math.min(x0, x1), maxX = Math.max(x0, x1), minZ = Math.min(z0, z1), maxZ = Math.max(z0, z1);
+    const floor = this.floor(minX, minZ, maxX, maxZ, y, 'steel', { thick, top: 'grating', tint, tag: 'platform' });
+    const e = 0.05;
+    if (maxX - minX >= maxZ - minZ) {
+      if (rails === 'both' || rails === 'a') this.rail(minX, minZ + e, maxX, minZ + e, y, 1.05, railTint);
+      if (rails === 'both' || rails === 'b') this.rail(minX, maxZ - e, maxX, maxZ - e, y, 1.05, railTint);
+    } else {
+      if (rails === 'both' || rails === 'a') this.rail(minX + e, minZ, minX + e, maxZ, y, 1.05, railTint);
+      if (rails === 'both' || rails === 'b') this.rail(maxX - e, minZ, maxX - e, maxZ, y, 1.05, railTint);
+    }
+    return floor;
+  }
+
   decor(kind: DecorKind, pos: Vec3, rot = 0, scale?: Vec3, tint?: number): Decor {
     const d: Decor = { kind, pos, rot, scale, tint };
     this.data.decor.push(d);
@@ -369,5 +407,10 @@ export class MapBuilder {
 
   ambient(sound: AmbientSound, pos: Vec3, radius: number, volume?: number): void {
     this.data.acoustics.emitters.push({ sound, pos, radius, volume });
+  }
+
+  /** Bot-Hinweis (optional, siehe BotHint). */
+  botHint(h: BotHint): void {
+    (this.data.botHints ??= []).push(h);
   }
 }

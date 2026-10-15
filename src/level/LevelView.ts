@@ -156,7 +156,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
-      opacity: d.kind === 'grid' ? 0.7 : d.kind === 'stain' ? 0.9 : 0.85,
+      opacity: d.kind === 'grid' ? 0.7 : d.kind === 'stain' ? 0.9 : d.kind === 'frost' ? 0.8 : 0.85,
       color: new THREE.Color(c.r * L[0], c.g * L[1], c.b * L[2]),
     }), 'tint');
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(d.size[0], d.size[1]), mat);
@@ -223,7 +223,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
 }
 
 /** Ungefähre Höhe der Deko-Formen (für Lichtproben über dem Objekt). */
-const DECOR_HEIGHT: Partial<Record<DecorKind, number>> = { barrel: 0.9, drum: 0.8, forklift: 2.3, serverRack: 2.1, ibc: 1.2, wheel: 0.6, fanUnit: 0.4, cone: 0.6, extinguisher: 0.6, fencePost: 1, pipeY: 1 };
+const DECOR_HEIGHT: Partial<Record<DecorKind, number>> = { barrel: 0.9, drum: 0.8, forklift: 2.3, serverRack: 2.1, ibc: 1.2, wheel: 0.6, fanUnit: 0.4, cone: 0.6, extinguisher: 0.6, fencePost: 1, pipeY: 1, tank: 1, tankDome: 1, compressor: 1.6, condenser: 1.8, stripCurtain: 1 };
 
 /** Himmelskuppel mit Verlauf, Sonnenscheibe und Industrie-Skyline (folgt der Kamera). */
 function buildSky(map: MapData): THREE.Object3D {

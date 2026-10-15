@@ -7,7 +7,7 @@ Akustik; die Darstellung (`src/level/LevelView.ts`) baut Geometrie mit gebackene
 **keinen Bake-Schritt**: alle Clients rechnen aus demselben Code dasselbe Ergebnis (der Host
 wählt nur die Karten-ID).
 
-Referenzkarte: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik).
+Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`).
 
 ## Koordinaten und Maße
 
@@ -64,17 +64,47 @@ Gebäudemasse. `plan.build(builder, legend, { facades })` erzeugt:
 Rampen-/Treppenzellen bekommen in der Legende `ramp: true` (Unterbau auf Höhe `floor`), die
 Rampe selbst setzt man danach explizit mit `b.ramp` bzw. `b.stairs`.
 
+### Mehrstöckige Karten (z. B. Keller unter einer Halle)
+
+Ein `CellPlan` kennt je Zelle nur einen Boden. Für übereinanderliegende Ebenen baut man **zwei Pläne** auf derselben Fläche
+(Vorbild `de_kuehlhaus`):
+
+- **Erdgeschoss-Plan:** `build(…, { floorBottom: -0.3 })` → dünne Bodenplatte statt Vollkörper bis zur Tiefe.
+- **Keller-Plan:** `build(…, { floorBottom: -8, lintelTop: -0.3 })`; Gebäudezellen mit `h: -0.3` füllen alles Nicht-Begehbare, Räume haben
+  `floor: -5, roof: -0.8` (Decke = Unterseite der Erdgeschoss-Platte).
+- **Schächte** (Rampen, Treppen) liegen im Erdgeschoss-Plan mit `floor: -5, bottom: -8` und sind im Keller-Plan **leer** (`_: {}`); die Rampe/Treppe setzt man explizit.
+- `CellKind.bottom` – Unterkante des Unterbaus dieser Zellart (statt `floorBottom`).
+- `CellKind.bare` – Gebäudezelle **ohne Fassadenverkleidung**; nötig über Tunnelmündern, sonst malt die Verkleidung die Öffnung zu.
+- `CellKind.roofWalk` – das Dach ist begehbar (Dachweg/Plattform, Tag `floor`); es bekommt keinen Sturz zum Außenbereich. Ein Gebäude ringsum
+  mit niedriger Brüstungszelle (`h ≈ 5.6`) statt 16 m hoher Wand lässt den Dachweg zum Himmel offen.
+- **Steigung:** Clip-Rampen/Treppen über 40° wirken wie Wände. Bei 5 m Höhenunterschied ≥ 8 m Lauflänge einplanen (Treppe: die Clip-Rampe deckt nur n−1 Stufen).
+- Bomben-Spots übereinander: `site`-Boxen mit getrennten Höhen (A: `y ≥ −0.4`, B: `y ≤ −1.2`), damit `siteAt` eindeutig bleibt.
+
+Weitere Bausteine: Materialien `panel` (Sandwichpaneel) und `frost` (Reif/Eis), Decal `frost`, Deko `tank`/`tankDome`/`stripCurtain`/`compressor`/`condenser`
+(Frost-Optik außerdem über Tönung und `room: 'cold'` für die Akustik).
+
 ### Requisiten (`prop(builder, kind, x, y, z, { rot, … })`)
 
 `pallet`, `palletStack`, `palletGoods`, `crate`, `crateStack` (Xbox-Kiste), `gitterbox`, `container`,
 `container40`, `trailer`, `truck`, `forklift`, `barrel`, `barrelGroup`, `drum`, `rack` (Hochregal mit Ware),
 `shelf`, `serverRack`, `serverRow`, `ups`, `cooler`, `conveyor`, `cartons`, `ibc`, `desk`, `bumper`,
 `lampPost`, `fence`, `handTruck`, `cableTray`, `locker`, `generator`, `rollerDoor`, `doorSteel`,
-`acUnit`, `electricBox`, `cones`.
+`acUnit`, `electricBox`, `cones`, `silo` (Großtank, `len` = Durchmesser, `h` = Höhe, Kollision als Achteck-Kern), `chiller` (Verflüssiger auf Füßen), `compressor`, `stripCurtain` (Streifenvorhang, nur Optik), `rollCage` (Rollcontainer). Option `cold: true` färbt Ware/Kartons/Regale in Tiefkühl-Töne (Folie statt Karton).
 
 `rot` in Vierteldrehungen (0..3), damit Kollisionsquader achsenparallel bleiben; lokale Front = +Z
 (`rot 2` → Front nach −Z, `rot 1` → −X, `rot 3` → +X). `(x, y, z)` = Fußpunkt-Mitte. Oberseiten
 höher als 1.9 m sind automatisch kein Navigationsboden.
+
+#### Bahn-Requisiten (`src/logic/railprops.ts`, Referenz: `de_gueterbahnhof`)
+
+`track` (Schotterbett, Schienen im Regelspurabstand, Schwellen; `len`), `boxcar`/`tankcar`/`flatcar`/`loco`
+(Maße in `WAGON`, Abstand `WAGON.pitch`; Boden +1.3 m, Dach +3.74 m), `cargoContainer`, `bufferStop`,
+`signal`, `catenary`, `ivy` (Efeu an einer Wand, `len`/`h`), `truss` (Hallenbinder). Wagen-Optionen: `doors`
+(`closed`/`front`/`both`; offene Wagen sind begehbar und bekommen eine Innenleuchte), `ramp` + `rampLen`
+(Verladerampe an der offenen Tür), `walkRoof` (Dach = Navigationsboden, Zugang selbst bauen), `worn` (Rost).
+`MapBuilder.walkway(x0, z0, x1, z1, y, { rails })` baut einen Gitterrost-Laufsteg mit Geländer.
+Hinweise: Rampen/Treppen auf eine höhere Fläche 1 m auf dieser enden lassen und ≤ 0.5 m Anstieg je Meter
+(sonst reißt die Navigation ab); `occlude: false` für dünne Plattenaufsätze; Deko-Farbtöne hell wählen.
 
 ### Deko, Licht, Schilder, Markierungen
 
@@ -94,6 +124,41 @@ höher als 1.9 m sind automatisch kein Navigationsboden.
 - `b.spawn(team, x, y, z, yaw)` / `spawnGrid(...)` – mind. 8 je Team.
 - `b.buy(team, …)` – Kaufzonen (müssen die Spawns enthalten).
 - `b.room(kind, min, max)`, `b.ambient(sound, pos, radius, volume)` – Akustik (`src/logic/acoustics.ts`).
+- `b.botHint(h)` – **optionale Bot-Hinweise** (siehe „Bots“); Bots kommen auch ohne aus.
+
+## Bots (taktische KI, kartenunabhängig)
+
+Die Bots leiten alles aus der kompilierten Karte ab (`src/logic/botMap.ts`, einmal je Karte, ~20 ms):
+
+- **Zonen** = Callout-Bereiche (`b.area`); ohne Callouts bildet die Analyse automatische Zonen
+  (14-m-Raster × Höhenband). **Portale** = Durchgänge zwischen Zonen (je Öffnung eines).
+- **Distanzfelder** von T- und CT-Spawn: wer ist wo zuerst? Daraus „umkämpfte Punkte“, Gefahr
+  (Gehen statt Rennen) und die eigene Seite beim Halten.
+- **Spots**: Zonen mit dem Pflanzpunkt bzw. ≥ 40 % Knoten in der Spot-Box; Eingänge = Portale hinein,
+  getrennt nach Angriffs- (T-Routen) und Verteidigungsseite.
+- **Routen**: mehrere verschiedene Wege je Team und Spot über den Portalgraphen (benutzte Zonen werden
+  verteuert → lang/kurz/Mitte/Tunnel), nie durch den gegnerischen Spawn; mit Bereitstellungsraum vor
+  dem Eingang und Kontrollpunkt.
+- **Halte-Positionen**: Knoten mit Sicht auf einen Eingang, nicht auf der Anlaufseite, bewertet nach
+  Deckung, Höhe, Entfernung, Ducken-Möglichkeit und Angriffsfläche zu anderen Eingängen.
+
+Damit Bots gut spielen, sollte eine Karte: Callouts für alle Bereiche haben (sonst automatische Zonen),
+je Spot ≥ 2 Eingänge mit Deckung im Spot, und keine Sichtlinie aus einem Gang direkt in einen Spawn.
+Der Validator (`src/maps/maps.test.ts`) prüft je Karte: T-Routen zu jedem Spot, CT-Halte-Positionen an
+jedem Angriffseingang, gültige Hinweise.
+
+**Bot-Hinweise** (`MapData.botHints`, `b.botHint(...)`) — nur Aufwertung, nie Pflicht:
+
+| Art | Felder | Wirkung |
+|---|---|---|
+| `hold` | `pos`, `team?`, `site?` | Halte-Position (+4 Punkte, wenn sie die Sichtprüfung besteht) |
+| `sniper` | `pos`, `team?`, `site?` | wie `hold`, für Scharfschützen +6 (lange Sichtlinie) |
+| `plant` | `pos`, `site` | bevorzugter Pflanzplatz (muss in der Spot-Box liegen) |
+| `smoke` | `from`, `target`, `team`, `site?` | bewährter Rauch beim Ausführen (Ziel; `from` = Wurfposition, der Validator prüft den Wurf mit der Granatenphysik) |
+
+Werkzeug: `bun scripts/bot-sim.ts <karten-id> [runden] [je-team] [skill] [seed] --rounds` spielt Bot-gegen-Bot-
+Runden im Zeitraffer (Statistik: Siege, Pflanzrate, Entschärfungen, Eingänge, Festsitzen, Wand-/Fallfehler);
+`--trace=<runde>` zeigt alle 4 s Auftrag und Zustand je Bot. Im Spiel: `__bots()`, `__botPlan()`.
 
 ## Compiler und Laufzeit-API
 
@@ -133,7 +198,8 @@ Bewegungsregeln (Stufen, Rampen, Wände, Kopffreiheit), Herunterspringen als Ein
 3. Iterieren: `bun run overview de_meinekarte /tmp/karte.png 5 --areas` zeigt Draufsicht
    (Höhen farbig, Rampenpfeile, Spots, Spawns, Callouts), Knotenzahl und Laufzeiten.
 4. Validator: `bun run test src/maps` (Spawns auf Boden/frei/in Kaufzone, Spots begehbar,
-   Erreichbarkeit, keine Fallen, Laufzeiten, Callouts, Vertikalität, Determinismus).
+   Erreichbarkeit, keine Fallen, Laufzeiten, Callouts, Vertikalität, Determinismus, Bot-Routen/-Hinweise).
+   Bot-Probe: `bun scripts/bot-sim.ts de_meinekarte 20` (beide Teams gewinnen, es wird gepflanzt, niemand sitzt fest).
 5. Sichtprüfung im Spiel: Dev-Server + `scripts/screenshot.mjs`; Debug-Hooks `__teleport(x, z, yaw, y?)`,
    `__area()`, `__map()`, `__bots()` (inkl. Callout je Bot).
 

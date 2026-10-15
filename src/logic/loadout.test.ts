@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newMoney } from './economy';
 import {
-  AMMO_PRICE, GRENADE_MAX, bestWeapon, botBuy, buyAmmo, buyItem, carriedWeapons, carryOver, consumeGrenade,
+  AMMO_PRICE, GRENADE_MAX, bestWeapon, buyAmmo, buyItem, carriedWeapons, carryOver, consumeGrenade,
   cycleWeapon, defaultLoadout, giveWeapon, removeWeapon, weaponInSlot,
 } from './loadout';
 import { WEAPONS } from './weapons';
@@ -180,24 +180,3 @@ describe('carryOver', () => {
   });
 });
 
-describe('botBuy', () => {
-  it('mit viel Geld: Primärwaffe + Helm + Granaten; CT kauft Kit', () => {
-    const lo = defaultLoadout('CT');
-    const m = newMoney(16000);
-    const bought = botBuy(lo, m, 'CT', () => 0.9);
-    expect(lo.primary).not.toBeNull();
-    expect(WEAPONS[lo.primary!]!.team).not.toBe('T');
-    expect(lo.helmet).toBe(true);
-    expect(lo.defuseKit).toBe(true);
-    expect(bought).toContain('hegrenade');
-    expect(m.amount).toBeLessThan(16000);
-  });
-
-  it('mit 800 $: nur Pistole/Weste, keine Primärwaffe für Phantasiepreise', () => {
-    const lo = defaultLoadout('T');
-    const m = newMoney(800);
-    botBuy(lo, m, 'T', () => 0.9);
-    expect(lo.primary).toBeNull();
-    expect(m.amount).toBeGreaterThanOrEqual(0);
-  });
-});

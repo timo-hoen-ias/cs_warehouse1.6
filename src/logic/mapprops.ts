@@ -1,4 +1,6 @@
 import type { MapBuilder, MaterialId, Vec3 } from './mapkit';
+import { dims, place, type PropOpts } from './propgeom';
+import { isRailKind, railProp, type RailPropKind } from './railprops';
 import { mulberry32 } from './rng';
 
 /**
@@ -10,32 +12,20 @@ export type PropKind =
   | 'pallet' | 'palletStack' | 'palletGoods' | 'crate' | 'crateStack' | 'gitterbox' | 'container' | 'container40'
   | 'trailer' | 'truck' | 'forklift' | 'barrel' | 'barrelGroup' | 'drum' | 'rack' | 'shelf' | 'serverRack'
   | 'serverRow' | 'ups' | 'cooler' | 'conveyor' | 'cartons' | 'ibc' | 'desk' | 'bumper' | 'lampPost' | 'fence'
-  | 'handTruck' | 'cableTray' | 'locker' | 'generator' | 'rollerDoor' | 'acUnit' | 'electricBox' | 'cones' | 'doorSteel';
+  | 'handTruck' | 'cableTray' | 'locker' | 'generator' | 'rollerDoor' | 'acUnit' | 'electricBox' | 'cones' | 'doorSteel'
+  | 'silo' | 'chiller' | 'compressor' | 'stripCurtain' | 'rollCage'
+  | RailPropKind;
 
-export type PropOpts = { rot?: 0 | 1 | 2 | 3; tint?: number; h?: number; n?: number; len?: number; seed?: number; levels?: number };
 
 const GOODS = [0xc9a26b, 0xb8895a, 0xd8c09a, 0x9fb7c9, 0xc6c6c0, 0xd0a060, 0x8fa86a, 0xc77b5a];
+const COLD_GOODS = [0xe8f1f6, 0xcfe1ee, 0xb7d3e6, 0xf2f6f8, 0xa9c8dc, 0xd4e8d0, 0xe6d8d2, 0x9fc0d8];
 const CONTAINERS = [0xa8432b, 0x2b5f9e, 0x2f7d4f, 0xb7791f, 0x8a8f96, 0x6b3a7a, 0xc0b8a8];
 
-/** Rechteck (halbe Breiten) nach Vierteldrehung. */
-function dims(w: number, d: number, rot: number): [number, number] {
-  return rot % 2 === 0 ? [w, d] : [d, w];
-}
-
-/** Lokale Box (lx, lz relativ zur Mitte, ungedreht) in Weltkoordinaten. */
-function place(x: number, z: number, rot: number, lx0: number, lz0: number, lx1: number, lz1: number): [number, number, number, number] {
-  const pts: [number, number][] = [[lx0, lz0], [lx1, lz1]].map(([a, b]) => {
-    switch (rot % 4) {
-      case 1: return [-b!, a!];
-      case 2: return [-a!, -b!];
-      case 3: return [b!, -a!];
-      default: return [a!, b!];
-    }
-  });
-  return [x + Math.min(pts[0]![0], pts[1]![0]), z + Math.min(pts[0]![1], pts[1]![1]), x + Math.max(pts[0]![0], pts[1]![0]), z + Math.max(pts[0]![1], pts[1]![1])];
-}
-
 export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: number, o: PropOpts = {}): void {
+  if (isRailKind(kind)) {
+    railProp(b, kind, x, y, z, o);
+    return;
+  }
   const rot = o.rot ?? 0;
   const rnd = mulberry32(o.seed ?? Math.floor(Math.abs(x * 73.1 + z * 37.7 + y * 11.3)) + 1);
   const box = (lx0: number, ly0: number, lz0: number, lx1: number, ly1: number, lz1: number, mat: MaterialId, extra: Parameters<MapBuilder['box']>[3] = {}) => {
@@ -44,6 +34,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
     return b.box([a, y + ly0, c], [bb, y + ly1, d], mat, { tag: 'prop', noNav: ly1 >= 1.9 ? true : undefined, ...extra });
   };
   const yawRot = (rot * Math.PI) / 2;
+  const goods = o.cold ? COLD_GOODS : GOODS;
   switch (kind) {
     case 'pallet':
       box(-0.6, 0, -0.4, 0.6, 0.15, 0.4, 'pallet');
@@ -56,7 +47,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
     case 'palletGoods': {
       const h = o.h ?? 0.9 + rnd() * 0.8;
       box(-0.6, 0, -0.4, 0.6, 0.15, 0.4, 'pallet');
-      box(-0.58, 0.15, -0.38, 0.58, 0.15 + h, 0.38, 'wrap', { tint: o.tint ?? GOODS[Math.floor(rnd() * GOODS.length)] });
+      box(-0.58, 0.15, -0.38, 0.58, 0.15 + h, 0.38, 'wrap', { tint: o.tint ?? goods[Math.floor(rnd() * goods.length)] });
       break;
     }
     case 'crate': {
@@ -156,7 +147,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
             const gx = -len / 2 + i * bw + (k + 0.5) * (bw / 2);
             const gh = 0.5 + rnd() * Math.min(1.1, h / levels - 0.4);
             box(gx - bw / 4 + 0.08, ly, -0.5, gx + bw / 4 - 0.08, ly + 0.14, 0.5, 'pallet', { collide: 'none', noNav: true });
-            box(gx - bw / 4 + 0.1, ly + 0.14, -0.46, gx + bw / 4 - 0.1, ly + 0.14 + gh, 0.46, rnd() < 0.5 ? 'wrap' : 'carton', { collide: 'none', noNav: true, tint: GOODS[Math.floor(rnd() * GOODS.length)] });
+            box(gx - bw / 4 + 0.1, ly + 0.14, -0.46, gx + bw / 4 - 0.1, ly + 0.14 + gh, 0.46, rnd() < 0.5 || o.cold ? 'wrap' : 'carton', { collide: 'none', noNav: true, tint: goods[Math.floor(rnd() * goods.length)] });
           }
         }
       }
@@ -172,7 +163,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
         for (let k = 0; k < 3; k++) {
           if (rnd() < 0.25) continue;
           const gx = -len / 2 + (k + 0.5) * (len / 3);
-          box(gx - len / 7, ly + 0.03, -0.25, gx + len / 7, ly + 0.03 + 0.2 + rnd() * 0.25, 0.25, 'carton', { collide: 'none', noNav: true, tint: GOODS[Math.floor(rnd() * GOODS.length)] });
+          box(gx - len / 7, ly + 0.03, -0.25, gx + len / 7, ly + 0.03 + 0.2 + rnd() * 0.25, 0.25, o.cold ? 'wrap' : 'carton', { collide: 'none', noNav: true, tint: goods[Math.floor(rnd() * goods.length)] });
         }
       }
       break;
@@ -224,7 +215,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
         const lx = (rnd() - 0.5) * 1.2;
         const lz = (rnd() - 0.5) * 1.2;
         const ly = i % 3 === 2 ? 0.4 : 0;
-        box(lx - s / 2, ly, lz - s / 2, lx + s / 2, ly + s * 0.8, lz + s / 2, 'carton', { tint: GOODS[Math.floor(rnd() * GOODS.length)], collide: 'none', noNav: true });
+        box(lx - s / 2, ly, lz - s / 2, lx + s / 2, ly + s * 0.8, lz + s / 2, o.cold ? 'wrap' : 'carton', { tint: goods[Math.floor(rnd() * goods.length)], collide: 'none', noNav: true });
       }
       break;
     }
@@ -304,6 +295,47 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
       box(-1.4, 0, -0.7, 1.4, 1.7, 0.7, 'metal', { tint: 0x3a6a3a });
       box(-1.2, 1.7, -0.2, -0.9, 2.4, 0.1, 'black', { collide: 'none', noNav: true });
       break;
+    case 'silo': {
+      // stehender Großtank: len = Durchmesser, h = Höhe. Kollision als gestufter Achteck-Kern
+      // (drei Quader), Darstellung als Zylinder mit Kuppel; Steigleiter an der Front (+Z).
+      const d = o.len ?? 6;
+      const r = d / 2;
+      const h = o.h ?? 14;
+      const a = r * 0.92;
+      const c = r * 0.38;
+      const k = r * 0.66;
+      for (const [hx, hz] of [[a, c], [c, a], [k, k]] as const) box(-hx, 0, -hz, hx, h, hz, 'metal', { visible: false, occlude: true });
+      b.decor('tank', [x, y, z], 0, [r, h, r], o.tint ?? 0xe6edf2);
+      b.decor('tankDome', [x, y + h, z], 0, [r, r * 0.32, r], o.tint ?? 0xe6edf2);
+      // Steigleiter: zwei Holme und Sprossen, nur Optik
+      for (const lx of [-0.22, 0.22]) box(lx - 0.02, 0, r - 0.02, lx + 0.02, h * 0.92, r + 0.06, 'metal', { collide: 'none', tint: 0x6a727a, noNav: true, occlude: false });
+      for (let ly = 0.4; ly < h * 0.92; ly += 0.42) box(-0.22, ly, r - 0.02, 0.22, ly + 0.03, r + 0.04, 'metal', { collide: 'none', tint: 0x6a727a, noNav: true, occlude: false });
+      b.decor('pipeY', [x + 0.0, y, z - r - 0.12], 0, [0.5, h * 0.8, 0.5], 0xb8c2cb);
+      break;
+    }
+    case 'chiller':
+      // luftgekühlter Verflüssiger auf Füßen (Kältetechnik): Deckung mit offenem Durchgang darunter
+      box(-1.6, 0.55, -0.75, 1.6, 1.75, 0.75, 'white', { visible: false, occlude: true });
+      for (const lx of [-1.4, 1.4]) box(lx - 0.1, 0, -0.65, lx + 0.1, 0.55, 0.65, 'steel', { visible: false, occlude: true });
+      b.decor('condenser', [x, y, z], yawRot, undefined, o.tint ?? 0xffffff);
+      break;
+    case 'compressor':
+      box(-1.3, 0, -0.7, 1.3, 1.55, 0.7, 'metal', { visible: false, occlude: true });
+      b.decor('compressor', [x, y, z], yawRot);
+      break;
+    case 'stripCurtain': {
+      // Streifenvorhang vor einem Kühlraumdurchgang: nur Optik (Breite len, Höhe h), keine Kollision
+      const w = o.len ?? 2.4;
+      b.decor('stripCurtain', [x, y, z], yawRot, [w, o.h ?? 2.4, 1], o.tint ?? 0xffffff);
+      break;
+    }
+    case 'rollCage': {
+      // Rollcontainer mit Ware: Gitter blockiert Bewegung, Ware auch Schüsse
+      box(-0.4, 0, -0.35, 0.4, 0.14, 0.35, 'steel', { tint: 0x5a6a7a, collide: 'none', noNav: true });
+      box(-0.4, 0.14, -0.35, 0.4, 1.7, 0.35, 'cage', { collide: 'move', tint: 0x9aa8b4, uv: 0.8, noNav: true, occlude: false });
+      box(-0.36, 0.2, -0.31, 0.36, 0.2 + (o.h ?? 1.0), 0.31, o.cold ? 'wrap' : 'carton', { tint: goods[Math.floor(rnd() * goods.length)] });
+      break;
+    }
   }
 }
 
@@ -312,9 +344,10 @@ export function propFootprint(kind: PropKind, rot = 0): [number, number] {
   const base: Partial<Record<PropKind, [number, number]>> = {
     pallet: [1.2, 0.8], palletGoods: [1.2, 0.8], crate: [1.2, 1.2], crateStack: [1.8, 1.8], container: [6.1, 2.44], container40: [12.2, 2.44],
     trailer: [13.6, 2.6], forklift: [1.2, 2.0], barrel: [0.6, 0.6], gitterbox: [1.24, 0.84], serverRack: [0.6, 1.0],
+    cargoContainer: [6.06, 2.44], boxcar: [14, 3], tankcar: [14, 3], flatcar: [14, 3], loco: [18, 3], bufferStop: [0.9, 2.6], signal: [0.6, 0.6],
   };
   const [w, d] = base[kind] ?? [1, 1];
   return dims(w, d, rot);
 }
 
-export type { Vec3 };
+export type { Vec3, PropOpts };

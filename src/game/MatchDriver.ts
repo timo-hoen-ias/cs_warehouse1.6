@@ -10,21 +10,22 @@ import type { Sfx } from '../audio/Sfx';
 import { MatchAudio, toV3, type AudioMover } from '../audio/MatchAudio';
 import { Soldier } from '../entities/Soldier';
 import {
-  addPlayer, aliveCounts, applyExplosion, applyFall, applyHit, balanceBots, beginRound, bombCarrier, finishRound, newMatch, removePlayer,
+  addPlayer, aliveCounts, applyExplosion, applyFall, applyHit, balanceBots, beginRound, finishRound, newMatch, removePlayer,
   restartMatch, rewardAction, switchTeam, type MatchPlayer, type MatchState, type Pose,
 } from '../logic/match';
 import { ROUND, tickRound, type RoundPhase } from '../logic/round';
 import { acceptFallReport, fallDamage } from '../logic/fall';
 import type { Team } from '../logic/economy';
 import { WEAPONS, shotInterval, type WeaponDef } from '../logic/weapons';
-import { buyAmmo, buyItem, botBuy, consumeGrenade, bestWeapon, giveWeapon } from '../logic/loadout';
+import { buyAmmo, buyItem, consumeGrenade, bestWeapon, giveWeapon } from '../logic/loadout';
 import { makeGun } from '../logic/fire';
-import { fireSpread, startReload, tickGun, tryShoot } from '../logic/fire';
-import { resolveRay, shotDirs, aimAt, spreadDir, dirToYawPitch, type ShotTarget } from '../logic/combat';
+import { resolveRay, type ShotTarget } from '../logic/combat';
 import { humanPartBoxes, type Vec3 } from '../logic/hitbox';
-import { BOT, BOT_NAMES, aimError, decideBot, newBotMemory, type BotMemory } from '../logic/botDecide';
-import type { XYZ } from '../logic/nav';
-import { PLAYER, stepPlayer, type PlayerMotion } from '../logic/move';
+import { BOT_NAMES } from '../logic/botDecide';
+import { analyzeMap } from '../logic/botMap';
+import { BotSystem, type BotActions, type BotEvent } from '../logic/botSystem';
+import { DEFUSE_DY, DEFUSE_RADIUS, bombInput } from '../logic/hostRules';
+import { PLAYER } from '../logic/move';
 import { GRENADE, flashStrength, heDamageAt, stepGrenade, throwGrenade, type GrenadeState, type Smoke } from '../logic/grenade';
 import { applySnapshot, lerpPose, packSnapshot, poseMsg, sanitizeName, type GameEvent, type NetMsg, type PoseMsg, type Snapshot } from '../logic/net';
 import { mulberry32 } from '../logic/rng';
@@ -45,32 +46,10 @@ export type DriverOptions = {
   passwordDigest?: string | null;
 };
 
-type BotRuntime = {
-  id: string;
-  mem: BotMemory;
-  motion: PlayerMotion;
-  /** Geglätteter Navigationspfad (Wegpunkte in 3D). */
-  path: XYZ[];
-  pathAt: number;
-  pathTarget: XYZ | null;
-  /** Fortschritts-Überwachung (festgefahren → neu planen). */
-  stuckT: number;
-  stuckRef: { x: number; z: number };
-  repathAt: number;
-  pose: Pose;
-  eHeld: boolean;
-  blind: number;
-  /** Deterministischer Zufall je Bot (Streuung, Reaktion). */
-  rnd: () => number;
-  lastShotAt: number;
-};
-
 type RemotePose = { prev: Pose; next: Pose; t: number; w: string; c: boolean; m: boolean; e: boolean; age: number };
 
 const SNAP_HZ = 10;
 const POSE_HZ = 20;
-/** Bot-Lauftempo (knapp unter Sprint — Karten-Laufzeiten sind aufs Lauftempo ausgelegt). */
-const BOT_SPEED = PLAYER.sprintSpeed * 0.9;
 
 /**
  * Spiel-Treiber (Needle-Behaviour). Läuft auf jedem Client; der gewählte Host
@@ -97,12 +76,20 @@ export class MatchDriver extends Behaviour {
   private snapTimer = 0;
   private poseTimer = 0;
   private lastSnapSeq = -1;
-  private readonly bots = new Map<string, BotRuntime>();
+  /** Taktische Bots (Host): Karten-Analyse, Team-Trainer, Gehirn/Körper je Bot (src/logic/botSystem.ts). */
+  private botSys: BotSystem | null = null;
+  private get bots(): BotSystem {
+    if (!this.botSys) {
+      const w = this.world;
+      const info = analyzeMap({ nav: w.nav, collider: w.collider, sites: w.sites, spawns: w.spawns, hints: w.data.botHints });
+      this.botSys = new BotSystem(info, { skill: this.options.botSkill, seed: 42 });
+    }
+    return this.botSys;
+  }
   private readonly soldiers = new Map<string, Soldier>();
   private readonly remotePoses = new Map<string, RemotePose>();
   private lastRound = 0;
   private lastPhase: RoundPhase = 'warmup';
-  private plan: 'a' | 'b' = 'a';
   private nades: { id: number; g: GrenadeState }[] = [];
   private nadeSeq = 1;
   private smokes: Smoke[] = [];
@@ -378,7 +365,7 @@ export class MatchDriver extends Behaviour {
     while (bots.length > want) {
       const p = bots.pop()!;
       removePlayer(this.match, p.id);
-      this.bots.delete(p.id);
+      this.bots.remove(p.id);
       const s = this.soldiers.get(p.id);
       if (s) {
         s.dispose();
@@ -389,25 +376,7 @@ export class MatchDriver extends Behaviour {
   }
 
   private ensureBot(p: MatchPlayer): void {
-    if (this.bots.has(p.id)) return;
-    const seed = Number(p.id.replace(/\D/g, '')) || 1;
-    const rnd = mulberry32(seed * 7919);
-    this.bots.set(p.id, {
-      id: p.id,
-      mem: newBotMemory(rnd),
-      motion: { x: p.pose.x, y: p.pose.y + PLAYER.eye, z: p.pose.z, vy: 0, grounded: true },
-      path: [],
-      pathAt: 0,
-      pathTarget: null,
-      stuckT: 0,
-      stuckRef: { x: p.pose.x, z: p.pose.z },
-      repathAt: 0,
-      pose: { ...p.pose },
-      eHeld: false,
-      blind: 0,
-      rnd,
-      lastShotAt: 0,
-    });
+    this.bots.add(p);
   }
 
   private spawnOne(p: MatchPlayer): void {
@@ -416,13 +385,7 @@ export class MatchDriver extends Behaviour {
     p.hp = 100;
     p.alive = true;
     p.weapon = bestWeapon(p.loadout);
-    const b = this.bots.get(p.id);
-    if (b) {
-      b.motion = { x: p.pose.x, y: p.pose.y + PLAYER.eye, z: p.pose.z, vy: 0, grounded: true };
-      b.pose = { ...p.pose };
-      b.path = [];
-      b.pathTarget = null;
-    }
+    if (p.bot) this.bots.place(p);
     this.emitSpawn(p);
   }
 
@@ -440,7 +403,7 @@ export class MatchDriver extends Behaviour {
     const out: ShotTarget[] = [];
     for (const p of Object.values(this.match.players)) {
       if (!p.alive || p.id === ignore) continue;
-      const crouch = this.remotePoses.get(p.id)?.c ?? (p.id === this.localId ? this.player.crouching() : false);
+      const crouch = this.remotePoses.get(p.id)?.c ?? (p.id === this.localId ? this.player.crouching() : p.bot && this.botSys ? this.botSys.crouching(p.id) : false);
       out.push({ id: p.id, parts: humanPartBoxes({ x: p.pose.x, y: p.pose.y, z: p.pose.z }, crouch ? 0.75 : 1) });
     }
     return out;
@@ -499,6 +462,7 @@ export class MatchDriver extends Behaviour {
       }
     }
     const targets = this.targetsFor(shooterId);
+    this.botEvent({ k: 'shot', id: shooterId, pos: { x: shooter.pose.x, y: shooter.pose.y, z: shooter.pose.z }, weapon: weaponId });
     const ends: [number, number, number][] = [];
     const walls: [number, number, number][] = [];
     for (const dir of dirs) {
@@ -512,6 +476,7 @@ export class MatchDriver extends Behaviour {
         if (!r) continue;
         this.counters.hitsApplied += 1;
         this.emit({ k: 'hit', victim: hit.id, attacker: shooterId, dmg: r.dmg, part: hit.part, from: [origin.x, origin.y, origin.z], at: [hit.point.x, hit.point.y, hit.point.z] });
+        this.botEvent({ k: 'hit', victim: hit.id, attacker: shooterId, from: origin });
         if (r.killed) this.onHostKill(victim, shooterId, def.id, hit.part === 'head');
         if (def.pellets === 1 && hit.part === 'head' && def.type !== 'shotgun') { /* ein Kopftreffer reicht */ }
       }
@@ -524,8 +489,12 @@ export class MatchDriver extends Behaviour {
     this.emit({ k: 'kill', killer: killerId, victim: victim.id, weapon, hs });
     // CS: beste Schusswaffe und C4 fallen auf den Boden
     for (const item of dropOnDeath(victim.loadout, { x: victim.pose.x, y: victim.pose.y, z: victim.pose.z })) this.addDrop(item, null);
-    const b = this.bots.get(victim.id);
-    if (b) b.path = [];
+    this.botEvent({ k: 'kill', victim: victim.id, killer: killerId, pos: { x: victim.pose.x, y: victim.pose.y, z: victim.pose.z } });
+  }
+
+  /** Ereignis an die Bots (nur Host; Bots hören Schüsse, merken sich Treffer und Kills). */
+  private botEvent(ev: BotEvent): void {
+    if (this.isHost && this.botSys) this.botSys.notify(ev, this.match);
   }
 
   private addDrop(item: DroppedItem, by: string | null, from?: Vec3): void {
@@ -904,46 +873,24 @@ export class MatchDriver extends Behaviour {
     }
     this.player.frozen = m.round.phase === 'freeze';
 
-    // Bots denken/laufen/schießen
-    for (const b of this.bots.values()) this.tickBot(b, dt);
+    // Bots denken/laufen/schießen (Team-Trainer, Wahrnehmung, Gehirn, Körper)
+    if (!this.botsPaused) {
+      const d = droppedBomb(this.drops);
+      this.bots.tick({
+        match: m,
+        smokes: this.smokes,
+        bombPos: this.bombPos,
+        dropped: d ? { x: d.x, y: d.y, z: d.z } : null,
+        crouching: (id) => this.remotePoses.get(id)?.c ?? (id === this.localId ? this.player.crouching() : false),
+      }, dt, this.botActions);
+    }
     this.hostPickups();
 
-    // Bombe: Plant (T mit Bombe, E, im Spot) / Defuse (CT, E, am Bombenspot)
-    const carrier = bombCarrier(m);
-    let inSpot: 'a' | 'b' | null = null;
-    let plant = false;
-    let defuse = false;
-    let hasKit = false;
-    this.planterId = null;
-    this.defuserId = null;
-    if (carrier && (m.round.phase === 'live')) {
-      const held = this.eHeldFor(carrier.id);
-      const s = this.world.siteAt(carrier.pose);
-      if (held && s && carrier.weapon === 'c4') {
-        inSpot = s;
-        plant = true;
-        this.planterId = carrier.id;
-      } else if (held && s && !carrier.bot) {
-        // Mensch hält E im Spot ohne C4 in der Hand → automatisch Bombe ziehen (Komfort)
-        inSpot = s;
-        plant = true;
-        this.planterId = carrier.id;
-      }
-    }
-    if (m.round.phase === 'bomb' && m.round.bomb.spot) {
-      const spot = m.round.bomb.spot;
-      for (const p of Object.values(m.players)) {
-        if (!p.alive || p.team !== 'CT') continue;
-        const bp = this.bombPos ?? this.world.zones[spot];
-        if (Math.hypot(p.pose.x - bp.x, p.pose.z - bp.z) > BOT.spotRadius || Math.abs(p.pose.y - bp.y) > 1.6) continue;
-        if (!this.eHeldFor(p.id)) continue;
-        defuse = true;
-        inSpot = spot;
-        hasKit = p.loadout.defuseKit;
-        this.defuserId = p.id;
-        break;
-      }
-    }
+    // Bombe: Plant (T mit Bombe, E, im Spot) / Defuse (CT, E, am Bombenspot) — Regel in logic/hostRules.ts
+    const inp = bombInput(m, { siteAt: (p) => this.world.siteAt(p), eHeld: (id) => this.eHeldFor(id), bombPos: this.bombPos, spotCenter: (s) => this.world.zones[s] });
+    const { plant, defuse, inSpot, hasKit } = inp;
+    this.planterId = inp.planter;
+    this.defuserId = inp.defuser;
     const bombBefore = m.round.bomb.phase;
     // Serverlobby: Aufwärmen läuft weiter, bis der Host startet
     holdWarmup(m.round, !!this.lobbyCfg?.hold);
@@ -1030,9 +977,10 @@ export class MatchDriver extends Behaviour {
       if (this.poseTimer >= 1 / POSE_HZ) {
         this.poseTimer = 0;
         const list: PoseMsg[] = [poseMsg(this.localId, this.localPose(), this.shooter.weaponId, this.player.crouching(), this.player.moving(), this.shooter.eHeld)];
-        for (const b of this.bots.values()) {
-          const p = m.players[b.id];
-          if (p) list.push(poseMsg(b.id, b.pose, p.weapon, false, b.path.length > 0, b.eHeld));
+        for (const id of this.bots.ids()) {
+          const p = m.players[id];
+          const pose = this.bots.pose(id);
+          if (p && pose) list.push(poseMsg(id, pose, p.weapon, this.bots.crouching(id), this.bots.moving(id), this.bots.eHeld(id)));
         }
         this.net.send({ t: 'poses', p: list });
       }
@@ -1058,35 +1006,20 @@ export class MatchDriver extends Behaviour {
 
   private eHeldFor(id: string): boolean {
     if (id === this.localId) return this.shooter.eHeld && !this.player.isDead();
-    const b = this.bots.get(id);
-    if (b) return b.eHeld;
+    if (this.botSys?.has(id)) return this.botSys.eHeld(id);
     return this.remotePoses.get(id)?.e ?? false;
   }
 
   private startRound(): void {
     const m = this.match;
-    // Taktik-Plan für die T-Bots (zufälliger Spot), Bots kaufen
-    this.plan = this.rnd() < 0.5 ? 'a' : 'b';
     this.fillBots();
     // Wer nicht überlebt hat, startet mit frischem Inventar → Clients setzen ihre Munition zurück
     const keeps = new Map(Object.values(m.players).map((p) => [p.id, p.survived && p.alive && m.round.round > 1]));
     beginRound(m, (team, i) => this.world.spawnPose(team, i), this.rnd);
-    for (const p of Object.values(m.players)) {
-      if (p.bot) {
-        botBuy(p.loadout, p.money, p.team, this.rnd);
-        p.weapon = bestWeapon(p.loadout);
-        const b = this.bots.get(p.id);
-        if (b) {
-          b.motion = { x: p.pose.x, y: p.pose.y + PLAYER.eye, z: p.pose.z, vy: 0, grounded: true };
-          b.pose = { ...p.pose };
-          b.path = [];
-          b.pathTarget = null;
-          b.mem = newBotMemory(b.rnd);
-          b.blind = 0;
-        }
-      }
-      this.emitSpawn(p, !keeps.get(p.id));
-    }
+    // Bots: Team-Kauf (Economy), Pläne (T-Strategie, CT-Aufstellung), erste Aufträge
+    this.bots.skill = this.options.botSkill;
+    this.bots.roundStart(m);
+    for (const p of Object.values(m.players)) this.emitSpawn(p, !keeps.get(p.id));
     this.nades = [];
     this.smokes = [];
     this.bombPos = null;
@@ -1101,84 +1034,31 @@ export class MatchDriver extends Behaviour {
   /** Debug/Smoke: Bots anhalten (deterministische Treffertests). */
   botsPaused = false;
 
-  private tickBot(b: BotRuntime, dt: number): void {
-    if (this.botsPaused) return;
-    const m = this.match;
-    const p = m.players[b.id];
-    if (!p || !p.alive) {
-      b.eHeld = false;
-      return;
-    }
-    b.blind = Math.max(0, b.blind - dt);
-    const def = WEAPONS[p.weapon] ?? WEAPONS['knife']!;
-    const enemies = Object.values(m.players)
-      .filter((q) => q.alive && q.team !== p.team && q.id !== b.id)
-      .map((q) => ({ id: q.id, pos: { x: q.pose.x, y: q.pose.y, z: q.pose.z } }));
-    // Rang innerhalb des eigenen Teams (gleichmäßige Aufteilung auf A/B unabhängig von den Bot-IDs)
-    const teamIndex = Object.values(m.players).filter((q) => q.bot && q.team === p.team).map((q) => q.id).sort().indexOf(b.id);
-    const decision = decideBot({
-      self: { id: b.id, team: p.team, pos: { x: b.pose.x, y: b.pose.y, z: b.pose.z }, hasBomb: p.loadout.bomb, weaponRange: def.mode === 'melee' ? def.range : Math.min(def.range, BOT.sight), auto: def.rpm > 0, skill: this.options.botSkill, index: teamIndex },
-      enemies: b.blind > 0 ? [] : enemies,
-      solids: this.world.collider,
-      smokes: this.smokes,
-      zones: this.world.zones,
-      bomb: { phase: m.round.bomb.phase, spot: m.round.bomb.spot, pos: this.bombPos ? { x: this.bombPos.x, y: this.bombPos.y - 0.15, z: this.bombPos.z } : null, dropped: (() => { const d = droppedBomb(this.drops); return d ? { x: d.x, y: d.y, z: d.z } : null; })() },
-      phase: m.round.phase,
-      plan: this.plan,
-    }, b.mem, dt, b.rnd);
+  /** Aktionen der Bots: Schüsse/Würfe über dieselben Host-Pfade wie Spieler, Funk als Team-Chat. */
+  private readonly botActions: BotActions = {
+    fire: (id, weapon, origin, dirs) => {
+      this.hostFire(id, weapon, origin, dirs);
+      this.grenades.fx.muzzleFlash(this.soldierMuzzle(id) ?? { x: origin.x, y: origin.y - 0.1, z: origin.z }, dirs[0] ?? { x: 0, y: 0, z: -1 }, 0.8);
+    },
+    throwNade: (id, kind, origin, dir, strength) => this.hostThrow(id, kind, origin, dir, strength),
+    radio: (id, text) => this.botRadio(id, text),
+  };
 
-    // Waffe: Bombe in die Hand beim Pflanzen, sonst beste Waffe
-    if (decision.plant && p.loadout.bomb) p.weapon = 'c4';
-    else if (p.weapon === 'c4') p.weapon = bestWeapon(p.loadout);
-    b.eHeld = decision.plant || decision.defuse;
-
-    // Bewegung über Wegpunkte
-    if (decision.moveTo && m.round.phase !== 'freeze') this.botMove(b, decision.moveTo, dt);
-    else {
-      b.motion = stepPlayer(b.motion, 0, 0, false, dt, this.world.collider);
-      b.pose.x = b.motion.x;
-      b.pose.y = b.motion.y - PLAYER.eye;
-      b.pose.z = b.motion.z;
+  /** Bot-Funkspruch: an alle Clients (nur das Team sieht ihn) und lokal anzeigen. */
+  private botRadio(id: string, text: string): void {
+    const p = this.match.players[id];
+    if (!p) return;
+    const line = `[Funk] ${text}`;
+    this.net.send({ t: 'chat', id, name: p.name, text: line, team: p.team, teamOnly: true });
+    if (this.local?.team === p.team) {
+      this.sfx?.play('beep');
+      this.pushChat(`(Team) ${p.name}`, line, p.team);
     }
+  }
 
-    // Blick
-    if (decision.lookAt) {
-      const target = decision.target ? m.players[decision.target] : null;
-      const ty = target ? 1.2 : 1.2;
-      const aim = aimAt({ x: b.pose.x, y: b.pose.y + BOT.eye, z: b.pose.z }, { x: decision.lookAt.x, y: (target?.pose.y ?? decision.lookAt.y ?? b.pose.y) + ty, z: decision.lookAt.z });
-      const yp = dirToYawPitch(aim.dir);
-      b.pose.yaw = yp.yaw;
-      b.pose.pitch = yp.pitch;
-    }
-    p.pose = { ...b.pose };
-
-    // Schießen
-    const gun = p.loadout.guns[p.weapon];
-    if (gun) tickGun(gun, def, dt);
-    if (decision.fire && decision.target && def.mode !== 'throw' && def.mode !== 'plant') {
-      const target = m.players[decision.target];
-      if (!target) return;
-      if (gun && gun.mag <= 0) {
-        startReload(gun, def);
-        return;
-      }
-      const interval = def.rpm > 0 ? 60 / def.rpm : 0.45;
-      if (m.time - b.lastShotAt < interval) return;
-      if (gun) {
-        const r = tryShoot(gun, def);
-        if (!r.ok) return;
-      }
-      b.lastShotAt = m.time;
-      const eye = { x: b.pose.x, y: b.pose.y + BOT.eye, z: b.pose.z };
-      const aim = aimAt(eye, { x: target.pose.x, y: target.pose.y + 1.1, z: target.pose.z });
-      const err = aimError(b.mem.sightTime, this.options.botSkill);
-      const base = spreadDir(aim.dir, err, b.rnd);
-      const spread = gun ? fireSpread(def, gun, b.path.length > 0, false) : def.spreadBase;
-      const dirs = shotDirs(def, base, spread, b.rnd);
-      this.hostFire(b.id, def.id, eye, dirs);
-      this.grenades.fx.muzzleFlash(this.soldierMuzzle(b.id) ?? { x: eye.x + aim.dir.x * 0.5, y: eye.y - 0.1, z: eye.z + aim.dir.z * 0.5 }, aim.dir, 0.8);
-      // Schussklang kommt positioniert über das 'shot'-Ereignis (hostFire → onEvent)
-    }
+  /** Pose eines Bots (nur Host, sonst null). */
+  private botPose(id: string): Pose | null {
+    return this.isHost && this.botSys ? this.botSys.pose(id) : null;
   }
 
   /** Mündung des sichtbaren Soldaten (Weltraum) oder null, wenn keiner existiert. */
@@ -1187,55 +1067,6 @@ export class MatchDriver extends Behaviour {
     if (!sol) return null;
     const v = sol.shotMuzzleWorld(new THREE.Vector3());
     return { x: v.x, y: v.y, z: v.z };
-  }
-
-  /** Bot läuft über den 3D-Navigationsgraphen (A* + geglätteter Pfad, Neuplanung bei Stillstand). */
-  private botMove(b: BotRuntime, target: { x: number; z: number; y?: number }, dt: number): void {
-    const goal: XYZ = { x: target.x, y: target.y ?? b.pose.y, z: target.z };
-    const t = this.match.time;
-    const moved = Math.hypot(b.pose.x - b.stuckRef.x, b.pose.z - b.stuckRef.z);
-    b.stuckT += dt;
-    if (moved > 0.6) {
-      b.stuckT = 0;
-      b.stuckRef = { x: b.pose.x, z: b.pose.z };
-    }
-    const stuck = b.stuckT > 1.2 && b.path.length > 0;
-    const retarget = !b.pathTarget || Math.hypot(b.pathTarget.x - goal.x, b.pathTarget.z - goal.z) > 1.5 || Math.abs(b.pathTarget.y - goal.y) > 1.5;
-    if ((retarget || stuck || b.pathAt >= b.path.length) && t >= b.repathAt) {
-      const from: XYZ = { x: b.pose.x, y: b.pose.y, z: b.pose.z };
-      const res = this.world.findPath(from, goal);
-      b.path = res ? res.points : [];
-      b.pathAt = 0;
-      b.pathTarget = goal;
-      b.repathAt = t + (stuck ? 0.3 : 0.5);
-      if (stuck) {
-        // seitlich ausweichen: kleiner Zufallsschritt vor dem neuen Pfad
-        b.stuckT = 0;
-        b.stuckRef = { x: b.pose.x, z: b.pose.z };
-        b.path.unshift({ x: b.pose.x + (b.rnd() - 0.5) * 2, y: b.pose.y, z: b.pose.z + (b.rnd() - 0.5) * 2 });
-      }
-    }
-    let gx = goal.x;
-    let gz = goal.z;
-    const wpt = b.path[b.pathAt];
-    if (wpt) {
-      gx = wpt.x;
-      gz = wpt.z;
-      if (Math.hypot(gx - b.pose.x, gz - b.pose.z) < 0.5 && Math.abs(wpt.y - b.pose.y) < 1.4) {
-        b.pathAt += 1;
-        return;
-      }
-    } else if (Math.hypot(gx - b.pose.x, gz - b.pose.z) < 0.4) {
-      b.path = [];
-      return;
-    }
-    const dx = gx - b.pose.x;
-    const dz = gz - b.pose.z;
-    const l = Math.hypot(dx, dz) || 1;
-    b.motion = stepPlayer(b.motion, (dx / l) * BOT_SPEED, (dz / l) * BOT_SPEED, false, dt, this.world.collider);
-    b.pose.x = b.motion.x;
-    b.pose.y = b.motion.y - PLAYER.eye;
-    b.pose.z = b.motion.z;
   }
 
   // ---------------------------------------------------------------- Host: Granaten
@@ -1248,6 +1079,7 @@ export class MatchDriver extends Behaviour {
       const at = { ...n.g.pos };
       this.nades = this.nades.filter((x) => x !== n);
       this.emit({ k: 'boom', id: n.id, kind: n.g.kind, at: [at.x, at.y, at.z] });
+      this.botEvent({ k: 'boom', pos: at });
       if (n.g.kind === 'he') {
         for (const p of Object.values(m.players)) {
           if (!p.alive) continue;
@@ -1256,17 +1088,20 @@ export class MatchDriver extends Behaviour {
           const r = applyExplosion(m, p.id, n.g.owner, dmg);
           if (!r) continue;
           this.emit({ k: 'hit', victim: p.id, attacker: n.g.owner, dmg: r.dmg, part: 'body', from: [at.x, at.y, at.z], at: [p.pose.x, 1, p.pose.z] });
+          this.botEvent({ k: 'hit', victim: p.id, attacker: n.g.owner, from: at });
           if (r.killed) this.onHostKill(p, n.g.owner, 'hegrenade', false);
         }
       } else if (n.g.kind === 'smoke') {
         this.smokes.push({ pos: at, radius: GRENADE.smokeRadius, timeLeft: GRENADE.smokeDuration });
       } else if (n.g.kind === 'flash') {
-        for (const b of this.bots.values()) {
-          const p = m.players[b.id];
-          if (!p?.alive) continue;
-          const dir = { x: -Math.sin(b.pose.yaw), y: 0, z: -Math.cos(b.pose.yaw) };
-          const s = flashStrength({ x: b.pose.x, y: b.pose.y + BOT.eye, z: b.pose.z }, dir, at, this.world.collider);
-          if (s > 0.1) b.blind = Math.max(b.blind, GRENADE.flashDuration * s);
+        for (const id of this.bots.ids()) {
+          const p = m.players[id];
+          const pose = this.bots.pose(id);
+          if (!p?.alive || !pose) continue;
+          const c = Math.cos(pose.pitch);
+          const dir = { x: -Math.sin(pose.yaw) * c, y: Math.sin(pose.pitch), z: -Math.cos(pose.yaw) * c };
+          const s = flashStrength({ x: pose.x, y: pose.y + PLAYER.eye, z: pose.z }, dir, at, this.world.collider);
+          if (s > 0.1) this.bots.blind(id, GRENADE.flashDuration * s);
         }
       }
     }
@@ -1300,9 +1135,9 @@ export class MatchDriver extends Behaviour {
     }
     const s = this.soldiers.get(target.id);
     if (s) s.root.visible = false; // nicht durch das eigene Modell schauen
-    const bot = this.bots.get(target.id);
+    const bot = this.botPose(target.id);
     const r = this.remotePoses.get(target.id);
-    const pose = this.isHost && bot ? bot.pose : r ? lerpPose(r.prev, r.next, r.t) : target.pose;
+    const pose = bot ?? (r ? lerpPose(r.prev, r.next, r.t) : target.pose);
     this.player.spectate(pose);
   }
 
@@ -1317,10 +1152,10 @@ export class MatchDriver extends Behaviour {
     }
     for (const p of Object.values(this.match.players)) {
       if (p.id === this.localId || !p.alive) continue;
-      const bot = this.bots.get(p.id);
+      const bot = this.botPose(p.id);
       const r = this.remotePoses.get(p.id);
-      const pose = this.isHost && bot ? bot.pose : r ? lerpPose(r.prev, r.next, r.t) : p.pose;
-      movers.push({ id: p.id, x: pose.x, y: pose.y, z: pose.z, crouch: r?.c ?? false, local: false });
+      const pose = bot ?? (r ? lerpPose(r.prev, r.next, r.t) : p.pose);
+      movers.push({ id: p.id, x: pose.x, y: pose.y, z: pose.z, crouch: bot ? this.bots.crouching(p.id) : r?.c ?? false, local: false });
     }
     const b = this.match.round.bomb;
     const actorId = b.phase === 'planting' ? this.planterId : b.phase === 'defusing' ? this.defuserId : null;
@@ -1346,9 +1181,11 @@ export class MatchDriver extends Behaviour {
       s.setWeapon(p.weapon);
       let pose: Pose;
       let crouch = false;
-      const bot = this.bots.get(p.id);
-      if (this.isHost && bot) pose = bot.pose;
-      else {
+      const bot = this.botPose(p.id);
+      if (bot) {
+        pose = bot;
+        crouch = this.bots.crouching(p.id);
+      } else {
         const r = this.remotePoses.get(p.id);
         if (r) {
           r.t += dt * POSE_HZ;
@@ -1402,8 +1239,8 @@ export class MatchDriver extends Behaviour {
     this.hud.setRadar(
       this.localPose(),
       Object.values(m.players).filter((p) => p.id !== this.localId).map((p) => {
-        const bot = this.bots.get(p.id);
-        const pose = this.isHost && bot ? bot.pose : this.remotePoses.get(p.id) ? lerpPose(this.remotePoses.get(p.id)!.prev, this.remotePoses.get(p.id)!.next, this.remotePoses.get(p.id)!.t) : p.pose;
+        const bot = this.botPose(p.id);
+        const pose = bot ? bot : this.remotePoses.get(p.id) ? lerpPose(this.remotePoses.get(p.id)!.prev, this.remotePoses.get(p.id)!.next, this.remotePoses.get(p.id)!.t) : p.pose;
         return { x: pose.x, z: pose.z, yaw: pose.yaw, team: p.team, alive: p.alive, id: p.id };
       }),
       me?.team ?? 'T',
@@ -1416,7 +1253,7 @@ export class MatchDriver extends Behaviour {
       const s = this.world.siteAt(this.localPose());
       const site = s ? this.world.sites.find((q) => q.id === (s === 'a' ? 'A' : 'B')) : null;
       this.hud.setHint(site ? `E halten: Bombe legen (${site.name})` : 'Bombenspot A/B aufsuchen (Radar)');
-    } else if (me?.alive && me.team === 'CT' && phase === 'bomb' && this.bombPos && Math.hypot(this.player.motionX() - this.bombPos.x, this.player.motionZ() - this.bombPos.z) <= BOT.spotRadius && Math.abs(this.player.feetY() - this.bombPos.y) < 1.6) {
+    } else if (me?.alive && me.team === 'CT' && phase === 'bomb' && this.bombPos && Math.hypot(this.player.motionX() - this.bombPos.x, this.player.motionZ() - this.bombPos.z) <= DEFUSE_RADIUS && Math.abs(this.player.feetY() - this.bombPos.y) < DEFUSE_DY) {
       this.hud.setHint(`E halten: Bombe entschärfen${me.loadout.defuseKit ? ' (Kit)' : ''}`);
     } else this.hud.setHint(null);
   }
@@ -1468,7 +1305,7 @@ export class MatchDriver extends Behaviour {
       score: `${m.round.tRounds}:${m.round.ctRounds}`,
       bomb: m.round.bomb.phase,
       players: Object.values(m.players).length,
-      bots: this.bots.size,
+      bots: this.botSys?.ids().length ?? 0,
       alive: aliveCounts(m),
       money: this.local?.money.amount,
       hp: this.local?.hp,
@@ -1524,7 +1361,20 @@ export class MatchDriver extends Behaviour {
 
   /** Debug: Position eines Bots. */
   debugBotPos(): { id: string; x: number; z: number; alive: boolean }[] {
-    return [...this.bots.values()].map((b) => ({ id: b.id, x: +b.pose.x.toFixed(2), y: +b.pose.y.toFixed(2), z: +b.pose.z.toFixed(2), alive: !!this.match.players[b.id]?.alive, area: this.world.areaAt(b.pose)?.name ?? null }));
+    const bots = this.botSys;
+    if (!bots) return [];
+    return bots.ids().map((id) => {
+      const pose = bots.pose(id)!;
+      const st = bots.state(id);
+      return { id, x: +pose.x.toFixed(2), y: +pose.y.toFixed(2), z: +pose.z.toFixed(2), alive: !!this.match.players[id]?.alive, area: this.world.areaAt(pose)?.name ?? null, team: this.match.players[id]?.team, role: st?.role, task: st?.task, state: st?.state };
+    });
+  }
+
+  /** Debug: Pläne der Bot-Teams (T-Strategie, CT-Stufe). */
+  debugBotPlan(): Record<string, unknown> | null {
+    const bots = this.botSys;
+    if (!bots) return null;
+    return { t: bots.tPlan(), tStage: bots.coachT?.stage, ctStage: bots.coachCT?.stage, ctCalled: bots.coachCT?.called, buy: bots.buyKind };
   }
 
   /** Debug/Smoke: Mündung (Weltraum) der sichtbaren Spielfigur und ihr Fußpunkt. */

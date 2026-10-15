@@ -34,7 +34,7 @@ CS-1.6-Arsenal, Economy, Granaten, Zielfernrohr und Spray-Mustern.
 ## Repo-Struktur (Ist)
 
 ```
-src/maps/                    # Handgebaute Karten (de_lagerstaub) + Registry (index.ts) + Validator (maps.test.ts)
+src/maps/                    # Handgebaute Karten (de_lagerstaub, de_kuehlhaus + kuehlhaus/-Bausteine) + Registry (index.ts) + Validator (maps.test.ts)
 docs/KARTENFORMAT.md         # Kartenformat, Gestaltungsregeln, Anleitung für neue Karten
 scripts/map-overview.ts      # Draufsicht (PNG, nur Node-Bordmittel) + Laufzeiten + Bereichsgraph
 scripts/relay-server.ts      # Bun-WebSocket-Relay (Needle-Raum-Protokoll), Dockerfile.relay
@@ -46,11 +46,14 @@ scripts/weapon-lab.mjs       # weapon-lab.html (src/dev/weaponLab.ts): Raster al
 src/logic/                   # PURE + getestet: collision (Raster, Rampen, Strahlen), move, nav (3D-Graph, A*, Bereiche),
                              # mapkit/mapplan/mapprops (Kartenbaukasten), mapcompile, bake (Licht-Backen), levelmesh
                              # (Geometrie + Vertex-Licht), overview (Draufsicht/Radar), weapons, fire, recoil, combat, damage,
-                             # loadout, economy, round, bombs, match, net, drops, grenade, botDecide, zones, radar, settings,
+                             # loadout, economy, round, bombs, match, net, drops, grenade, zones, radar, settings, hostRules,
+                             # Bots: botMap, botStrategy, botCoach, botBrain, botBody, botCombat, botPerception,
+                             # botKnowledge, botThrow, botBuy, botDecide, botSystem, botSim (Headless), botTestMap,
                              # viewAnim, acoustics, rng, weaponGeom, viewPlace, stretch, dropRest,
                              # audioMix, reverb, soundBank, ambientFallback
 src/game/World.ts            # Kompilierte Karte + Darstellung; API: collider, nav, findPath, areaAt, siteAt, surfaceAt, acoustics
-src/game/MatchDriver.ts      # Host-Simulation + Client-Spiegel + Ereignisse + Bots (Navigation) + Zuschauer + Audio
+src/game/MatchDriver.ts      # Host-Simulation + Client-Spiegel + Ereignisse + Bots (BotSystem) + Zuschauer + Audio
+scripts/bot-sim.ts           # Headless-Bot-Simulation (Zeitraffer, Statistik, --trace)
 src/multi/Transport.ts       # LocalTransport (offline) / NeedleTransport (Raum)
 src/player/FpsPlayer.ts      # Bewegung (Collider), Blick, Ducken (Kopffreiheit), Shake, Todes-/Zuschauerkamera
 src/weapons/                 # Shooter (Slots, Zoom, Spray, Messer, G), ViewModel, Fx, Grenades, DroppedView
@@ -169,7 +172,19 @@ Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenma
 - [x] Lobby/Registry auf `src/maps`; alte DB-Pipeline entfernt (query/layout/transform/demo/level-Generatoren, `levels/*.json`, `bake-map.ts`, MSSQL-Abhängigkeit); HUD-Radar zeigt vorgerenderte Kartendraufsicht
 - **Verifikation:** `bun run test`, `tsc`, `build`, Smoke (angepasst: Schussposition mit Sichtlinie, Wand-Suche per Strahl) und Netztest grün; Screenshots hoch/niedrig gesichtet.
 
+- [x] **Karte `de_gueterbahnhof`** („Güterbahnhof“, Topologie von de_train als Bahn-Logistikzentrum): T-Spawn, Efeu-Zugang/Efeu, Hauptgang, Altzug (Durchgangswagen), Mittelgang, Ostgang mit Laderampe, Mitte, Packhallen-Dach (+7 m), Stellwerk-Treppe/Sniper-Nest (+5.8 m), Z-Verbindung, Gleisfeld A (Gleise 1–5, Sandwich, Himmel +5 m, Kranbahn +8.4 m, Bombenzug mit IT-Wagen, Popdog −1.4 m, Leiterraum), Gleisfeld B (Serverinsel, Obere Empore +3 m), Untere/Obere Halle B, CT-Spawn, Mitte-Nord; ~5700 Brushes, 16.4 k Navigationsknoten. Laufzeiten (Sprint): T → A 133 m ≈ 21.4 s, T → B 146 m ≈ 23.6 s, CT → A ≈ 14.2 s, CT → B ≈ 13.6 s. Karten-Code in `src/maps/de_gueterbahnhof.ts` + `src/maps/gueterbahnhof/*` (Halle A/B, Yards, CT).
+- [x] **Karten-Baukasten erweitert:** `railprops.ts` (Gleis mit Schwellen, Güterwagen gedeckt/Kessel/Flach/Lok mit Türen, Rampen, begehbarem Dach, Frachtcontainer, Prellbock, Signal, Fahrleitung, Efeu, Hallenbinder), `propgeom.ts` (Vierteldrehung/Rampenrichtung), `MapBuilder.walkway`, Materialien `foliage`/`rust`, Unterzeilen-Autoschrumpf der Schilder; Validator-Test „Vertikalität" mit einem Erreichbarkeitsdurchlauf statt A* je Knoten.
+- Erkenntnis: Treppen/Rampen, die auf eine höhere Fläche münden, müssen 1 m auf dieser enden (Überlappung) und ≤ 0.5 m Anstieg je Meter haben, sonst bricht die Nav-Kante (Knoten nahe der Kante werden verworfen, Schritt > 0.55 m). Dunkle Deko-Farbtöne (Kesselwagen) werden mit dem gebackenen Licht multipliziert → schwarz; Container-Türplatten brauchen `occlude: false`.
+
 **Laufzeiten de_lagerstaub (Laufen mit dem Messer, 6.2 m/s, Knotenwege):** T → A 145 m ≈ 23.4 s, T → B 146 m ≈ 23.5 s, CT → A 50 m ≈ 8.1 s, CT → B 77 m ≈ 12.5 s, T → Mitte ≈ 9.6 s, CT → Mitte ≈ 11.4 s.
+
+**Weitere Karte `de_kuehlhaus` (de_nuke als Kühlhaus, Okt 2026) ✅**
+- [x] Zwei Grundrisse übereinander (Erdgeschoss mit dünner Platte, Keller −5 m) — **B liegt direkt unter A**; Schächte (Rampenraum, Lüftung, Kellertreppe, Geheimgang-Rampe) mit tieferem Unterbau. Ebenen: Keller −5, Erdgeschoss 0, Himmel/Dachweg +4.5 m; 180 × 184 m, ≈ 17 k Navigationsknoten.
+- [x] Nuke-Topologie: Außenbereich/Silos, Garage (+ Garagenflur, Garagendach), Haupteingang, Lobby (Mitte), Hütte (Quietschtür), Westgang, Halle A (Himmel/Hölle, Spot A „Serverschrank A“ an der Kältemaschine), Rampenraum, Lüftung (Treppenschacht A ↔ B), Keller B (Datenraum „Serverschrank B“, Tiefkühllager), Geheimgang, CT-Spawn mit Kontrollraum/Kellertreppe, Mini, Westdach/Dachweg.
+- [x] Engine-Erweiterungen (generisch, getestet): `CellKind.bottom/bare/roofWalk` (mehrstöckige Pläne, unverkleidete Tunnelmünder, begehbare Dächer ohne Sturz), Materialien `panel` (Sandwichpaneel) und `frost`, Decal `frost`, Deko `tank`/`tankDome`/`stripCurtain`/`compressor`/`condenser`, Requisiten `silo`/`chiller`/`compressor`/`stripCurtain`/`rollCage` + Option `cold` (Tiefkühlware), Schilder passen die Unterzeile an.
+- [x] Tests: Validator (`maps.test.ts`, schneller: Erreichbarkeit einmal statt je Knoten A*) + `de_kuehlhaus.test.ts` (Topologie: B unter A, Lüftung, Rampe ≤ 30°, Geheimgang, Kellertreppe, Dachweg, Callouts).
+- **Laufzeiten de_kuehlhaus (Sprint 6.2 m/s):** T → A 138 m ≈ 22.2 s, T → B 134 m ≈ 21.7 s (Geheimgang; über Rampenraum ≈ 25 s), CT → A 42 m ≈ 6.7 s, CT → B 85 m ≈ 13.7 s, T → Mitte ≈ 11.7 s, CT → Mitte ≈ 16.5 s.
+- Erkenntnis: Treppen-/Rampen-Clips über 40° wirken wie Wände — bei 5 m Höhe mindestens ≈ 8 m Lauflänge einplanen (hier 26–29°). Die Lücke zwischen Keller und Schacht darf die Fassadenverkleidung nicht zumalen → Tunnelmünder als `bare`-Zellen.
 
 **Erkenntnisse/Notizen (M4):**
 - Referenztempo für Laufzeiten ist das Lauftempo mit dem Messer (250 u/s = 6.2 m/s, `PLAYER.runSpeed`; seit M5 ist Laufen der Standard und Shift das leise Gehen); beim Schleichen (3.2 m/s) wären es ~45 s. CT → A ist wie im Vorbild bewusst kurz (≈ 8 s).
@@ -199,6 +214,35 @@ Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenma
 - Engine-`deltaTime` ist gedeckelt → HUD-Timer (Banner, Meldungen) laufen über `performance.now()`.
 - Headless-Tests mit mehreren SwiftShader-Browsern sind CPU-gebunden: verwaiste Browserprozesse verlangsamen alles so stark, dass Netz-/Lobbytests zeitlich scheitern — vor Testläufen aufräumen.
 
+### M4 — Taktische Bots (CS-1.6-/CZ-Bot-Gefühl) ✅ (Okt 2026)
+Auftrag: „Die Bots müssen sich taktischer bewegen … es soll sich wirklich wie Counter-Strike 1.6 anfühlen.“
+Alles pure Logik in `src/logic/bot*.ts` (kartenunabhängig, getestet); der Driver ruft nur `BotSystem.roundStart/tick/notify`.
+- [x] **Karten-Analyse** (`botMap.ts`): Zonen (Callouts oder Auto-Cluster), Portale mit Richtung, Distanzfelder je Spawn, Spots mit Angriffs-/Verteidigungs-Eingängen, **verschiedene Routen** je Spot (Portalgraph mit Strafkosten: Kurz A/Lang A/Tunnel/Mitte→B), Bereitstellungsraum (Deckung, keine Sicht auf den Pflanzpunkt), umkämpfter Punkt + Kontrollpunkt, **Halte-Positionen** (Sicht auf Eingang, eigene Seite, Deckung/Höhe/Distanz/Ducken, Hinweise), Gefahrenpunkte je Zone (Vorzielen), Stehplätze für Gruppen
+- [x] **Team-Strategie** (`botStrategy.ts`, `botCoach.ts`): T-Pläne Rush/Default/Split/Fake/Eco nach Economy + Zufall (Wiederholung seltener), Gruppen über Routen, Träger nie vorn, Sammeln am Bereitstellungsraum, „Los, los, los!“ mit Blend in den Spot und Rauch auf die CT-Position, Träger pflanzt (Hinweis-Platz), Rest sichert die CT-Eingänge, nach dem Plant Positionen mit Blick auf Eingänge und Bombe (nicht auf der Bombe), bei gehörtem Entschärfen zur Bombe, kurz vor der Explosion Abstand; liegende C4 aufheben (neuer Träger pflanzt); Zeitdruck → ausführen. CT: Aufstellung 1 / 1-1 / 1-1-1 / 2-1-1 / 2-1-2 auf Halte-Positionen (Anker je Spot, Rotierer, vorgeschobene Positionen, AWP auf längste Sicht), **Rotation** bei Druck auf einen Spot (Sichtungen, Geräusche, gefallene Kameraden, Bombe), Retake: Sammeln vor mehreren Eingängen → gemeinsam rein → Kit-Träger entschärft mit Rauch, Rest sichert; ohne Zeit → retten; gesichtete C4 bewachen
+- [x] **Bot-Verhalten** (`botBrain.ts`): Reaktionszeit, Gegenlenken, Feuerkontrolle nach Distanz (Tap/Burst/Spray, `botCombat.ts`), Kopf-/Brustziel nach Skill, Strafen zwischen Feuerstößen, Pistole bei leerem Magazin, Nachladen in Sicherheit/hinter Deckung, Rückzug bei wenig HP (nicht bei Retake/Ausführen), Winkel halten nach Sichtverlust (ggf. HE), Treffer aus dem Nichts → hinsehen + Deckung + erneut anschauen, nach Kill neu positionieren, Gehen statt Rennen in Gefahrenzonen, Schleichen beim Nachgehen von Geräuschen (nur freie Rollen), Ecken checken (Blick auf Gefahrenpunkte/CT-Lieblingsplätze), geduckt halten, nach eigener Blendgranate wegdrehen, HE/Blend auf gesammelte Gegner an der Engstelle, Pflanzen/Entschärfen bei Feindkontakt abbrechen (außer es ist zu spät dafür)
+- [x] **Körper** (`botBody.ts`): Wegpunkte der Route abschnittsweise (Fortschritt bleibt nach Umwegen erhalten), Rennen 6 m/s / Gehen 4.2 / Schleichen 2.4 (lautlos) / geduckt, Strafen nur auf Navigationsboden, Abstand zu Kameraden (kein Gänsemarsch, besetztes Ziel = angekommen), Festfahr-Erkennung, weiches Drehen (im Kampf schneller); Ausweichzonen für Rauch und bekannte Schusslinien
+- [x] **Wahrnehmung + Team-Wissen** (`botPerception.ts`, `botKnowledge.ts`): Sichtkegel, Sichtlinie auf Kopf/Brust (geduckt hinter Kisten unsichtbar), Rauch, Schritte nach Tempo (wie das Spiel-Audio: Schleichen/Ducken lautlos), Schüsse (Schalldämpfer leiser), unscharfe Hörposition; Blackboard mit Zeitstempel/Quelle/Zerfall, Druck je Spot
+- [x] **Granaten** (`botThrow.ts`): Wurf-Suche über Neigung/Stärke mit der echten Granatenphysik, Blend muss Ziele sehen, Ersatzziele für Rauch, Wurf erst in Wurfweite
+- [x] **Kauf** (`botBuy.ts`): Team-Entscheidung Pistole/Eco/Force/Halb/Voll (inkl. „nächste Runde reicht es“), Rollen (AWP für den reichsten Bot bei Vollkauf, Entry Blendgranaten, Support Rauch, Kit für CT, Deagle bei Restgeld); altes `loadout.botBuy` entfernt
+- [x] **Funk** (`radio.ts` `BOT_RADIO`): Gegner gesichtet, Brauche Verstärkung, Bombe gesichtet, Los los los, Ich bin in Position, Gegner ausgeschaltet, Regroup, Deckung, Team zurückfallen, „Bombe gelegt“/„Ich entschärfe“ — mit Team-Mindestabstand (4 s) und Abklingzeiten je Spruch (kein Spam)
+- [x] **Karten-Hinweise** (optional, `MapData.botHints`): hold/sniper/plant/smoke, in de_lagerstaub 8 Stück; der Validator prüft Hinweise und Bot-Tauglichkeit jeder Karte
+- [x] **Headless-Simulation** (`botSim.ts`, `scripts/bot-sim.ts`): gleicher Host-Regelsatz wie der Driver (Plant/Defuse-Regel jetzt pure in `hostRules.ts`), Zeitraffer ohne Darstellung, prüft Wand-/Fallfehler, Festsitzen, Leerlauf, Eingänge, Pläne
+- [x] **Driver**: alter `tickBot`/`botMove`/`decideBot` ersetzt durch `BotSystem`; Ereignisse (Schuss, Treffer, Kill, Explosion) gehen an die Bots, Bots ducken sichtbar (Pose `c`, Hitbox), Funk als Team-Chat, Blendung mit Blickrichtung inkl. Neigung; Debug `__bots()` (Rolle/Auftrag/Zustand), `__botPlan()`
+- **Verifikation:** `bun run test` (alle Bot-Module + Simulation 3 × 14 Runden 5v5 auf de_lagerstaub + Testkarte mit/ohne Callouts), `tsc`, `build`, Smoke, Netztest grün; Bots im Browser als Zuschauer beobachtet.
+
+**Simulation (5v5, Skill 0.6, je 5 Seeds × 20 Runden):** de_lagerstaub T 50 : CT 50, Pflanzrate 40–80 %, 16 Entschärfungen, Ø Runde 66–85 s; de_kuehlhaus (Nuke-Topologie) T 14 : CT 79 — T sterben vor allem in „Halle A“ und im langen „Geheimgang“, den CT von Halte-Positionen abdecken (kartenbedingt CT-lastig, Daten für die Kartenpflege: `bun scripts/bot-sim.ts de_kuehlhaus 20 --deaths`). de_gueterbahnhof (Train-Topologie, 3 Seeds) T 31 : CT 29, Pflanzrate 68 % — ohne jede Anpassung an die Karte. Alle drei Karten: Festsitzen ≤ 1.2 s, Leerlauf ≤ 3.3 s, 0 Wand-/Fallfehler, alle Planarten, alle Spot-Eingänge genutzt, ~2 Granaten und ~13 Funksprüche je Runde (beide Teams). 20 Runden rechnen in ~5–8 s.
+
+**Erkenntnisse/Notizen (Bots):**
+- Float32-Distanzfelder im Dijkstra führen zu endlosem Neu-Einreihen (Rundung) → intern Float64.
+- Wegpunkte einer Route müssen ihren Fortschritt über Umwege (Kampf, Rückzug) hinweg behalten, sonst laufen Bots zum Spawn zurück.
+- Gruppen brauchen getrennte Stehplätze (sonst schubsen sie sich endlos am selben Knoten); ein leicht verschobenes Ziel muss übernommen werden (sonst „angekommen“ am alten Ziel).
+- Eine Sichtlinie aus einem Gang direkt in den T-Spawn entscheidet Runden in Sekunden — Kartenregel (die Testkarte hat deshalb eine Spawnwand).
+- Die Balance schwankt je Match stark (Economy-Schneeball wie in CS); für Aussagen ≥ 60 Runden über mehrere Seeds simulieren.
+- Rush heißt „ohne Halt durch“ (Granaten fliegen, sobald das Ziel in Wurfweite ist); Split wartet nur kurz auf die zweite Gruppe — langes Warten am Bereitstellungsraum gibt den CT Zeit zum Rotieren.
+- Nach dem Plant muss mindestens ein T die Bombe selbst sehen; nur Eingänge zu beobachten lässt Entschärfer unbemerkt durch (Serverräume mit Regalen).
+- SMG/Pistole gegen Gegner weit außerhalb der Reichweite: weiterlaufen statt stehen bleiben (sonst Kanonenfutter für AWP-Linien).
+- Deckungssuche prüft den Laufweg (dünne Wände): sonst pendelt ein Bot zwischen unerreichbaren „Deckungen“.
+
 ### M5 — Spielgefühl wie CS 1.6: Bewegung, Treffsicherheit, dynamisches Licht ✅ (Okt 2026)
 - [x] **Einheiten** (`logic/units.ts`): 1 CS-Einheit = 0.0248 m → Messer 250 u/s = 6.2 m/s, damit alle Kartenlaufzeiten gültig bleiben (`PLAYER.runSpeed`, `sprintSpeed` als Alias für Validator/Bots)
 - [x] **Bewegung im GoldSrc-Stil** (`logic/move.ts`, `stepBody`, getestet in `move.body.test.ts`): `sv_accelerate 5`, `sv_friction 4`, `sv_stopspeed 100`, `sv_airaccelerate 10` (Luft: Wunschtempo auf 30 u/s gedeckelt → Air-Strafing), Beschleunigung nach Basistempo der Waffe (Schleichen/Ducken werden nicht von der Reibung erstickt), Wandgleiten mit Tempoverlust, Sprung 6.65 m/s (≈ 268 u/s) nur nach Loslassen (kein Dauerhopsen), **Bunnyhop-Bremse** (CS 1.6: über 1.2 × Tempo → × 0.8), Rampen/Stufen/Stillstand wie zuvor (kein Rutschen auf flachen Rampen)
@@ -220,7 +264,8 @@ Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenma
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON
 - [ ] Wallbangs (Durchschuss durch dünne Requisiten); Sturzschaden für Bots
 - [ ] Sprach-Chat (Needle `Voip`), Chat-Teamfilter
-- [ ] Weitere Karten im neuen Format (z. B. Hafen/Containerterminal, Kühlhaus), taktische Bots auf dem Bereichsgraphen (Rollen je Callout, Smokes/Flashes, Rotationen)
+- [ ] Weitere Karten im neuen Format (z. B. Hafen/Containerterminal, Kühlhaus)
+- [ ] Bots: Sprung-/Kistenpositionen (Navigation ohne Sprungkanten), Wallbangs, Messer-Rush bei Eco, Sprachausgabe der Funksprüche, Lerneffekte über Runden (CT merkt sich bevorzugte T-Routen)
 - [ ] Sprung-Kanten in der Navigation (Kisten ≤ 1.1 m), Leitern
 - [ ] Anti-Cheat jenseits der Plausibilitätsprüfungen (Absender-IDs sind im Needle-Protokoll nicht signiert)
 
