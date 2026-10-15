@@ -32,3 +32,4 @@ smoke.png
 
 # Arbeitskopien der Hilfs-Agenten
 .claude/worktrees/
+.claude/skills/
