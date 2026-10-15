@@ -29,7 +29,7 @@ CS-1.6-Arsenal, Economy, Granaten, Zielfernrohr und Spray-Mustern.
 | 10 | Lizenz: Needle-Basic-Label (nicht-kommerziell); öffentliche/kommerzielle Nutzung → Needle-Lizenz prüfen. |
 | 11 | Sprache: Nutzertexte/UI/Kommentare deutsch, Bezeichner englisch. |
 | 12 | Keine neuen Abhängigkeiten für Standardlösungen (Texturen per Canvas). Sounds: bearbeitete freie Aufnahmen (`assets/audio/`, Quellen in `CREDITS.md`) über eigene WebAudio-Engine, Synthese als Rückfall — keine Valve-/CS-Assets. |
-| 13 | Online ohne Internet: `scripts/relay-server.ts` spricht das Needle-Raum-Protokoll (Lobby-Feld „Server“ bzw. `?server=ws://host:9100/socket`). |
+| 13 | Online ohne Internet: `scripts/relay-server.ts` spricht das Needle-Raum-Protokoll (Menü „Erweitert: eigener Server“ bzw. `?server=ws://host:9100/socket`). Server-Erkennung läuft über denselben Server im Raum `csw16-lobby`. |
 
 ## Repo-Struktur (Ist)
 
@@ -58,7 +58,8 @@ src/weapons/models/          # Prozedurale Waffenmodelle + First-Person-Arme
 src/entities/Soldier.ts      # Spielfiguren (Bots + entfernte Spieler); soldierHold.ts = Waffenhaltung/Arm-IK (pure, getestet)
 src/level/                   # LevelView (Geometrie je Material/Kachel, Deko-Instanzen, Schilder, Markierungen, Himmel,
                              # Lichtkegel), Lighting (Sonde + echte Lichter für Figuren), decor, textures (Canvas)
-src/ui/                      # Lobby, Hud (Kaufmenü, Scoreboard, Radar mit Kartenbild, Feed, Chat, Scope), SettingsMenu
+src/ui/                      # MainMenu (+Backdrop, Musik, Kartenvorschau), LobbyOverlay, Hud (Kaufmenü, Scoreboard,
+                             # Radar mit Kartenbild, Feed, Chat, Scope), SettingsMenu (datengetrieben), CSS
 src/audio/                   # Sfx (Fassade), AudioEngine (Lader, 3D, Hall, Verdeckung), Ambience,
                              # MatchAudio (Schritte/Bombe/Treffer für den Driver), SynthFallback, worldHooks
 src/logic/{audioMix,reverb,soundBank,ambientFallback}.ts  # Audio-Entscheidungen, Hall-IRs, Klang-Katalog
@@ -179,6 +180,24 @@ Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenma
 - `groundAt` ohne Höhenhinweis = unterste begehbare Ebene an der Stelle (Navigationsknoten), sonst landet man auf Dächern.
 - `stepPlayer` unterteilt große Zeitschritte (statt sie auf 0.05 s zu kappen) — sonst liefen Bots/Spieler bei niedriger Bildrate (Host-Teilschritte 0.1 s) nur halb so schnell und brauchten auf den großen Karten doppelt so lange.
 - Der Obere Tunnel hat einen Knick vor Spot B, damit CTs aus B nicht 70 m geradeaus in den Tunnel sehen; CT-Bots teilen sich nach Rang im Team auf A/B auf.
+
+### M4 — Overhaul · UI: Hauptmenü, Serverbrowser, Serverlobby, HUD ✅ (Okt 2026)
+- [x] **Hauptmenü** (`ui/MainMenu.ts`, `menu.css`): Logo (SVG-Schablonenschrift mit Abnutzung, Warnstreifen, „1.6“-Plakette), Einträge Einzelspieler · Mehrspieler · Server erstellen · Einstellungen · Steuerung & Hilfe · Credits · Beenden („Danke fürs Spielen“ + Schließversuch); Maus, Pfeiltasten/Enter/Esc, Gamepad; Hover-/Klick-Klänge (`ui/uiSound.ts`, WebAudio-synthetisiert); Startseite mit Karten-Kachel, Schnellstart, Tipps
+- [x] **Hintergrund** (`ui/MenuBackdrop.ts`): Canvas-Key-Art mit echter Perspektivprojektion — langsamer Kameraflug durch eine Hochregalgasse, Hallenstrahler mit Lichtkegeln, Rolltor-Gegenlicht, Bodenmarkierungen, Staub, Maus-Parallaxe, Filmkorn/Vignette; 30 fps gedrosselt, pausiert im Hintergrund-Tab, `?quality=low` = reduzierte Auflösung. Schnittstelle `MenuBackdropLike` als Haken für einen späteren 3D-Flug durch die Karte (`showMainMenu({ backdrop })`) — bewusst nicht mit `World` gebaut, weil Karten/World parallel umgebaut werden
+- [x] **Menümusik** (`ui/MenuMusic.ts`, `logic/music.ts` getestet): 3 Titel von Derek „JoJo“ Stegall (CC BY-SA, Red Eclipse, `assets/audio/music/CREDITS.md`), Zufallsfolge ohne Wiederholung, Überblenden, Einblenden, Ausblenden beim Spielstart, „Klicken für Ton“ bei Autoplay-Sperre, Stumm-Knopf, Einstellungen `musicVolume`/`musicMuted`
+- [x] **Einzelspieler**: Karten-Kacheln (Vorschaubild aus der Registry `preview`/`radar`, sonst Radar-Draufsicht aus `logic/overview.ts`, notfalls stilisierter Platzhalter `ui/mapPreview.ts`), Team, Teamgröße 1–8, Bot-Schwierigkeit (Leicht/Normal/Schwer/Experte), Eckdaten; Rundenzahl ist eine Konstante (`ROUND.scoreToWin`) und daher nur Anzeige
+- [x] **Serverbrowser + Erkennung** (`multi/Discovery.ts`, `logic/serverList.ts` getestet): eigener WebSocket zum selben Backend (Needle oder Relay), gemeinsamer Raum `csw16-lobby`, Host-Heartbeat alle 3 s, aktive Anfrage mit Zeitstempel (Latenz), TTL 10 s, Bereinigung aller Felder (XSS), Versionsprüfung, Filter/Suche/Sortierung, Beitritt per Doppelklick/Code/Einladungslink
+- [x] **Server erstellen + Regeln** (`logic/lobby.ts` getestet): Name, Spielerlimit, Bots, Passwort (nur FNV-Prüfsumme im Netz), „gelistet“, Serverlobby; Host prüft `hello` (Passwort, Limit, Version) → `kick`-Ereignis → Client zurück ins Menü mit Meldung; Konfiguration wandert im Snapshot (übersteht Host-Migration)
+- [x] **Serverlobby** (`ui/LobbyOverlay.ts`): gehaltenes Aufwärmen (`holdWarmup`), Spieler je Team mit Teamwechsel, Chat, Raumcode + Einladungslink kopieren, Host „Spiel starten“ (`MatchDriver.startMatch`), Clients „Warte auf den Host“, ausblendbar zum Herumlaufen
+- [x] **HUD neu** (`ui/Hud.ts`, `hud.css`, `logic/hudFormat.ts`, `logic/uiScale.ts`, `logic/weaponIcons.ts` getestet): Skalierung über `--u` (Referenz 1080p, 0.6–2.4, plus Einstellung `hudScale`), Super-Ultrawide-Einrückung, scharfes Radar (DPR), prozedurale SVG-Waffensilhouetten für Kill-Feed/Kaufmenü/Inventar, Spielstand mit Avataren, Bombe-gelegt-Uhr, Geld-Änderung, Kaufzone/C4/Kit-Chips, Fortschrittsbalken Legen/Entschärfen, Rundenende-Banner mit Team-Emblem, Todesinfo, Zuschauerleiste, Funkmenü, neues Kaufmenü (Kategorien 1–8, Karten mit Werten und Zustand, Team-Sperren) und Scoreboard; DOM-Änderungen nur bei geänderten Werten; Timer in echter Zeit
+- [x] **Einstellungen** datengetrieben (`logic/settingsSchema.ts` getestet): Reiter Maus & Sicht · Ton · Fadenkreuz (Vorschau, Abstand/Stärke/dynamisch neu) · HUD & Anzeige; im Spiel (O) und eingebettet im Menü. **Neue Einstellung = Feld in `settings.ts` + Eintrag in `SETTINGS_SECTIONS`** (Test „deckt alle Einstellungen ab“ erzwingt das)
+- **Verifikation:** `bun run test` (560 Tests in 44 Dateien), `tsc`, `build`, Smoke, Netztest und neuer `scripts/lobby-test.mjs` (Erkennung über Relay, Passwort-Kick, Beitritt, Lobby-Start) grün; Screenshots 720p/1440p/4K geprüft.
+
+**Erkenntnisse/Notizen (M4-UI):**
+- Needle `context.connection` unterstützt nur einen Raum → Server-Erkennung über eine zweite WebSocket-Verbindung im Needle-Raumprotokoll (`join-room`, `{key,data}`-Broadcast); kein Serverumbau nötig.
+- Overlays (Einstellungen, Serverlobby) hängen im `needle-engine`-Element neben dem HUD, sonst liegt das Fadenkreuz im anderen Stapelkontext darüber.
+- Engine-`deltaTime` ist gedeckelt → HUD-Timer (Banner, Meldungen) laufen über `performance.now()`.
+- Headless-Tests mit mehreren SwiftShader-Browsern sind CPU-gebunden: verwaiste Browserprozesse verlangsamen alles so stark, dass Netz-/Lobbytests zeitlich scheitern — vor Testläufen aufräumen.
 
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON

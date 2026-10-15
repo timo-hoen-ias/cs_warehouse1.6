@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   CROSSHAIR_SIZE_MAX,
   CROSSHAIR_SIZE_MIN,
+  CROSSHAIR_GAP_MAX,
+  CROSSHAIR_GAP_MIN,
+  CROSSHAIR_THICKNESS_MAX,
+  CROSSHAIR_THICKNESS_MIN,
   DEFAULT_SETTINGS,
+  HUD_SCALE_MAX,
+  HUD_SCALE_MIN,
   FOV_MAX,
   FOV_MIN,
   SENSITIVITY_MAX,
@@ -42,6 +48,12 @@ describe('DEFAULT_SETTINGS', () => {
       crosshairSize: 9,
       showFps: false,
       bobbing: true,
+      musicVolume: 0.5,
+      musicMuted: false,
+      hudScale: 1,
+      crosshairGap: 3,
+      crosshairThickness: 2,
+      crosshairDynamic: true,
     });
   });
 });
@@ -75,6 +87,12 @@ describe('sanitizeSettings', () => {
       crosshairSize: 14,
       showFps: true,
       bobbing: false,
+      musicVolume: 0.3,
+      musicMuted: true,
+      hudScale: 1.25,
+      crosshairGap: 6,
+      crosshairThickness: 3,
+      crosshairDynamic: false,
     };
     expect(sanitizeSettings(full)).toEqual(full);
   });
@@ -128,6 +146,12 @@ describe('sanitizeSettings', () => {
       crosshairSize: [9],
       showFps: 1,
       bobbing: 'yes',
+      musicVolume: '0.4',
+      musicMuted: 'nein',
+      hudScale: null,
+      crosshairGap: {},
+      crosshairThickness: '2',
+      crosshairDynamic: 0,
     });
     expect(s).toEqual(DEFAULT_SETTINGS);
     const mixed = sanitizeSettings({ sensitivity: 'abc', fov: 100, invertY: 0, showFps: true });
@@ -158,6 +182,42 @@ describe('sanitizeSettings', () => {
   it('ist idempotent', () => {
     const once = sanitizeSettings({ sensitivity: 99, fov: 1, crosshairColor: '#ABCDEF', crosshairStyle: 'dot' });
     expect(sanitizeSettings(once)).toEqual(once);
+  });
+});
+
+describe('neue Einstellungen (Musik, HUD-Skalierung, Fadenkreuz-Details)', () => {
+  it('klemmt Musiklautstärke auf 0..1', () => {
+    expect(sanitizeSettings({ musicVolume: -0.5 }).musicVolume).toBe(0);
+    expect(sanitizeSettings({ musicVolume: 3 }).musicVolume).toBe(1);
+    expect(sanitizeSettings({ musicVolume: 0.42 }).musicVolume).toBe(0.42);
+    expect(sanitizeSettings({ musicVolume: NaN }).musicVolume).toBe(DEFAULT_SETTINGS.musicVolume);
+  });
+
+  it('klemmt die HUD-Skalierung auf ihre Grenzen', () => {
+    expect(sanitizeSettings({ hudScale: 0.1 }).hudScale).toBe(HUD_SCALE_MIN);
+    expect(sanitizeSettings({ hudScale: 9 }).hudScale).toBe(HUD_SCALE_MAX);
+    expect(sanitizeSettings({ hudScale: 1.1 }).hudScale).toBe(1.1);
+    expect(sanitizeSettings({ hudScale: Infinity }).hudScale).toBe(1);
+  });
+
+  it('klemmt Fadenkreuz-Abstand und -Stärke', () => {
+    expect(sanitizeSettings({ crosshairGap: -2 }).crosshairGap).toBe(CROSSHAIR_GAP_MIN);
+    expect(sanitizeSettings({ crosshairGap: 50 }).crosshairGap).toBe(CROSSHAIR_GAP_MAX);
+    expect(sanitizeSettings({ crosshairThickness: 0 }).crosshairThickness).toBe(CROSSHAIR_THICKNESS_MIN);
+    expect(sanitizeSettings({ crosshairThickness: 10 }).crosshairThickness).toBe(CROSSHAIR_THICKNESS_MAX);
+  });
+
+  it('übernimmt Schalter nur als echte Booleans', () => {
+    expect(sanitizeSettings({ musicMuted: true, crosshairDynamic: false })).toMatchObject({ musicMuted: true, crosshairDynamic: false });
+    expect(sanitizeSettings({ musicMuted: 1, crosshairDynamic: 'false' })).toMatchObject({ musicMuted: false, crosshairDynamic: true });
+  });
+
+  it('alte gespeicherte Einstellungen (ohne neue Felder) bekommen die Standardwerte', () => {
+    const store = memoryStore({ [SETTINGS_KEY]: JSON.stringify({ fov: 90, volume: 0.2 }) });
+    const s = loadSettings(store);
+    expect(s.fov).toBe(90);
+    expect(s.musicVolume).toBe(DEFAULT_SETTINGS.musicVolume);
+    expect(s.hudScale).toBe(1);
   });
 });
 

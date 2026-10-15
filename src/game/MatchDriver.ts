@@ -29,6 +29,8 @@ import { applySnapshot, lerpPose, packSnapshot, poseMsg, sanitizeName, type Game
 import { mulberry32 } from '../logic/rng';
 import { capDrops, dropActive, dropOnDeath, droppedBomb, nextDropId, tryPickup, type DroppedItem } from '../logic/drops';
 import { DroppedView } from '../weapons/DroppedView';
+import { admitPlayer, holdWarmup, lobbyActive, sanitizeLobbyConfig, type LobbyConfig } from '../logic/lobby';
+import { GAME_VERSION } from '../logic/serverList';
 
 export type DriverOptions = {
   localName: string;
@@ -36,6 +38,10 @@ export type DriverOptions = {
   /** Gesamtzahl Spieler inkl. Menschen, die der Host mit Bots auffüllt (0 = keine Bots). */
   fillTo: number;
   botSkill: number;
+  /** Online-Host: Server-Konfiguration (Name, Limit, Passwort, Serverlobby). */
+  lobby?: LobbyConfig | null;
+  /** Client: Passwort-Prüfsumme für den Beitritt. */
+  passwordDigest?: string | null;
 };
 
 type BotRuntime = {
@@ -117,6 +123,11 @@ export class MatchDriver extends Behaviour {
   /** Spielbezogenes Audio (Schritte, Bombe, Treffer) — Logik in src/audio/MatchAudio.ts. */
   private readonly audio = new MatchAudio(() => this.sfx, () => this.world?.zones);
   private lastNow = 0;
+  /** Server-Konfiguration (Host: aus den Optionen, Client: aus dem Snapshot). */
+  private lobbyCfg: LobbyConfig | null = null;
+  private kicked = false;
+  /** Der Host hat den Beitritt abgelehnt (Grund-Code aus lobby.ts). */
+  onKicked?: (reason: string) => void;
   /** Debug-Zähler (Smoke/Netztest). */
   readonly counters = { firesSent: 0, firesHandled: 0, hitsApplied: 0, snapsApplied: 0, posesIn: 0 };
 
@@ -181,16 +192,18 @@ export class MatchDriver extends Behaviour {
     if (this.isHost && !this.wasHost) this.becomeHost();
     else if (!this.isHost && this.wasHost) this.wasHost = false;
     if (!this.isHost) this.sendHello();
-    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName} · ${this.net.peers.length + 1} Spieler · ${this.isHost ? 'Host' : 'Client'}` : 'Offline gegen Bots');
+    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName?.replace(/^csw16-/, '')} · ${this.net.peers.length + 1} Spieler · ${this.isHost ? 'Host' : 'Client'}` : 'Offline gegen Bots');
   }
 
   private sendHello(): void {
-    this.net.send({ t: 'hello', id: this.localId, name: this.options.localName, team: this.options.team });
+    this.net.send({ t: 'hello', id: this.localId, name: this.options.localName, team: this.options.team, pw: this.options.passwordDigest ?? null, v: GAME_VERSION });
     this.helloSent = true;
   }
 
   private becomeHost(): void {
     this.wasHost = true;
+    // Eigene Konfiguration (Ersteller) oder die vom alten Host per Snapshot übernommene
+    if (!this.lobbyCfg && this.options.lobby) this.lobbyCfg = { ...this.options.lobby };
     // Host-Migration: Spiegel wird autoritativ.
     // Snapshot-Zähler über dem bisherigen Host fortsetzen, Rundenzähler übernehmen (kein Doppelstart)
     this.snapSeq = Math.max(this.snapSeq, this.lastSnapSeq + 1);
@@ -210,7 +223,7 @@ export class MatchDriver extends Behaviour {
     }
     for (const p of Object.values(this.match.players)) if (p.bot) this.ensureBot(p);
     this.fillBots();
-    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName} · Host` : 'Offline gegen Bots');
+    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName?.replace(/^csw16-/, '')} · Host` : 'Offline gegen Bots');
     if (this.match.round.round === 0 && this.match.round.phase === 'warmup') {
       // Warmup: alle sofort spawnen
       this.spawnAllNow();
@@ -247,7 +260,7 @@ export class MatchDriver extends Behaviour {
         if (!this.isHost && (!msg.h || msg.h === this.net.hostId)) this.onEvent(msg.e);
         break;
       case 'hello':
-        if (this.isHost) this.hostHello(msg.id, msg.name, msg.team);
+        if (this.isHost) this.hostHello(msg.id, msg.name, msg.team, msg.pw, msg.v);
         break;
       case 'fire':
         if (this.isHost) this.hostFire(msg.id, msg.w, { x: msg.o[0], y: msg.o[1], z: msg.o[2] }, msg.d.map((d) => ({ x: d[0], y: d[1], z: d[2] })));
@@ -311,8 +324,15 @@ export class MatchDriver extends Behaviour {
 
   // ---------------------------------------------------------------- Host: Spieler
 
-  private hostHello(id: string, name: string, team: Team | 'auto'): void {
+  private hostHello(id: string, name: string, team: Team | 'auto', pw?: string | null, version?: string): void {
     if (this.match.players[id]) return;
+    // Beitritt prüfen (Passwort, Spielerlimit, Version) — fremde Eingaben nie ungeprüft übernehmen
+    const humans = Object.values(this.match.players).filter((p) => !p.bot).length;
+    const admit = admitPlayer(this.lobbyCfg, humans, typeof pw === 'string' ? pw : null, typeof version === 'string' ? version : undefined, GAME_VERSION);
+    if (!admit.ok) {
+      this.emit({ k: 'kick', id, reason: admit.reason });
+      return;
+    }
     const p = addPlayer(this.match, id, sanitizeName(name), { team });
     this.fillBots();
     balanceBots(this.match);
@@ -331,7 +351,7 @@ export class MatchDriver extends Behaviour {
     if (this.match.round.phase !== 'live' && this.match.round.phase !== 'bomb') this.spawnOne(p);
   }
 
-  private requestTeam(team: Team): void {
+  requestTeam(team: Team): void {
     if (this.isHost) this.hostTeam(this.localId, team);
     else this.net.send({ t: 'team', id: this.localId, team });
   }
@@ -724,7 +744,7 @@ export class MatchDriver extends Behaviour {
           this.smokes = [];
           this.bombPos = null;
         } else {
-          this.hud.showBanner(outcomeText(e.outcome ?? '', e.reason ?? ''), e.outcome?.startsWith('t_') ? '#ffb070' : '#8fc0ff');
+          this.hud.showRoundEnd(e.outcome ?? '', e.reason ?? '');
           this.sfx?.play(e.outcome && ((e.outcome.startsWith('t_') && this.local?.team === 'T') || (e.outcome.startsWith('ct_') && this.local?.team === 'CT')) ? 'win' : 'lose');
         }
         break;
@@ -762,6 +782,12 @@ export class MatchDriver extends Behaviour {
       case 'leave':
         this.hud.notice(`${e.name} hat das Spiel verlassen`);
         break;
+      case 'kick':
+        if (e.id === this.localId && !this.isHost && !this.kicked) {
+          this.kicked = true;
+          this.onKicked?.(e.reason);
+        }
+        break;
     }
   }
 
@@ -772,6 +798,7 @@ export class MatchDriver extends Behaviour {
     const prevPhase = this.match.round.phase;
     const prevRound = this.match.round.round;
     applySnapshot(this.match, s);
+    if (s.lobby !== undefined) this.lobbyCfg = sanitizeLobbyConfig(s.lobby);
     this.smokes = s.smokes.map((x) => ({ pos: { x: x.p[0], y: x.p[1], z: x.p[2] }, radius: x.r, timeLeft: x.t }));
     this.bombPos = s.bombPos ? { x: s.bombPos[0], y: s.bombPos[1], z: s.bombPos[2] } : null;
     this.grenades.syncPositions(s.nades);
@@ -887,6 +914,8 @@ export class MatchDriver extends Behaviour {
       }
     }
     const bombBefore = m.round.bomb.phase;
+    // Serverlobby: Aufwärmen läuft weiter, bis der Host startet
+    holdWarmup(m.round, !!this.lobbyCfg?.hold);
     // Nach dem Match-Sieg keine weitere Runde starten: Ergebnis stehen lassen bis zum Neustart
     const result = m.winner ? null : tickRound(m.round, { alive: aliveCounts(m), bombAction: { plant, defuse }, inSpot, hasKit }, dt);
     if (m.round.bomb.phase !== bombBefore) {
@@ -991,6 +1020,7 @@ export class MatchDriver extends Behaviour {
       drops: this.drops.map((d) => ({ id: d.id, weapon: d.weapon, p: [d.x, d.y, d.z] as [number, number, number] })),
       smokes: this.smokes,
       bombPos: this.bombPos ? [this.bombPos.x, this.bombPos.y, this.bombPos.z] : null,
+      lobby: this.lobbyCfg,
     });
     this.net.send({ t: 'snap', s: snap, h: this.localId });
   }
@@ -1321,7 +1351,10 @@ export class MatchDriver extends Behaviour {
       mapName: this.world.mapName,
       alive: aliveCounts(m),
       winner: m.winner,
+      bombProgress: this.localBombProgress(),
+      lobby: lobbyActive(m.round, this.lobbyCfg),
     });
+    this.hud.setMatch(m, this.localId, this.net.online ? this.net.hostId : '');
     if (me) {
       this.hud.setPlayer({
         team: me.team,
@@ -1357,6 +1390,42 @@ export class MatchDriver extends Behaviour {
     } else this.hud.setHint(null);
   }
 
+  /** Fortschritt fürs HUD, wenn der lokale Spieler gerade legt/entschärft. */
+  private localBombProgress(): { kind: 'plant' | 'defuse'; value: number } | null {
+    const b = this.match.round.bomb;
+    const me = this.local;
+    if (!me?.alive) return null;
+    const acting = this.isHost ? this.planterId === this.localId || this.defuserId === this.localId : this.shooter.eHeld;
+    if (!acting) return null;
+    if (b.phase === 'planting' && me.team === 'T') return { kind: 'plant', value: b.progress };
+    if (b.phase === 'defusing' && me.team === 'CT') return { kind: 'defuse', value: b.progress };
+    return null;
+  }
+
+  /** Server-Konfiguration (null = offline/ohne Lobby). */
+  get lobbyConfig(): LobbyConfig | null {
+    return this.lobbyCfg;
+  }
+
+  /** Serverlobby aktiv (Aufwärmen gehalten, bis der Host startet)? */
+  get lobbyHeld(): boolean {
+    return lobbyActive(this.match.round, this.lobbyCfg);
+  }
+
+  /** Host: Serverlobby beenden — nach kurzem Countdown beginnt Runde 1. */
+  startMatch(): boolean {
+    if (!this.isHost || !this.lobbyCfg?.hold) return false;
+    this.lobbyCfg = { ...this.lobbyCfg, hold: false };
+    this.match.round.timer = Math.min(this.match.round.timer, 3);
+    this.broadcastSnapshot();
+    return true;
+  }
+
+  /** Letzte Chatzeilen (Serverlobby-Anzeige). */
+  get chatHistory(): readonly { who: string; text: string; team: Team | null }[] {
+    return this.chatLines;
+  }
+
   /** Debug/Smoke: kompakter Zustand. */
   debugState(): Record<string, unknown> {
     const m = this.match;
@@ -1379,6 +1448,7 @@ export class MatchDriver extends Behaviour {
       dropViews: this.dropView.count(),
       weapon: this.shooter.weaponId,
       secondary: this.local?.loadout.secondary ?? null,
+      lobby: this.lobbyHeld,
     };
   }
 
@@ -1437,16 +1507,6 @@ export class MatchDriver extends Behaviour {
 
 function buyReason(r: string): string {
   return ({ money: 'Nicht genug Geld', team: 'Nicht für dein Team', unknown: 'Unbekannter Artikel', full: 'Maximum erreicht', owned: 'Bereits vorhanden' } as Record<string, string>)[r] ?? r;
-}
-
-function outcomeText(outcome: string, reason: string): string {
-  switch (outcome) {
-    case 'ct_win': return `Counter-Terroristen gewinnen — ${reason}`;
-    case 'ct_win_defuse': return 'Counter-Terroristen gewinnen — Bombe entschärft';
-    case 't_win': return `Terroristen gewinnen — ${reason}`;
-    case 't_win_explode': return 'Terroristen gewinnen — Ziel zerstört';
-    default: return 'Runde beendet';
-  }
 }
 
 function bombInfoText(m: MatchState, meActing: boolean): string {
