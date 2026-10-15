@@ -9,14 +9,19 @@ import { Fx } from './weapons/Fx';
 import { Grenades } from './weapons/Grenades';
 import { MatchDriver } from './game/MatchDriver';
 import { Hud } from './ui/Hud';
-import { showLobby, roomLink, type LobbyResult } from './ui/Lobby';
+import { showMainMenu } from './ui/MainMenu';
+import { LobbyOverlay } from './ui/LobbyOverlay';
 import { LocalTransport, NeedleTransport, type NetTransport } from './multi/Transport';
+import { ServerAnnouncer } from './multi/Discovery';
 import { Sfx } from './audio/Sfx';
 import { mapById } from './logic/maps';
 import { SettingsMenu } from './ui/SettingsMenu';
 import { setupLighting } from './level/Lighting';
 import type { Settings } from './logic/settings';
 import { WEAPONS } from './logic/weapons';
+import { parseLaunch, roomLink, type GameSetup } from './logic/menu';
+import { kickReasonText, passwordDigest, type LobbyConfig } from './logic/lobby';
+import { GAME_VERSION, type Heartbeat } from './logic/serverList';
 
 /** Karten lazy laden (Vite bündelt jede als eigenes Chunk). */
 const LEVELS = import.meta.glob<{ default: LevelFile }>('../levels/*.json');
@@ -28,9 +33,23 @@ async function loadLevel(mapId: string): Promise<LevelFile> {
   return (await loader()).default;
 }
 
+const MSG_KEY = 'csw16.menuMessage';
+
+/** Einmalige Meldung fürs Menü (z. B. nach einem Kick), über sessionStorage weitergereicht. */
+function takeMenuMessage(): string | null {
+  try {
+    const m = sessionStorage.getItem(MSG_KEY);
+    if (m) sessionStorage.removeItem(MSG_KEY);
+    return m;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Spiel-Start: Lobby → Karte laden → Welt + Spieler + Driver. Offline = lokaler
+ * Spiel-Start: Hauptmenü → Karte laden → Welt + Spieler + Driver. Offline = lokaler
  * Host mit Bots; online = Needle-Raum (Host = Dienstältester im Raum).
+ * `?auto=1` überspringt das Menü (Smoke-/Netztests), `?room=CODE` öffnet die Einladung.
  */
 onStart(async (context) => {
   const scene = context.scene;
@@ -45,24 +64,11 @@ onStart(async (context) => {
   cam.far = 250;
   cam.near = 0.05;
 
-  // Smoke/Automation: ?auto=1 überspringt die Lobby (offline, Standardkarte)
-  const url = new URL(window.location.href);
-  const auto = url.searchParams.get('auto');
-  const lobby: LobbyResult = auto
-    ? {
-        name: url.searchParams.get('name') ?? 'Smoke',
-        mapId: url.searchParams.get('map') ?? mapById(undefined).id,
-        team: (url.searchParams.get('team') as 'T' | 'CT' | null) ?? 'T',
-        mode: url.searchParams.get('room') ? 'join' : 'offline',
-        room: url.searchParams.get('room')?.toUpperCase() ?? '',
-        fillTo: Number(url.searchParams.get('fill') ?? 4),
-        botSkill: 0.6,
-        server: url.searchParams.get('server') ?? '',
-      }
-    : await showLobby();
+  const launch = parseLaunch(window.location.search, mapById(undefined).id);
+  const setup: GameSetup = launch.auto ?? await showMainMenu({ store: safeStorage(), launch, quality, message: takeMenuMessage() });
 
-  const level = await loadLevel(lobby.mapId);
-  await startGame(context, level, lobby);
+  const level = await loadLevel(setup.mapId);
+  await startGame(context, level, setup);
 });
 
 /** localStorage, falls verfügbar (privater Modus/blockiert → null). */
@@ -77,7 +83,18 @@ function safeStorage(): Storage | null {
 let settingsMenuOpen: () => boolean = () => false;
 let graphicsQuality: 'high' | 'low' = 'high';
 
-async function startGame(context: Context, level: LevelFile, lobby: LobbyResult): Promise<void> {
+/** Zurück ins Hauptmenü (Seite ohne Spiel-Parameter neu laden), optional mit Meldung/Einladung. */
+function backToMenu(message?: string, keepInvite = false): void {
+  const u = new URL(window.location.href);
+  for (const k of ['auto', 'host', 'pw', 'sname', 'max', 'listed', 'lobby', 'fill', 'name', 'team']) u.searchParams.delete(k);
+  if (!keepInvite) u.searchParams.delete('room');
+  if (message) {
+    try { sessionStorage.setItem(MSG_KEY, message); } catch { /* egal */ }
+  }
+  window.location.href = u.href;
+}
+
+async function startGame(context: Context, level: LevelFile, setup: GameSetup): Promise<void> {
   const scene = context.scene;
   const world = new World(level, graphicsQuality);
   setupLighting(scene, context.renderer, world, graphicsQuality);
@@ -91,6 +108,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   const hud = new Hud();
   hud.mount(world.solids);
   hud.setRadarLabel(world.mapName);
+  hud.setZones(world.zones);
 
   const playerRoot = new THREE.Object3D();
   scene.add(playerRoot);
@@ -101,7 +119,8 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   shooter.aabbs = world.aabbs;
   shooter.player = player;
   shooter.onHud = (s) => hud.update(s);
-  shooter.menuOpen = () => hud.menuOpen() || settingsMenuOpen();
+  let lobbyOpen = (): boolean => false;
+  shooter.menuOpen = () => hud.menuOpen() || settingsMenuOpen() || lobbyOpen();
   shooter.blocked = () => player.isDead() || player.frozen;
   shooter.onShotSfx = (w) => sfx.shot(w, 0);
   shooter.onEmptyClick = () => sfx.play('empty');
@@ -110,22 +129,18 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   const settingsMenu = new SettingsMenu(safeStorage());
   settingsMenu.mount();
   let hudMenu = false;
-  const syncInput = (): void => { player.inputEnabled = !hudMenu && !settingsMenu.isOpen(); };
+  const syncInput = (): void => { player.inputEnabled = !hudMenu && !settingsMenu.isOpen() && !lobbyOpen(); };
   hud.onMenuChange = (open) => { hudMenu = open; syncInput(); };
   settingsMenu.onOpenChange = () => syncInput();
-  settingsMenu.onLeave = () => {
-    const u = new URL(window.location.href);
-    u.searchParams.delete('room');
-    u.searchParams.delete('auto');
-    window.location.href = u.href;
-  };
+  settingsMenu.onLeave = () => backToMenu();
   const applySettings = (st: Settings): void => {
     player.sensitivity = st.sensitivity;
     player.invertY = st.invertY;
     player.bobbing = st.bobbing;
     shooter.baseFov = st.fov;
     sfx.setVolume(st.volume);
-    hud.setCrosshair(st.crosshairColor, st.crosshairStyle, st.crosshairSize);
+    hud.setCrosshair(st.crosshairColor, st.crosshairStyle, st.crosshairSize, st.crosshairGap, st.crosshairThickness, st.crosshairDynamic);
+    hud.setScale(st.hudScale);
     hud.showFps(st.showFps);
   };
   settingsMenu.onChange = applySettings;
@@ -142,8 +157,14 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   grenades.fx = fx;
 
   let net: NetTransport;
-  if (lobby.mode === 'offline') net = new LocalTransport();
-  else net = new NeedleTransport(context, `csw16-${lobby.room}`, lobby.server || undefined);
+  if (setup.mode === 'offline') net = new LocalTransport();
+  else net = new NeedleTransport(context, `csw16-${setup.room}`, setup.server || undefined);
+
+  // Server-Konfiguration (nur der Ersteller; Beitretende übernehmen sie per Snapshot)
+  const mapId = mapById(setup.mapId).id;
+  const lobbyCfg: LobbyConfig | null = setup.mode === 'host'
+    ? { name: setup.serverName, maxPlayers: setup.maxPlayers, pw: passwordDigest(setup.room, setup.password), listed: setup.listed, hold: setup.lobby }
+    : null;
 
   const driver = playerRoot.addComponent(MatchDriver);
   driver.world = world;
@@ -153,7 +174,12 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   driver.hud = hud;
   driver.grenades = grenades;
   driver.sfx = sfx;
-  driver.options = { localName: lobby.name, team: lobby.team, fillTo: lobby.fillTo, botSkill: lobby.botSkill };
+  driver.options = {
+    localName: setup.name, team: setup.team, fillTo: setup.fillTo, botSkill: setup.botSkill,
+    lobby: lobbyCfg,
+    passwordDigest: setup.mode === 'join' && setup.password ? passwordDigest(setup.room, setup.password) : null,
+  };
+  driver.onKicked = (reason) => backToMenu(kickReasonText(reason), true);
   shooter.loadout = () => driver.local?.loadout;
 
   // Startposition bis zum ersten Spawn
@@ -162,13 +188,55 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   shooter.setWeapon('knife');
 
   // HUD-Overlay-Tick
-  playerRoot.addComponent(HudTicker).hud = hud;
+  const ticker = playerRoot.addComponent(HudTicker);
+  ticker.hud = hud;
 
-  if (lobby.mode !== 'offline') {
-    const link = roomLink(lobby.room, lobby.mapId, lobby.server);
-    hud.notice(`Raumcode ${lobby.room} — Link in der Adressleiste teilen`);
+  if (setup.mode !== 'offline') {
+    const link = roomLink(window.location.href, setup.room, mapId, setup.server);
+    hud.notice(`Raumcode ${setup.room} — Einladungslink in der Lobby/Adressleiste`);
     if (!new URL(window.location.href).searchParams.get('auto')) history.replaceState(null, '', link);
-    hud.setNetInfo(`Verbinde mit Raum ${lobby.room}…`);
+    hud.setNetInfo(`Verbinde mit Raum ${setup.room}…`);
+
+    // Serverlobby (gehaltenes Aufwärmen bis „Spiel starten“)
+    const lobby = new LobbyOverlay(setup.room, link);
+    lobby.mount();
+    lobby.onStart = () => driver.startMatch();
+    lobby.onTeam = (team) => driver.requestTeam(team);
+    lobby.onChat = (text) => driver.sendChat(text, false);
+    lobby.onLeave = () => backToMenu();
+    lobby.onOpenChange = () => syncInput();
+    lobbyOpen = () => lobby.isOpen();
+    ticker.lobby = () => {
+      const cfg = driver.lobbyConfig;
+      lobby.update({
+        active: driver.lobbyHeld,
+        isHost: driver.isHost,
+        hostId: net.hostId,
+        localId: net.id,
+        players: Object.values(driver.match.players).map((p) => ({ id: p.id, name: p.name, team: p.team, bot: p.bot })),
+        chat: driver.chatHistory,
+        maxPlayers: cfg?.maxPlayers ?? setup.maxPlayers,
+        serverName: cfg?.name ?? `Raum ${setup.room}`,
+        hasPassword: !!cfg?.pw,
+      });
+    };
+
+    // Serverbrowser: Host meldet sich im Discovery-Raum (eigene WebSocket-Verbindung)
+    const heartbeat = (): Heartbeat | null => {
+      const cfg = driver.lobbyConfig;
+      if (!driver.isHost || !cfg?.listed || !net.id) return null;
+      const m = driver.match;
+      const all = Object.values(m.players);
+      return {
+        room: setup.room, name: cfg.name, map: mapId,
+        players: all.filter((p) => !p.bot).length, maxPlayers: cfg.maxPlayers, bots: all.filter((p) => p.bot).length,
+        phase: driver.lobbyHeld ? 'lobby' : m.winner ? 'ended' : m.round.phase,
+        round: m.round.round, score: [m.round.tRounds, m.round.ctRounds], hasPassword: !!cfg.pw, version: GAME_VERSION,
+      };
+    };
+    const announcer = new ServerAnnouncer(setup.server, heartbeat);
+    announcer.start();
+    window.addEventListener('pagehide', () => announcer.stop());
   }
 
   // Debug-Hooks (Smoke-Tests, DevTools)
@@ -294,19 +362,10 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       });
     };
     g.__unzoom = () => { shooter.setZoom(0); return true; };
+    g.__lobbyStart = () => driver.startMatch();
+    g.__driver = driver;
+    g.__lobby = () => ({ held: driver.lobbyHeld, cfg: driver.lobbyConfig, host: driver.isHost });
   }
-
-  // Hinweis bis PointerLock
-  const hint = document.createElement('div');
-  Object.assign(hint.style, {
-    position: 'fixed', top: '44px', left: '50%', transform: 'translateX(-50%)', color: '#dfe6ee', font: '12px Consolas, monospace',
-    background: 'rgba(10,13,18,.6)', padding: '4px 12px', borderRadius: '6px', pointerEvents: 'none', zIndex: '20',
-  });
-  hint.textContent = 'Klick ins Spiel = Maus fangen · Esc = Maus frei · B kaufen · Tab Scoreboard · O Einstellungen';
-  document.body.appendChild(hint);
-  document.addEventListener('pointerlockchange', () => {
-    hint.style.display = document.pointerLockElement ? 'none' : 'block';
-  });
 }
 
 import { Behaviour, registerType } from '@needle-tools/engine';
@@ -315,7 +374,10 @@ import { Behaviour, registerType } from '@needle-tools/engine';
 @registerType
 class HudTicker extends Behaviour {
   hud!: Hud;
+  /** Serverlobby-Anzeige nachführen (nur online). */
+  lobby: (() => void) | null = null;
   update(): void {
     this.hud.tick(Math.min(this.context.time.deltaTime, 0.1));
+    this.lobby?.();
   }
 }

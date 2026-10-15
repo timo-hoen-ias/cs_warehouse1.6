@@ -22,6 +22,18 @@ export type Settings = {
   showFps: boolean;
   /** Kopfbewegung (Head-Bob) an/aus. */
   bobbing: boolean;
+  /** Menümusik-Lautstärke 0..1. */
+  musicVolume: number;
+  /** Menümusik stumm (Lautsprecher-Knopf im Menü). */
+  musicMuted: boolean;
+  /** HUD-Skalierung relativ zur automatischen Bildschirmanpassung (0.75..1.5). */
+  hudScale: number;
+  /** Fadenkreuz: Abstand der Linien zur Mitte in px (ohne Streuung). */
+  crosshairGap: number;
+  /** Fadenkreuz: Linienstärke in px. */
+  crosshairThickness: number;
+  /** Fadenkreuz öffnet sich mit der Streuung (dynamisch wie in CS 1.6). */
+  crosshairDynamic: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -34,6 +46,12 @@ export const DEFAULT_SETTINGS: Settings = {
   crosshairSize: 9,
   showFps: false,
   bobbing: true,
+  musicVolume: 0.5,
+  musicMuted: false,
+  hudScale: 1,
+  crosshairGap: 3,
+  crosshairThickness: 2,
+  crosshairDynamic: true,
 };
 
 export const SENSITIVITY_MIN = 0.0004;
@@ -42,6 +60,12 @@ export const FOV_MIN = 60;
 export const FOV_MAX = 110;
 export const CROSSHAIR_SIZE_MIN = 3;
 export const CROSSHAIR_SIZE_MAX = 20;
+export const CROSSHAIR_GAP_MIN = 0;
+export const CROSSHAIR_GAP_MAX = 12;
+export const CROSSHAIR_THICKNESS_MIN = 1;
+export const CROSSHAIR_THICKNESS_MAX = 4;
+export const HUD_SCALE_MIN = 0.75;
+export const HUD_SCALE_MAX = 1.5;
 
 export const CROSSHAIR_STYLES: readonly CrosshairStyle[] = ['classic', 'dot', 'circle'];
 
@@ -80,6 +104,12 @@ export function sanitizeSettings(raw: unknown): Settings {
     crosshairSize: num(r.crosshairSize, d.crosshairSize, CROSSHAIR_SIZE_MIN, CROSSHAIR_SIZE_MAX),
     showFps: bool(r.showFps, d.showFps),
     bobbing: bool(r.bobbing, d.bobbing),
+    musicVolume: num(r.musicVolume, d.musicVolume, 0, 1),
+    musicMuted: bool(r.musicMuted, d.musicMuted),
+    hudScale: num(r.hudScale, d.hudScale, HUD_SCALE_MIN, HUD_SCALE_MAX),
+    crosshairGap: num(r.crosshairGap, d.crosshairGap, CROSSHAIR_GAP_MIN, CROSSHAIR_GAP_MAX),
+    crosshairThickness: num(r.crosshairThickness, d.crosshairThickness, CROSSHAIR_THICKNESS_MIN, CROSSHAIR_THICKNESS_MAX),
+    crosshairDynamic: bool(r.crosshairDynamic, d.crosshairDynamic),
   };
 }
 
