@@ -34,6 +34,12 @@ export const BODY = {
   /** Festgefahren: weniger als 0.35 m in so vielen Sekunden. */
   stuck: 1.2,
   /**
+   * Aufgeben: so lange festgefahren (s) und das Ziel liegt nah (m) — dann hier stehen bleiben statt endlos zu
+   * drücken (z. B. Kistenecke direkt vor dem Haltepunkt, an der die Kollision hängen bleibt).
+   */
+  giveUp: 3.6,
+  giveUpNear: 6,
+  /**
    * Obergrenze der A*-Expansionen je Suche (Sicherheitsnetz für sehr große Karten). Gemessen:
    * 5000 verliert auf den aktuellen Karten (11–17 k Knoten) 4–12 % gültiger Wege, daher großzügig;
    * die Spitzen durch unerreichbare Ziele verhindert der Fehlschlag-Speicher (`failMemory`).
@@ -123,6 +129,8 @@ export class BotBody {
   private stuckT = 0;
   private stuckRef = { x: 0, z: 0 };
   private stuckRun = 0;
+  /** Ziel (Plan-Schlüssel), das wegen Festsitzens kurz davor aufgegeben wurde. */
+  private gaveUp = '';
   private unstick: { x: number; z: number; until: number } | null = null;
   /** Kürzlich unerreichbare Ziele (keine wiederholte Ganz-Graph-Suche). */
   private readonly failed = new PathFailMemory();
@@ -142,6 +150,7 @@ export class BotBody {
     this.via = [];
     this.goal = null;
     this.planKey = '';
+    this.gaveUp = '';
     this.stale = false;
     this.crouch = false;
     this.speed = 0;
@@ -195,8 +204,9 @@ export class BotBody {
       vx = this.unstick.x * BODY.walk;
       vz = this.unstick.z * BODY.walk;
     } else this.unstick = null;
-    // Abstand zu Kameraden: nicht auflaufen, bei Berührung auseinander
-    if (vx || vz) {
+    // Abstand zu Kameraden: nicht auflaufen, bei Berührung auseinander — außer man sitzt schon fest (Kamerad steht
+    // genau im Weg, z. B. am Treppenfuß): dann vorbeidrücken statt endlos gegen ihn zu laufen
+    if ((vx || vz) && this.stuckRun <= 0) {
       const l = Math.hypot(vx, vz);
       let slow = 1;
       for (const m of env.mates) {
@@ -255,6 +265,12 @@ export class BotBody {
     }
     const sub = this.via[0] ?? this.goal!;
     const dSub = Math.hypot(sub.x - this.pose.x, sub.z - this.pose.z);
+    if (this.gaveUp === this.planKey) return null;
+    if (!this.via.length && this.stuckRun >= BODY.giveUp && dSub < BODY.giveUpNear && Math.abs(sub.y - this.pose.y) < 2) {
+      this.gaveUp = this.planKey;
+      this.path = [];
+      return null;
+    }
     // Ziel von einem Kameraden besetzt → daneben stehen bleiben statt zu drängeln
     const occupied = dSub < 2.4 && env.mates.some((m) => Math.hypot(m.x - sub.x, m.z - sub.z) < 0.9 && Math.abs(m.y - sub.y) < 1.2);
     const atGoal = !this.via.length && (dSub < 0.35 || occupied) && Math.abs(sub.y - this.pose.y) < 1.3;
@@ -271,7 +287,10 @@ export class BotBody {
       this.repathAt = env.now + BODY.repath;
       this.stale = false;
       if (res) {
-        this.path = res.points;
+        // Festgefahren (z. B. an einer Kistenecke, die der geglättete Weg streift): ungeglättet über die Knotenmitten
+        // (nur die nächsten Knoten, danach wird wieder geglättet geplant)
+        this.path = this.stuckRun > 0 ? res.nodes.slice(1, 5).map((n) => ({ x: env.nav.x[n]!, y: env.nav.y[n]!, z: env.nav.z[n]! })) : res.points;
+        if (!this.path.length) this.path = res.points;
         this.pathAt = 0;
       } else if (this.via.length) {
         // Wegpunkt unerreichbar → überspringen

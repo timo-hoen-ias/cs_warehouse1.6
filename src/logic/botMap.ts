@@ -137,6 +137,11 @@ export const BOTMAP = {
   /** Halteposition: Entfernung zum beobachteten Punkt (m). */
   holdMin: 5,
   holdMax: 32,
+  /**
+   * Halte-Position mit Sicht auf einen *weiteren* Eingang: Abzug je Eingang (man wird von der Seite/aus dem
+   * Rücken erwischt — CS-Halter wählen Winkel, die nur einen Eingang zeigen).
+   */
+  exposedPenalty: 3.5,
   /** Sprinttempo für Zeitabschätzungen (m/s). */
   speed: PLAYER.sprintSpeed,
 } as const;
@@ -743,7 +748,7 @@ export function holdSpots(info: BotMapInfo, watch: XYZ, team: Team, opts: HoldOp
       if (Math.hypot(h.pos[0] - pos.x, h.pos[2] - pos.z) < 1.6 && Math.abs(h.pos[1] - pos.y) < 1) s += h.kind === 'sniper' && opts.sniper ? 6 : 4;
     }
     for (const p of opts.alsoSee ?? []) if (col.clear(eye, { x: p.x, y: p.y + 0.4, z: p.z })) s += 2;
-    for (const p of opts.exposed ?? []) if (d3(p, watch) > 2 && col.clear(eye, { x: p.x, y: p.y + BOTMAP.watchY, z: p.z })) s -= 1.5;
+    for (const p of opts.exposed ?? []) if (d3(p, watch) > 2 && col.clear(eye, { x: p.x, y: p.y + BOTMAP.watchY, z: p.z })) s -= BOTMAP.exposedPenalty;
     scored.push({ node: i, pos, score: s, dist, crouch, high, cover });
   }
   scored.sort((a, b) => b.score - a.score || a.node - b.node);

@@ -12,7 +12,7 @@ import {
   type CTAssignment, type GroupPlan, type RetakeEntry, type TPlan,
 } from './botStrategy';
 import type { GrenadeKind } from './weapons';
-import type { XYZ } from './nav';
+import { NAV_FLAG, forNodesNear, type XYZ } from './nav';
 
 /**
  * Team-Trainer der Bots (pure Zustandsmaschinen je Runde): setzt die Strategie
@@ -413,17 +413,40 @@ export class TCoach {
     const defuseKnown = ctx.bomb.phase === 'defusing' && (ctx.bots.some((b) => dist(b.pos, bombPos) < 28) || !!nearestThreat(ctx.know, bombPos, ctx.now, 3));
     for (const b of ctx.bots) {
       const t = this.tasks.get(b.id);
-      if (ctx.bomb.fuseLeft < 4 && ctx.bomb.phase === 'planted' && dist(b.pos, bombPos) < 24) {
+      if (ctx.bomb.fuseLeft < BOMB_ESCAPE.time && ctx.bomb.phase === 'planted' && dist(b.pos, bombPos) < BOMB_ESCAPE.radius) {
         if (t?.label !== 'Abstand zur Bombe') {
-          const away = { x: bombPos.x + (b.pos.x - bombPos.x) * 4, y: b.pos.y, z: bombPos.z + (b.pos.z - bombPos.z) * 4 };
-          const r = routesTo(ctx.info, 'T', ctx.bomb.spot ?? this.target)[0];
-          this.set(b.id, makeTask({ kind: 'move', label: 'Abstand zur Bombe', goal: r?.staging ?? away, speed: 'run', urgent: true }));
+          this.set(b.id, makeTask({ kind: 'move', label: 'Abstand zur Bombe', goal: bombEscape(ctx.info, ctx.bomb.spot ?? this.target, bombPos, b.pos), speed: 'run', urgent: true }));
         }
       } else if (defuseKnown && t?.kind !== 'hunt') {
         this.set(b.id, makeTask({ kind: 'hunt', label: 'Entschärfen verhindern', goal: bombPos, speed: 'run', urgent: true, look: [bombPos], roam: true }));
       }
     }
   }
+}
+
+/** Rechtzeitig vor der Explosion Abstand nehmen (Explosion: tödlich bis ≈ 12 m, Schaden bis 18 m); ab 5.5 s schafft auch ein Kit-Entschärfer es nicht mehr. */
+export const BOMB_ESCAPE = { time: 5.5, radius: 24, safe: 22 } as const;
+
+/**
+ * Fluchtpunkt vor der Explosion: der nächste begehbare Punkt, der weit genug von der Bombe entfernt ist und auf
+ * der eigenen Seite liegt (weg von der Bombe, nicht an ihr vorbei); sonst der weiteste Bereitstellungsraum einer T-Route.
+ */
+export function bombEscape(info: BotMapInfo, site: SiteId, bombPos: XYZ, from: XYZ): XYZ {
+  const g = info.nav;
+  const ax = from.x - bombPos.x, az = from.z - bombPos.z;
+  let best = -1;
+  let bd = Infinity;
+  forNodesNear(g, from.x, from.z, BOMB_ESCAPE.safe + 8, (i) => {
+    if (g.flags[i]! & NAV_FLAG.crouch) return;
+    const p = { x: g.x[i]!, y: g.y[i]!, z: g.z[i]! };
+    if (dist(p, bombPos) < BOMB_ESCAPE.safe || (p.x - bombPos.x) * ax + (p.z - bombPos.z) * az < 0) return;
+    const d = dist(p, from);
+    if (d < bd) { bd = d; best = i; }
+  });
+  if (best >= 0) return { x: g.x[best]!, y: g.y[best]!, z: g.z[best]! };
+  const cand = routesTo(info, 'T', site).map((r) => r.staging);
+  if (!cand.length) return { x: bombPos.x + ax * 4, y: from.y, z: bombPos.z + az * 4 };
+  return cand.reduce((q, p) => (dist(p, bombPos) > dist(q, bombPos) ? p : q));
 }
 
 // ============================================================================ CT
@@ -520,7 +543,7 @@ export class CTCoach {
     const info = ctx.info;
     if (this.stage !== 'retake' && this.stage !== 'save') {
       this.stage = 'retake';
-      this.retake = retakePlan(info, site, ctx.bots);
+      this.retake = retakePlan(info, site, ctx.bots, bombPos);
       this.retakeGo = false;
       this.firstReady = -1;
       for (const b of ctx.bots) {
@@ -537,20 +560,22 @@ export class CTCoach {
     if (!def) return;
     const defuseTime = def.hasKit ? BOMB.defuseKitTime : BOMB.defuseTime;
     const travel = dist(def.pos, bombPos) / 5.5;
-    // Keine Chance mehr → retten (nicht für die Bombe sterben)
-    if (ctx.bomb.phase === 'planted' && ctx.bomb.fuseLeft < defuseTime + travel * 0.8 + 0.3) {
+    // Keine Chance mehr (Zeit) oder hoffnungslos unterlegen → retten (Waffen für die nächste Runde behalten)
+    const noTime = ctx.bomb.fuseLeft < defuseTime + travel * 0.8 + 0.3;
+    if (ctx.bomb.phase === 'planted' && (noTime || retakeHopeless(ctx.bots.length, ctx.enemyAlive))) {
       this.stage = 'save';
-      for (const b of ctx.bots) this.tasks.set(b.id, makeTask({ kind: 'move', label: 'Retten', goal: info.spawn.CT, speed: 'run', urgent: true }));
+      const away = saveSpot(info, bombPos);
+      for (const b of ctx.bots) this.tasks.set(b.id, makeTask({ kind: 'move', label: 'Retten', goal: away, speed: 'run', urgent: true }));
       if (ctx.bots[0]) ctx.radio(ctx.bots[0].id, 'fallBack');
       return;
     }
+    const tight = ctx.bomb.fuseLeft < defuseTime + travel + 6;
     if (!this.retakeGo) {
       const ready = ctx.bots.filter((b) => {
         const r = this.retake.get(b.id);
         return !r || dist(b.pos, r.staging) < 5;
       });
       if (ready.length && this.firstReady < 0) this.firstReady = ctx.now;
-      const tight = ctx.bomb.fuseLeft < defuseTime + travel + 6;
       const allIn = ready.length >= ctx.bots.length;
       const enough = ready.length >= Math.min(ctx.bots.length, 2) && this.firstReady >= 0 && ctx.now - this.firstReady > 5;
       // Gegner bekanntlich tot → kein Warten
@@ -565,23 +590,65 @@ export class CTCoach {
         for (const b of ctx.bots) {
           const r = this.retake.get(b.id);
           const via = r ? [info.portals[r.entry]!.pos] : [];
-          if (b.id === def.id) {
-            const nades = b.nades.smoke > 0 && ctx.enemyAlive > 0 ? [{ kind: 'smoke' as GrenadeKind, target: bombPos }] : [];
-            this.tasks.set(b.id, makeTask({ kind: 'defuse', label: 'Entschärfen', goal: bombPos, via, speed: 'run', urgent: true, look: [bombPos], nades }));
+          // Allein, Gegner tot oder Zeitnot: der Entschärfer geht direkt zur Bombe; sonst erst den Spot mit freiräumen
+          if (b.id === def.id && (ctx.bots.length === 1 || retakeSiteClear(ctx, bombPos, tight))) {
+            this.defuseTask(b, ctx, bombPos, via);
             continue;
           }
           const pid = attack[k++ % Math.max(1, attack.length)];
           const spots = pid !== undefined ? portalHoldSpots(info, pid, 'CT', { near: bombPos, nearMax: 14, limit: 3 }) : [];
           const goal = spots[k % Math.max(1, spots.length)]?.pos ?? { x: bombPos.x + (b.pos.x - bombPos.x) * 0.2, y: bombPos.y, z: bombPos.z + (b.pos.z - bombPos.z) * 0.2 };
           const flash = b.nades.flash > 0 && r ? [{ kind: 'flash' as GrenadeKind, target: { x: info.portals[r.entry]!.pos.x + info.portals[r.entry]!.dir.x * 5, y: info.portals[r.entry]!.pos.y + 2.3, z: info.portals[r.entry]!.pos.z + info.portals[r.entry]!.dir.z * 5 } }] : [];
-          this.tasks.set(b.id, makeTask({ kind: 'hold', label: 'Retake: Spot sichern', goal, via, speed: 'run', urgent: true, look: pid !== undefined ? [info.portals[pid]!.pos, bombPos] : [bombPos], nades: flash }));
+          this.tasks.set(b.id, makeTask({ kind: 'hold', label: b.id === def.id ? 'Retake: räumen, dann entschärfen' : 'Retake: Spot sichern', goal, via, speed: 'run', urgent: true, look: pid !== undefined ? [info.portals[pid]!.pos, bombPos] : [bombPos], nades: flash }));
         }
       }
+      return;
     }
-    // Entschärfer gefallen → nächster übernimmt
-    if (this.retakeGo && this.defuser && !ctx.bots.some((b) => b.id === this.defuser)) {
-      this.defuser = def.id;
-      this.tasks.set(def.id, makeTask({ kind: 'defuse', label: 'Entschärfen', goal: bombPos, speed: 'run', urgent: true, look: [bombPos] }));
+    // Entschärfer gefallen → nächster übernimmt; Spot geräumt (oder Zeitnot) → entschärfen
+    if (!this.defuser || !ctx.bots.some((b) => b.id === this.defuser)) this.defuser = def.id;
+    const d = ctx.bots.find((b) => b.id === this.defuser)!;
+    if (this.tasks.get(d.id)?.kind !== 'defuse' && retakeSiteClear(ctx, bombPos, ctx.bomb.fuseLeft < (d.hasKit ? BOMB.defuseKitTime : BOMB.defuseTime) + dist(d.pos, bombPos) / 5.5 + 4)) {
+      this.defuseTask(d, ctx, bombPos, []);
     }
   }
+
+  /** Entschärf-Auftrag (mit Rauch auf die Bombe, solange noch Gegner leben). */
+  private defuseTask(b: CoachBot, ctx: CoachCtx, bombPos: XYZ, via: XYZ[]): void {
+    const nades = b.nades.smoke > 0 && ctx.enemyAlive > 0 ? [{ kind: 'smoke' as GrenadeKind, target: bombPos }] : [];
+    this.tasks.set(b.id, makeTask({ kind: 'defuse', label: 'Entschärfen', goal: bombPos, via, speed: 'run', urgent: true, look: [bombPos], nades }));
+  }
 }
+
+/**
+ * Rückzugsziel beim Retten: der CT-Spawn (sicher hinter den eigenen Linien), außer er liegt zu nah an der Bombe —
+ * dann der vom Bombenort am weitesten entfernte Ort (anderer Spot).
+ */
+export function saveSpot(info: BotMapInfo, bombPos: XYZ): XYZ {
+  if (dist(info.spawn.CT, bombPos) >= 30) return info.spawn.CT;
+  const cand = [info.spawn.CT, ...info.sites.map((s) => s.plant)];
+  return cand.reduce((best, p) => (dist(p, bombPos) > dist(best, bombPos) ? p : best), cand[0]!);
+}
+
+/**
+ * Retake aussichtslos (CS: „retten“ statt einzeln in die Überzahl laufen): höchstens zwei CT gegen
+ * mindestens zwei T mehr (1 gegen 3, 2 gegen 4 …). Die Waffen bleiben für die nächste Runde.
+ */
+export function retakeHopeless(ct: number, t: number): boolean {
+  return ct > 0 && ct <= 2 && t >= ct + 2;
+}
+
+/**
+ * Darf der Entschärfer an die Bombe? Ja, wenn keine Gegner mehr leben, die Zeit drängt, oder seit
+ * ein paar Sekunden niemand mehr in Bombennähe gesehen/gehört wurde (Spot geräumt).
+ */
+export function retakeSiteClear(ctx: Pick<CoachCtx, 'enemyAlive' | 'know' | 'now'>, bombPos: XYZ, tight: boolean): boolean {
+  if (ctx.enemyAlive === 0 || tight) return true;
+  return !known(ctx.know, ctx.now, RETAKE.clearAge).some((s) => dist(s.pos, bombPos) < RETAKE.clearRadius);
+}
+
+export const RETAKE = {
+  /** Gegner-Meldungen in diesem Umkreis der Bombe (m) … */
+  clearRadius: 24,
+  /** … und nicht älter als (s) halten den Entschärfer zurück. */
+  clearAge: 4,
+} as const;

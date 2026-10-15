@@ -33,6 +33,19 @@ describe('Bot-Körper', () => {
     expect(body.stuckMax).toBeLessThan(1.5);
   });
 
+  it('Ziel in einer Kiste (unerreichbar, direkt vor der Nase): davor stehen bleiben statt endlos festzusitzen', () => {
+    const body = new BotBody({ x: 39.5, y: 0, z: 13, yaw: 0, pitch: 0 });
+    const goal = { x: 39.5, y: 0, z: 17 };
+    run(body, intent({ goal, speed: 'run' }), 12);
+    expect(body.stuckMax).toBeLessThanOrEqual(BODY.giveUp + BODY.stuck + 0.1);
+    expect(Math.hypot(body.pose.x - goal.x, body.pose.z - goal.z)).toBeLessThan(BODY.giveUpNear);
+    run(body, intent({ goal, speed: 'run' }), 1, 12);
+    expect(body.speed).toBeLessThan(0.3);
+    // neues Ziel → wieder laufen
+    run(body, intent({ goal: { x: 30, y: 0, z: 13 }, speed: 'run', plan: 2 }), 1, 13);
+    expect(body.speed).toBeGreaterThan(1);
+  });
+
   it('Tempo: Gehen und Schleichen langsamer, geduckt am langsamsten; Stillstand wird gezählt', () => {
     const speeds: Record<string, number> = {};
     for (const speed of ['run', 'walk', 'sneak'] as const) {

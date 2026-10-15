@@ -10,6 +10,17 @@ export const BOT = {
   aimErrorStart: 0.07,
   aimErrorSettled: 0.012,
   aimSettleTime: 1.6,
+  /** Überraschung: Gegner außerhalb von ±30° des Blicks → Reaktion × Faktor. */
+  surprise: 1.35,
+  /**
+   * Vorzielen (Fadenkreuz-Platzierung wie in CS): wer still steht (≥ preaimStill s) und schon dorthin schaut,
+   * wo der Gegner auftaucht (±preaimCone rad), reagiert schneller und hat das Ziel schon halb „eingeschwungen“.
+   * Das ist der Vorteil des Halters gegenüber dem, der um die Ecke kommt (gilt für beide Teams).
+   */
+  preaimStill: 0.3,
+  preaimCone: (7 * Math.PI) / 180,
+  preaimReaction: 0.5,
+  preaimSettled: 0.8,
 } as const;
 
 /** Zielfehler (rad): sinkt mit Zielzeit, steigt mit (1 - skill). */
@@ -23,6 +34,16 @@ export function aimError(sightTime: number, skill: number): number {
 export function reactionTime(skill: number, rnd: () => number): number {
   const k = Math.min(1, Math.max(0, skill));
   return BOT.reactionMin + (BOT.reactionMax - BOT.reactionMin) * (1 - k) * (0.5 + rnd() * 0.5);
+}
+
+/**
+ * Erstsicht eines Gegners: Reaktionszeit und Start-Zielzeit (für den Zielfehler).
+ * `offAngle` = Winkel (rad) zwischen Blickrichtung und Gegner, `stillFor` = Sekunden ohne Bewegung.
+ */
+export function firstSight(skill: number, rnd: () => number, offAngle: number, stillFor: number): { reaction: number; sightTime: number } {
+  const reaction = reactionTime(skill, rnd) * (offAngle <= Math.PI / 6 ? 1 : BOT.surprise);
+  if (stillFor >= BOT.preaimStill && offAngle <= BOT.preaimCone) return { reaction: reaction * BOT.preaimReaction, sightTime: BOT.preaimSettled };
+  return { reaction, sightTime: 0 };
 }
 
 /** CS-Bot-Namen (Lager-Thema). */

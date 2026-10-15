@@ -45,6 +45,16 @@ describe('Team-Kauf der Bots', () => {
     expect(f.some((x) => x === 'kevlar' || x === 'helmet')).toBe(true);
   });
 
+  it('Halbkauf: Famas/Galil + Weste, wenn es reicht (statt SMG), sonst SMG', () => {
+    const ct = botBuyList(defaultLoadout('CT'), 3300, 'CT', 'half', 'rotator', 0.6, rnd(0.5));
+    expect(ct[0]).toBe('famas');
+    expect(ct.some((x) => x === 'kevlar' || x === 'helmet')).toBe(true);
+    const t = botBuyList(defaultLoadout('T'), 2900, 'T', 'half', 'support', 0.6, rnd(0.5));
+    expect(t[0]).toBe('galil');
+    const poor = botBuyList(defaultLoadout('CT'), 2400, 'CT', 'half', 'rotator', 0.6, rnd(0.5));
+    expect(['ump45', 'mp5', 'tmp']).toContain(poor[0]);
+  });
+
   it('vorhandene Primärwaffe wird behalten (Überlebende)', () => {
     const lo = defaultLoadout('T');
     giveWeapon(lo, 'ak47');

@@ -1,10 +1,10 @@
 import type { BuyKind, BotRole } from './botBuy';
 import { sitePressure, type TeamKnowledge } from './botKnowledge';
 import {
-  coverNear, holdSpots, portalApproach, portalHoldSpots, routesTo, siteEntrances, siteInfo,
-  type BotMapInfo, type HoldSpot, type Route, type SiteId,
+  coverNear, holdSpots, portalApproach, portalHoldSpots, routesTo, siteEntrances, siteInfo, zoneAt,
+  type BotMapInfo, type HoldSpot, type Route, type SiteId, type SiteInfo,
 } from './botMap';
-import { nearestNode, type XYZ } from './nav';
+import { NAV_FLAG, forNodesNear, nearestNode, type XYZ } from './nav';
 
 /**
  * Team-Strategie der Bots (pure Entscheidungen, kartenunabhängig):
@@ -309,30 +309,102 @@ export function viaBetween(info: BotMapInfo, route: Route, from: XYZ, goal?: XYZ
 export type RetakeEntry = { entry: number; staging: XYZ };
 
 /**
+ * Sammelpunkt vor einem Spot-Eingang für den Retake: hinter dem Eingang (Außenseite), 4–14 m entfernt, aber
+ * **ohne Sicht** in den Spot (Punkt hinter der Tür, Pflanzpunkt) — wie der Bereitstellungsraum der T. Sonst
+ * würden die Sammelnden von den T im Spot durch die Tür abgeschossen. Ersatz: 9 m vor dem Eingang (Deckung).
+ */
+export function retakeStaging(info: BotMapInfo, site: SiteInfo, pid: number): XYZ {
+  const key = `retakeStaging|${pid}`;
+  const cached = info.cache.get(key) as XYZ | undefined;
+  if (cached) return cached;
+  const g = info.nav;
+  const p = info.portals[pid]!;
+  const a = portalApproach(info, pid, 9);
+  // Lieblingsplätze der T nach dem Plant (Blick auf die Bombe bzw. die CT-Eingänge): auch von dort nicht einsehbar
+  const tSpots = [
+    ...holdSpots(info, site.plant, 'T', { min: 5, max: 22, limit: 4 }),
+    ...siteEntrances(info, site, 'defend').flatMap((q) => portalHoldSpots(info, q, 'T', { near: site.plant, nearMax: 18, limit: 2, min: 4 })),
+  ].map((h) => ({ x: h.pos.x, y: h.pos.y + 1.4, z: h.pos.z }));
+  const inside = [
+    { x: p.pos.x + p.dir.x * 4, y: p.pos.y + 1.2, z: p.pos.z + p.dir.z * 4 },
+    { x: p.pos.x + p.dir.x * 9, y: p.pos.y + 1.2, z: p.pos.z + p.dir.z * 9 },
+    { x: site.plant.x, y: site.plant.y + 1.2, z: site.plant.z },
+  ];
+  const siteZones = new Set(site.zones);
+  let best = -1;
+  let bs = -Infinity;
+  forNodesNear(g, p.pos.x, p.pos.z, 14, (i) => {
+    if (siteZones.has(info.zoneOf[i]!) || (g.flags[i]! & NAV_FLAG.crouch) || Math.abs(g.y[i]! - p.pos.y) > 1.5) return;
+    const dx = g.x[i]! - p.pos.x, dz = g.z[i]! - p.pos.z;
+    const d = Math.hypot(dx, dz);
+    // Außenseite des Eingangs (gegen die Durchgangsrichtung)
+    if (d < 4 || d > 14 || dx * p.dir.x + dz * p.dir.z > -1.5) return;
+    const eye = { x: g.x[i]!, y: g.y[i]! + 1.6, z: g.z[i]! };
+    if (inside.some((q) => info.col.clear(eye, q))) return;
+    const seen = tSpots.filter((q) => info.col.clear(q, eye)).length;
+    const sc = -Math.abs(d - 7) * 0.5 - Math.hypot(g.x[i]! - a.x, g.z[i]! - a.z) * 0.2 + (g.flags[i]! & NAV_FLAG.cover ? 1 : 0) - seen * 4;
+    if (sc > bs) { bs = sc; best = i; }
+  });
+  let n = best;
+  if (n < 0) {
+    n = nearestNode(g, a.x, a.y, a.z, 6);
+    if (n < 0) n = p.fromNode;
+    n = coverNear(info, n, 3);
+  }
+  const out = { x: g.x[n]!, y: g.y[n]!, z: g.z[n]! };
+  info.cache.set(key, out);
+  return out;
+}
+
+/**
  * Retake: jeder CT bekommt einen Eingang des Spots (nächster; bei ähnlicher Entfernung
  * ein noch freier → Angriff von mehreren Seiten) und einen Sammelpunkt davor.
  */
-export function retakePlan(info: BotMapInfo, site: SiteId, ctPositions: readonly { id: string; pos: XYZ }[]): Map<string, RetakeEntry> {
+export function retakePlan(info: BotMapInfo, site: SiteId, ctPositions: readonly { id: string; pos: XYZ }[], bomb?: XYZ): Map<string, RetakeEntry> {
   const out = new Map<string, RetakeEntry>();
   const s = siteInfo(info, site);
   if (!s || !s.entrances.length) return out;
+  const center = bomb ?? s.plant;
   const used = new Map<number, number>();
-  const stagingOf = (pid: number): XYZ => {
-    const a = portalApproach(info, pid, 9);
-    let n = nearestNode(info.nav, a.x, a.y, a.z, 6);
-    if (n < 0) n = info.portals[pid]!.fromNode;
-    n = coverNear(info, n, 3);
-    return { x: info.nav.x[n]!, y: info.nav.y[n]!, z: info.nav.z[n]! };
-  };
-  const sorted = [...ctPositions].sort((a, b) => Math.hypot(a.pos.x - s.plant.x, a.pos.z - s.plant.z) - Math.hypot(b.pos.x - s.plant.x, b.pos.z - s.plant.z));
+  const sorted = [...ctPositions].sort((a, b) => Math.hypot(a.pos.x - center.x, a.pos.z - center.z) - Math.hypot(b.pos.x - center.x, b.pos.z - center.z));
   for (const ct of sorted) {
-    const costs = s.entrances.map((pid) => ({ pid, c: Math.hypot(portalApproach(info, pid, 9).x - ct.pos.x, portalApproach(info, pid, 9).z - ct.pos.z) + Math.abs(info.portals[pid]!.pos.y - ct.pos.y) * 3 }));
+    const costs = s.entrances.map((pid) => {
+      const st = retakeStaging(info, s, pid);
+      // Weg zum Sammelpunkt quer an der Bombe vorbei (durch die T im Spot) ist teuer
+      const across = segmentPointDist(ct.pos, st, center) < RETAKE_PATH.bombClear ? RETAKE_PATH.acrossCost : 0;
+      return { pid, c: Math.hypot(st.x - ct.pos.x, st.z - ct.pos.z) + Math.abs(info.portals[pid]!.pos.y - ct.pos.y) * 3 + across };
+    });
     costs.sort((a, b) => a.c - b.c);
     let choice = costs[0]!;
     const fresh = costs.find((c) => !used.has(c.pid));
     if (fresh && fresh.c <= choice.c * 1.35 + 6) choice = fresh;
     used.set(choice.pid, (used.get(choice.pid) ?? 0) + 1);
-    out.set(ct.id, { entry: choice.pid, staging: stagingOf(choice.pid) });
+    // Schon im Spot (überlebender Anker): versteckt bleiben statt quer durch die T zum Sammelpunkt zu laufen
+    const inside = s.zones.includes(zoneAt(info, ct.pos));
+    out.set(ct.id, { entry: choice.pid, staging: inside ? hideNear(info, ct.pos) : retakeStaging(info, s, choice.pid) });
   }
   return out;
+}
+
+/** Nächster Knoten mit Deckung (≤ 3 m) an einer Position — Versteck für einen überlebenden Anker. */
+function hideNear(info: BotMapInfo, p: XYZ): XYZ {
+  const n = nearestNode(info.nav, p.x, p.y, p.z, 3);
+  if (n < 0) return { ...p };
+  const c = coverNear(info, n, 3);
+  return { x: info.nav.x[c]!, y: info.nav.y[c]!, z: info.nav.z[c]! };
+}
+
+export const RETAKE_PATH = {
+  /** Sammelweg näher als so (m) an der Bombe vorbei … */
+  bombClear: 10,
+  /** … kostet so viel (m) Umweg. */
+  acrossCost: 40,
+} as const;
+
+/** Abstand (XZ) eines Punktes von einer Strecke. */
+export function segmentPointDist(a: XYZ, b: XYZ, p: XYZ): number {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const l2 = dx * dx + dz * dz;
+  const t = l2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / l2)) : 0;
+  return Math.hypot(a.x + dx * t - p.x, a.z + dz * t - p.z);
 }
