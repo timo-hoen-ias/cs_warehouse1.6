@@ -7,6 +7,7 @@ import type { Shooter } from '../weapons/Shooter';
 import type { Hud } from '../ui/Hud';
 import type { Grenades } from '../weapons/Grenades';
 import type { Sfx } from '../audio/Sfx';
+import { MatchAudio, toV3, type AudioMover } from '../audio/MatchAudio';
 import { Soldier } from '../entities/Soldier';
 import {
   addPlayer, aliveCounts, applyExplosion, applyHit, balanceBots, beginRound, bombCarrier, finishRound, newMatch, removePlayer,
@@ -28,8 +29,7 @@ import { GRENADE, flashStrength, heDamageAt, stepGrenade, throwGrenade, type Gre
 import { applySnapshot, lerpPose, packSnapshot, poseMsg, sanitizeName, type GameEvent, type NetMsg, type PoseMsg, type Snapshot } from '../logic/net';
 import { mulberry32 } from '../logic/demo';
 import { capDrops, dropActive, dropOnDeath, droppedBomb, nextDropId, tryPickup, type DroppedItem } from '../logic/drops';
-import { beepInterval, inBuyZone } from '../logic/zones';
-import { BOMB } from '../logic/bombs';
+import { inBuyZone } from '../logic/zones';
 import { DroppedView } from '../weapons/DroppedView';
 
 export type DriverOptions = {
@@ -110,9 +110,8 @@ export class MatchDriver extends Behaviour {
   /** Zuschauer: Index in der Liste lebender Spieler, die man beobachten kann. */
   private specIndex = 0;
   private specTarget: string | null = null;
-  /** Schritt-Akkumulatoren (Meter seit letztem Schritt) je Spieler. */
-  private readonly stepAcc = new Map<string, { x: number; z: number; d: number }>();
-  private beepTimer = 0;
+  /** Spielbezogenes Audio (Schritte, Bombe, Treffer) — Logik in src/audio/MatchAudio.ts. */
+  private readonly audio = new MatchAudio(() => this.sfx, () => this.world?.zones);
   private lastNow = 0;
   /** Debug-Zähler (Smoke/Netztest). */
   readonly counters = { firesSent: 0, firesHandled: 0, hitsApplied: 0, snapsApplied: 0, posesIn: 0 };
@@ -136,7 +135,7 @@ export class MatchDriver extends Behaviour {
     this.net.onPeerLeft = (id) => this.onPeerLeft(id);
     this.shooter.onFire = (w, o, d) => this.localFire(w, o, d);
     this.shooter.onThrow = (kind, o, d, s) => this.localThrow(kind, o, d, s);
-    this.shooter.onReload = () => undefined;
+    this.shooter.onReload = () => this.audio.localReload(this.shooter.weaponId, this.local?.loadout.guns[this.shooter.weaponId]);
     this.hud.onBuy = (item) => this.requestBuy(item);
     this.hud.onBuyAmmo = (slot) => this.requestAmmo(slot);
     this.hud.onChat = (text, teamOnly) => this.sendChat(text, teamOnly);
@@ -610,15 +609,14 @@ export class MatchDriver extends Behaviour {
       case 'hit': {
         const victimSoldier = this.soldiers.get(e.victim);
         victimSoldier?.flashHit();
+        this.audio.hit(e, this.localId, this.shooter.weaponId);
         if (e.victim === this.localId) {
           this.player.hp = Math.max(0, this.player.hp - e.dmg);
           const ang = Math.atan2(e.from[0] - this.player.motionX(), e.from[2] - this.player.motionZ());
           this.hud.damageFrom(ang - this.player.yawNow());
-          this.sfx?.play('hurt');
         }
         if (e.attacker === this.localId) {
           this.hud.hitmarker(false);
-          this.sfx?.play('hit');
           this.grenades.fx.impact({ kind: 'target', part: e.part, point: { x: e.at[0], y: e.at[1], z: e.at[2] }, killed: false, normal: { x: 0, y: 1, z: 0 } }, { x: 0, y: -1, z: 0 });
         }
         break;
@@ -626,7 +624,7 @@ export class MatchDriver extends Behaviour {
       case 'kill': {
         if (e.killer === this.localId) {
           this.hud.hitmarker(true);
-          this.sfx?.play(e.hs ? 'headshot' : 'kill');
+          this.sfx?.play('kill'); // Kopftreffer-„Dink“ kam schon mit dem Treffer
         }
         if (e.victim === this.localId) {
           this.player.hp = 0;
@@ -635,6 +633,7 @@ export class MatchDriver extends Behaviour {
           this.hud.setSpectator('Du bist tot — Zuschauer bis zur nächsten Runde');
           this.sfx?.play('death');
         }
+        if (e.victim !== this.localId) this.audio.death(this.match.players[e.victim]?.pose);
         this.soldiers.get(e.victim)?.setAlive(false);
         this.hud.pushKill(e, this.match);
         break;
@@ -646,13 +645,12 @@ export class MatchDriver extends Behaviour {
         for (const end of e.ends) this.grenades.fx.tracer(o, { x: end[0], y: end[1], z: end[2] });
         for (const w of e.walls) this.grenades.fx.impact({ kind: 'wall', point: { x: w[0], y: w[1], z: w[2] }, normal: { x: 0, y: 1, z: 0 } }, { x: 0, y: -1, z: 0 });
         this.grenades.fx.muzzleFlash(o, { x: e.ends[0]![0] - o.x, y: e.ends[0]![1] - o.y, z: e.ends[0]![2] - o.z }, 0.8);
-        const d = Math.hypot(o.x - this.player.motionX(), o.z - this.player.motionZ());
-        this.sfx?.shot(e.w, d);
+        this.sfx?.shotAt(e.w, o, e.ends.map(toV3), e.walls.map(toV3));
         break;
       }
       case 'nade':
         this.grenades.spawn(e.id, e.kind, { x: e.o[0], y: e.o[1], z: e.o[2] });
-        this.sfx?.play('throw');
+        this.sfx?.grenade('throw', toV3(e.o));
         break;
       case 'boom': {
         const at = { x: e.at[0], y: e.at[1], z: e.at[2] };
@@ -663,24 +661,26 @@ export class MatchDriver extends Behaviour {
           const eye = cam.getWorldPosition(new THREE.Vector3());
           const s = this.player.isDead() ? 0 : flashStrength({ x: eye.x, y: eye.y, z: eye.z }, { x: dir.x, y: dir.y, z: dir.z }, at, this.world.aabbs);
           if (s > 0.05) this.hud.flash(s);
-          this.sfx?.play('flash', s);
+          this.sfx?.explosion('flash', at);
+          this.sfx?.flashed(s);
         } else if (e.kind === 'he') {
           const d = Math.hypot(at.x - this.player.motionX(), at.z - this.player.motionZ());
-          this.sfx?.play('boom', Math.max(0.2, 1 - d / 60));
+          this.sfx?.explosion('he', at);
           this.player.shake(Math.max(0, 0.03 * (1 - d / 25)));
-        } else this.sfx?.play('smoke');
+        } else this.sfx?.explosion('smoke', at);
         break;
       }
       case 'bomb':
         if (e.what === 'planted') {
           this.hud.showBanner('Die Bombe wurde gelegt!', '#ff9d8a');
-          this.sfx?.play('planted');
+          this.sfx?.c4('planted', this.audio.bombAt(e.spot));
         } else if (e.what === 'defused') {
           this.hud.showBanner('Bombe entschärft!', '#8fd0ff');
-          this.sfx?.play('defused');
+          this.sfx?.c4('defused', this.audio.bombAt(e.spot));
         } else if (e.what === 'exploded') {
-          this.sfx?.play('boom', 1);
           const at = this.bombPos ?? (e.spot ? { x: this.world.zones[e.spot].x, y: 0.2, z: this.world.zones[e.spot].z } : null);
+          if (at) this.sfx?.explosion('c4', at);
+          else this.sfx?.play('boom', 1);
           if (at) this.grenades.detonate(-1, 'he', at, 3);
         }
         break;
@@ -1101,8 +1101,7 @@ export class MatchDriver extends Behaviour {
       const dirs = shotDirs(def, base, spread, b.rnd);
       this.hostFire(b.id, def.id, eye, dirs);
       this.grenades.fx.muzzleFlash(this.soldierMuzzle(b.id) ?? { x: eye.x + aim.dir.x * 0.5, y: eye.y - 0.1, z: eye.z + aim.dir.z * 0.5 }, aim.dir, 0.8);
-      const d = Math.hypot(eye.x - this.player.motionX(), eye.z - this.player.motionZ());
-      this.sfx?.shot(def.id, d);
+      // Schussklang kommt positioniert über das 'shot'-Ereignis (hostFire → onEvent)
     }
   }
 
@@ -1220,45 +1219,28 @@ export class MatchDriver extends Behaviour {
     this.player.spectate(pose);
   }
 
-  /** Schritte (alle Spieler, entfernungsabhängig) und Bomben-Piepen. */
+  /** Schritte/Sprünge aller Spieler (positioniert, je Oberfläche), Bombe (Tastenfeld, Entschärfen, Piepen). */
   private updateAudio(dt: number): void {
     if (!this.sfx) return;
-    const lx = this.player.motionX();
-    const lz = this.player.motionZ();
-    const track = (id: string, x: number, z: number, crouch: boolean, local: boolean): void => {
-      let a = this.stepAcc.get(id);
-      if (!a) {
-        a = { x, z, d: 0 };
-        this.stepAcc.set(id, a);
-      }
-      const moved = Math.hypot(x - a.x, z - a.z);
-      a.x = x;
-      a.z = z;
-      if (moved > 2) return; // Teleport/Spawn
-      // Geduckt schleichen ist lautlos (CS: Shift-Walk); Schritt alle 2.2 m
-      if (crouch || moved / Math.max(dt, 1e-3) < 2.6) return;
-      a.d += moved;
-      if (a.d < 2.2) return;
-      a.d = 0;
-      this.sfx!.step(local ? 0 : Math.hypot(x - lx, z - lz));
-    };
-    if (!this.player.isDead()) track(this.localId, lx, lz, this.player.crouching(), true);
+    const movers: AudioMover[] = [];
+    if (!this.player.isDead()) {
+      // Eigenes Tempo aus der Eingabe (die Bewegung pro Frame ist gedeckelt und taugt bei wenig FPS nicht zur Schätzung)
+      const speed = !this.player.moving() ? 0 : this.player.crouching() ? PLAYER.crouchSpeed : this.player.sprinting() ? PLAYER.sprintSpeed : PLAYER.walkSpeed;
+      movers.push({ id: this.localId, x: this.player.motionX(), y: this.player.feetY(), z: this.player.motionZ(), crouch: this.player.crouching(), local: true, speed });
+    }
     for (const p of Object.values(this.match.players)) {
       if (p.id === this.localId || !p.alive) continue;
       const bot = this.bots.get(p.id);
       const r = this.remotePoses.get(p.id);
       const pose = this.isHost && bot ? bot.pose : r ? lerpPose(r.prev, r.next, r.t) : p.pose;
-      track(p.id, pose.x, pose.z, r?.c ?? false, false);
+      movers.push({ id: p.id, x: pose.x, y: pose.y, z: pose.z, crouch: r?.c ?? false, local: false });
     }
-    // Bomben-Piepen: schneller, je weniger Zeit bleibt
     const b = this.match.round.bomb;
-    if ((b.phase === 'planted' || b.phase === 'defusing') && this.bombPos) {
-      this.beepTimer -= dt;
-      if (this.beepTimer <= 0) {
-        this.beepTimer = beepInterval(b.fuseLeft, BOMB.fuseTime);
-        this.sfx.beep(Math.hypot(this.bombPos.x - lx, this.bombPos.z - lz));
-      }
-    } else this.beepTimer = 0;
+    const actorId = b.phase === 'planting' ? this.planterId : b.phase === 'defusing' ? this.defuserId : null;
+    // Akteur: eigener Spieler → nicht positioniert; bekannt (Host) → seine Pose; unbekannt (Client) → Bombenplatz
+    const pose = actorId && actorId !== this.localId ? this.match.players[actorId]?.pose : undefined;
+    const actor = actorId === this.localId ? null : pose ? { x: pose.x, y: pose.y + 0.8, z: pose.z } : undefined;
+    this.audio.update(dt, movers, b, this.bombPos, actor);
   }
 
   private renderSoldiers(dt: number): void {

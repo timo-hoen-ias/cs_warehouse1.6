@@ -12,6 +12,8 @@ import { Hud } from './ui/Hud';
 import { showLobby, roomLink, type LobbyResult } from './ui/Lobby';
 import { LocalTransport, NeedleTransport, type NetTransport } from './multi/Transport';
 import { Sfx } from './audio/Sfx';
+import { AudioListener } from './audio/AudioListener';
+import { connectWorldAudio } from './audio/worldHooks';
 import { mapById } from './logic/maps';
 import { SettingsMenu } from './ui/SettingsMenu';
 import { setupLighting } from './level/Lighting';
@@ -83,7 +85,8 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   setupLighting(scene, context.renderer, world, graphicsQuality);
   scene.add(world.group);
 
-  const sfx = new Sfx();
+  const sfx = new Sfx(graphicsQuality);
+  const audioWorld = connectWorldAudio(sfx, world);
   const unlock = (): void => sfx.unlock();
   document.addEventListener('pointerdown', unlock);
   document.addEventListener('keydown', unlock);
@@ -104,15 +107,17 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   shooter.menuOpen = () => hud.menuOpen() || settingsMenuOpen();
   shooter.blocked = () => player.isDead() || player.frozen;
   shooter.onShotSfx = (w) => sfx.shot(w, 0);
-  shooter.onEmptyClick = () => sfx.play('empty');
-  shooter.onReload = () => sfx.play('reload');
+  shooter.onEmptyClick = () => sfx.dryFire();
+  shooter.onDraw = (w) => sfx.draw(w);
+  shooter.onWallHit = (p) => sfx.wallHit(p);
+  shooter.onMeleeWall = (p) => sfx.knifeHit('wall', p);
   // Einstellungen (O): live auf Spieler, Shooter, HUD und Sound anwenden
   const settingsMenu = new SettingsMenu(safeStorage());
   settingsMenu.mount();
   let hudMenu = false;
   const syncInput = (): void => { player.inputEnabled = !hudMenu && !settingsMenu.isOpen(); };
-  hud.onMenuChange = (open) => { hudMenu = open; syncInput(); };
-  settingsMenu.onOpenChange = () => syncInput();
+  hud.onMenuChange = (open) => { hudMenu = open; syncInput(); sfx.ui(open ? 'click' : 'back'); };
+  settingsMenu.onOpenChange = () => { syncInput(); sfx.ui(settingsMenu.isOpen() ? 'click' : 'back'); };
   settingsMenu.onLeave = () => {
     const u = new URL(window.location.href);
     u.searchParams.delete('room');
@@ -124,7 +129,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     player.invertY = st.invertY;
     player.bobbing = st.bobbing;
     shooter.baseFov = st.fov;
-    sfx.setVolume(st.volume);
+    sfx.setVolumes(st);
     hud.setCrosshair(st.crosshairColor, st.crosshairStyle, st.crosshairSize);
     hud.showFps(st.showFps);
   };
@@ -161,8 +166,10 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   player.spawn(t.x, t.z, t.yaw);
   shooter.setWeapon('knife');
 
-  // HUD-Overlay-Tick
+  // HUD-Overlay-Tick, Audio-Hörer an der Kamera
   playerRoot.addComponent(HudTicker).hud = hud;
+  playerRoot.addComponent(AudioListener).sfx = sfx;
+  grenades.onBounce = (p) => sfx.grenade('bounce', p);
 
   if (lobby.mode !== 'offline') {
     const link = roomLink(lobby.room, lobby.mapId, lobby.server);
@@ -179,6 +186,26 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       hasCam: !!context.mainCamera,
       sceneChildren: scene.children.length,
       map: world.mapName,
+    };
+    g.__audio = () => ({ ...sfx.stats(), world: audioWorld });
+    g.__sfx = sfx;
+    // Alle Klang-Pfade einmal auslösen (Smoke-Test): Oberflächen, Explosionen, Blendung, C4, Vorbeiflug
+    g.__audioProbe = () => {
+      const l = sfx.engine.listener;
+      const at = (dx: number, dz: number) => ({ x: l.x + dx, y: l.y, z: l.z + dz });
+      for (const s of ['concrete', 'metal', 'grate', 'wood', 'gravel', 'tile'] as const) sfx.footstep(s, at(3, 0), 5);
+      sfx.land('metal', null, 0.8);
+      sfx.shotAt('ak47', at(0, -60), [at(0.8, 10)], [at(0.8, 10)]);
+      sfx.shot('awp', at(-120, 0));
+      sfx.shot('m4a1', 0);
+      sfx.explosion('he', at(10, 10));
+      sfx.explosion('c4', at(80, 0));
+      sfx.flashed(0.8);
+      sfx.c4('press', null);
+      sfx.beep(at(5, 0), 2);
+      sfx.reload('m3', 2, 3);
+      sfx.ui('click');
+      return sfx.stats().played;
     };
     g.__frames = () => {
       const info = context.renderer?.info?.render;

@@ -40,6 +40,10 @@ export class SettingsMenu {
   private fovVal!: HTMLSpanElement;
   private vol!: HTMLInputElement;
   private volVal!: HTMLSpanElement;
+  /** Lautstärke-Kanäle: Effekte, Umgebung, Oberfläche. */
+  private readonly volCh: Record<'volumeEffects' | 'volumeAmbience' | 'volumeUi', { input: HTMLInputElement; val: HTMLSpanElement } | null> = {
+    volumeEffects: null, volumeAmbience: null, volumeUi: null,
+  };
   private color!: HTMLInputElement;
   private style!: HTMLSelectElement;
   private size!: HTMLInputElement;
@@ -94,6 +98,11 @@ export class SettingsMenu {
     const volRow = this.range(0, 100, 1);
     this.vol = volRow.input; this.volVal = volRow.val;
     this.row(grid, 'Lautstärke', volRow.wrap);
+    for (const [key, label] of [['volumeEffects', '· Effekte'], ['volumeAmbience', '· Umgebung'], ['volumeUi', '· Oberfläche']] as const) {
+      const r = this.range(0, 100, 1);
+      this.volCh[key] = { input: r.input, val: r.val };
+      this.row(grid, label, r.wrap);
+    }
     this.color = document.createElement('input');
     this.color.type = 'color';
     Object.assign(this.color.style, { width: '56px', height: '28px', padding: '0', background: 'none', border: '1px solid #3a4652', borderRadius: '5px', cursor: 'pointer' });
@@ -130,7 +139,8 @@ export class SettingsMenu {
 
     // Eingaben im Overlay lösen keine Spieltasten aus; O/Esc werden hier selbst behandelt.
     overlay.addEventListener('keydown', this.onOverlayKey);
-    for (const el of [this.sens, this.invert, this.fov, this.vol, this.color, this.size, this.bob, this.fps]) {
+    const channels = Object.values(this.volCh).flatMap((c) => (c ? [c.input] : []));
+    for (const el of [this.sens, this.invert, this.fov, this.vol, ...channels, this.color, this.size, this.bob, this.fps]) {
       el.addEventListener('input', this.onControl);
     }
     this.style.addEventListener('change', this.onControl);
@@ -209,6 +219,9 @@ export class SettingsMenu {
       invertY: this.invert.checked,
       fov: Number(this.fov.value),
       volume: Number(this.vol.value) / 100,
+      volumeEffects: Number(this.volCh.volumeEffects?.input.value ?? 100) / 100,
+      volumeAmbience: Number(this.volCh.volumeAmbience?.input.value ?? 100) / 100,
+      volumeUi: Number(this.volCh.volumeUi?.input.value ?? 100) / 100,
       crosshairColor: this.color.value,
       crosshairStyle: this.style.value as CrosshairStyle,
       crosshairSize: Number(this.size.value),
@@ -236,6 +249,9 @@ export class SettingsMenu {
     this.invert.checked = s.invertY;
     this.fov.value = String(s.fov);
     this.vol.value = String(Math.round(s.volume * 100));
+    for (const [key, ch] of Object.entries(this.volCh) as [keyof typeof this.volCh, { input: HTMLInputElement } | null][]) {
+      if (ch) ch.input.value = String(Math.round(s[key] * 100));
+    }
     this.color.value = s.crosshairColor;
     this.style.value = s.crosshairStyle;
     this.size.value = String(s.crosshairSize);
@@ -249,6 +265,9 @@ export class SettingsMenu {
     this.sensVal.textContent = formatSensitivity(s.sensitivity);
     this.fovVal.textContent = `${Math.round(s.fov)}°`;
     this.volVal.textContent = `${Math.round(s.volume * 100)} %`;
+    for (const [key, ch] of Object.entries(this.volCh) as [keyof typeof this.volCh, { val: HTMLSpanElement } | null][]) {
+      if (ch) ch.val.textContent = `${Math.round(s[key] * 100)} %`;
+    }
     this.sizeVal.textContent = `${Math.round(s.crosshairSize)} px`;
   }
 

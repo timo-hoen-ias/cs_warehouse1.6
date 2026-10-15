@@ -4,8 +4,9 @@ import type { GrenadeKind } from '../logic/weapons';
 import type { Vec3 } from '../logic/hitbox';
 import { GRENADE } from '../logic/grenade';
 import type { Fx } from './Fx';
+import { isBounce } from '../logic/audioMix';
 
-type NadeView = { mesh: THREE.Mesh; target: THREE.Vector3; kind: GrenadeKind };
+type NadeView = { mesh: THREE.Mesh; target: THREE.Vector3; kind: GrenadeKind; last?: Vec3; vel?: Vec3; quiet?: number };
 type Cloud = { group: THREE.Group; life: number; total: number };
 type Blast = { obj: THREE.Object3D; life: number; total: number; light?: THREE.PointLight };
 
@@ -17,6 +18,8 @@ type Blast = { obj: THREE.Object3D; life: number; total: number; light?: THREE.P
 @registerType
 export class Grenades extends Behaviour {
   fx!: Fx;
+  /** Audio: Granate prallt ab (aus der sichtbaren Bahn erkannt, Host und Client). */
+  onBounce?: (at: Vec3, kind: GrenadeKind) => void;
   private readonly root = new THREE.Group();
   private readonly views = new Map<number, NadeView>();
   private readonly clouds: Cloud[] = [];
@@ -66,6 +69,7 @@ export class Grenades extends Behaviour {
     } else {
       for (const v of this.views.values()) v.mesh.position.lerp(v.target, Math.min(1, dt * 12));
     }
+    if (this.onBounce && dt > 0) this.detectBounces(dt);
     for (const c of [...this.clouds]) {
       c.life -= dt;
       const k = c.life / c.total;
@@ -99,6 +103,22 @@ export class Grenades extends Behaviour {
   }
 
   /** Wirkung anzeigen und Granate entfernen. */
+  private detectBounces(dt: number): void {
+    for (const v of this.views.values()) {
+      const p = { x: v.mesh.position.x, y: v.mesh.position.y, z: v.mesh.position.z };
+      if (v.last) {
+        const vel = { x: (p.x - v.last.x) / dt, y: (p.y - v.last.y) / dt, z: (p.z - v.last.z) / dt };
+        v.quiet = Math.max(0, (v.quiet ?? 0) - dt);
+        if (v.vel && v.quiet <= 0 && isBounce(v.vel, vel)) {
+          v.quiet = 0.12;
+          this.onBounce?.(p, v.kind);
+        }
+        v.vel = vel;
+      }
+      v.last = p;
+    }
+  }
+
   detonate(id: number, kind: GrenadeKind, at: Vec3, scale = 1): void {
     const v = this.views.get(id);
     if (v) {

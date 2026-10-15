@@ -12,8 +12,14 @@ export type Settings = {
   invertY: boolean;
   /** Vertikaler Sichtwinkel in Grad. */
   fov: number;
-  /** 0..1 */
+  /** Gesamtlautstärke 0..1. */
   volume: number;
+  /** Kanal Effekte (Schüsse, Schritte, Explosionen) 0..1. */
+  volumeEffects: number;
+  /** Kanal Umgebung (Hallenbrummen, Wind, Maschinen) 0..1. */
+  volumeAmbience: number;
+  /** Kanal Oberfläche (Menü, Treffer-Rückmeldung, Rundensignale) 0..1. */
+  volumeUi: number;
   /** CSS-Hex '#rrggbb'. */
   crosshairColor: string;
   crosshairStyle: CrosshairStyle;
@@ -28,7 +34,10 @@ export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 0.0022,
   invertY: false,
   fov: 75,
-  volume: 0.7,
+  volume: 0.8,
+  volumeEffects: 1,
+  volumeAmbience: 0.7,
+  volumeUi: 0.8,
   crosshairColor: '#9ff09f',
   crosshairStyle: 'classic',
   crosshairSize: 9,
@@ -75,6 +84,9 @@ export function sanitizeSettings(raw: unknown): Settings {
     invertY: bool(r.invertY, d.invertY),
     fov: num(r.fov, d.fov, FOV_MIN, FOV_MAX),
     volume: num(r.volume, d.volume, 0, 1),
+    volumeEffects: num(r.volumeEffects, d.volumeEffects, 0, 1),
+    volumeAmbience: num(r.volumeAmbience, d.volumeAmbience, 0, 1),
+    volumeUi: num(r.volumeUi, d.volumeUi, 0, 1),
     crosshairColor: normalizeHexColor(r.crosshairColor) ?? d.crosshairColor,
     crosshairStyle: style,
     crosshairSize: num(r.crosshairSize, d.crosshairSize, CROSSHAIR_SIZE_MIN, CROSSHAIR_SIZE_MAX),

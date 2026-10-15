@@ -33,7 +33,10 @@ describe('DEFAULT_SETTINGS', () => {
       sensitivity: 0.0022,
       invertY: false,
       fov: 75,
-      volume: 0.7,
+      volume: 0.8,
+      volumeEffects: 1,
+      volumeAmbience: 0.7,
+      volumeUi: 0.8,
       crosshairColor: '#9ff09f',
       crosshairStyle: 'classic',
       crosshairSize: 9,
@@ -64,6 +67,9 @@ describe('sanitizeSettings', () => {
       invertY: true,
       fov: 90,
       volume: 0.25,
+      volumeEffects: 0.5,
+      volumeAmbience: 0.1,
+      volumeUi: 0,
       crosshairColor: '#ff0000',
       crosshairStyle: 'circle' as const,
       crosshairSize: 14,
@@ -289,5 +295,20 @@ describe('formatSensitivity', () => {
   it('klemmt und behandelt NaN', () => {
     expect(formatSensitivity(NaN)).toBe('1.00×');
     expect(formatSensitivity(100)).toBe(`${(SENSITIVITY_MAX / DEFAULT_SETTINGS.sensitivity).toFixed(2)}×`);
+  });
+});
+
+describe('Lautstärke-Kanäle', () => {
+  it('klemmt Effekte/Umgebung/Oberfläche auf 0..1 und ersetzt Unsinn durch Standard', () => {
+    const s = sanitizeSettings({ volumeEffects: 3, volumeAmbience: -1, volumeUi: 'laut' });
+    expect(s.volumeEffects).toBe(1);
+    expect(s.volumeAmbience).toBe(0);
+    expect(s.volumeUi).toBe(DEFAULT_SETTINGS.volumeUi);
+  });
+  it('alte gespeicherte Einstellungen ohne Kanäle bekommen die Standardwerte', () => {
+    const s = sanitizeSettings({ volume: 0.3 });
+    expect(s.volume).toBe(0.3);
+    expect(s.volumeEffects).toBe(DEFAULT_SETTINGS.volumeEffects);
+    expect(s.volumeAmbience).toBe(DEFAULT_SETTINGS.volumeAmbience);
   });
 });
