@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { MapBuilder } from './mapkit';
 import { prop, propFootprint, type PropKind } from './mapprops';
-import { brushItem } from './mapcompile';
+import { brushItem, colliderFromMap } from './mapcompile';
+import { PLAYER, stepPlayer, type PlayerMotion } from './move';
 
 const ENV = { sunDir: [0, 1, 0] as [number, number, number], sunColor: 0xffffff, sunIntensity: 1, skyTop: 0x88aaff, skyHorizon: 0xddeeff, skyIntensity: 0.5, ambient: 0.1, fogColor: 0x999999, fogNear: 50, fogFar: 200 };
 const mk = () => new MapBuilder({ id: 'de_p', name: 'P', description: '', bounds: { min: [-50, -5, -50], max: [50, 20, 50] }, env: ENV });
@@ -11,6 +12,7 @@ const ALL: PropKind[] = [
   'barrel', 'barrelGroup', 'drum', 'rack', 'shelf', 'serverRack', 'serverRow', 'ups', 'cooler', 'conveyor', 'cartons', 'ibc', 'desk',
   'bumper', 'lampPost', 'fence', 'handTruck', 'cableTray', 'locker', 'generator', 'rollerDoor', 'acUnit', 'electricBox', 'cones', 'doorSteel',
   'silo', 'chiller', 'compressor', 'stripCurtain', 'rollCage',
+  'sacks', 'van', 'fountain', 'hoist', 'archGate', 'archive', 'crane', 'scaffold', 'gasLamp', 'logs',
 ];
 
 describe('Requisiten', () => {
@@ -118,5 +120,108 @@ describe('Requisiten', () => {
     const w2 = mk();
     prop(w2, 'cartons', 0, 0, 0, { n: 5 });
     expect(w2.data.brushes.some((x) => x.mat === 'carton')).toBe(true);
+  });
+  it('Sackstapel: Pyramide, eine Kollisionsbox je Lage, zwei Säcke tief, Deko je Sack', () => {
+    const b = mk();
+    prop(b, 'sacks', 0, 0, 0, { len: 3.6, n: 4 });
+    const solid = b.data.brushes.filter((x) => (x.collide ?? 'all') === 'all');
+    expect(solid).toHaveLength(4);
+    // jede Lage ist einen Sack (0.9 m) kürzer und 0.28 m höher
+    const widths = solid.map((x) => x.max[0] - x.min[0]);
+    expect(widths[0]).toBeCloseTo(3.6);
+    expect(widths[1]).toBeCloseTo(2.7);
+    expect(widths[3]).toBeCloseTo(0.9);
+    expect(solid[3]!.max[1]).toBeCloseTo(4 * 0.28);
+    // 4 + 3 + 2 + 1 Säcke je Reihe, zwei Reihen tief
+    expect(b.data.decor.filter((d) => d.kind === 'sack')).toHaveLength(20);
+    // zu viele Lagen für die Länge: Stapel endet an der Spitze (len 1.8 → nur zwei Lagen)
+    const c = mk();
+    prop(c, 'sacks', 0, 0, 0, { len: 1.8, n: 6 });
+    expect(c.data.brushes.filter((x) => (x.collide ?? 'all') === 'all')).toHaveLength(2);
+    // gedreht: Breite liegt entlang Z
+    const d = mk();
+    prop(d, 'sacks', 0, 0, 0, { len: 3.6, n: 1, rot: 1 });
+    expect(d.data.brushes[0]!.max[2] - d.data.brushes[0]!.min[2]).toBeCloseTo(3.6);
+  });
+
+  it('Lieferwagen und Brunnen: Kollision plus Deko-Modell, Beckenrand ist kein Navigationsboden', () => {
+    const b = mk();
+    prop(b, 'van', 0, 0, 0, { tint: 0xaa2222 });
+    expect(b.data.decor).toHaveLength(1);
+    expect(b.data.decor[0]!.kind).toBe('van');
+    expect(b.data.decor[0]!.tint).toBe(0xaa2222);
+    const hull = b.data.brushes.filter((x) => (x.collide ?? 'all') === 'all');
+    expect(hull).toHaveLength(2);
+    expect(Math.max(...hull.map((x) => x.max[1]))).toBeGreaterThan(2);
+    const f = mk();
+    prop(f, 'fountain', 0, 0, 0, { len: 4.4 });
+    expect(f.data.decor[0]!.kind).toBe('fountain');
+    expect(f.data.decor[0]!.scale).toEqual([2.2, 1, 2.2]);
+    const rim = f.data.brushes.filter((x) => x.max[1] === 0.75);
+    expect(rim).toHaveLength(3);
+    expect(rim.every((x) => x.noNav === true)).toBe(true);
+  });
+
+  it('Seilwinden-Erker: nur Optik, Last nur auf Wunsch', () => {
+    const plain = mk();
+    prop(plain, 'hoist', 0, 4, 0, { len: 1.6, h: 2.4 });
+    expect(plain.data.brushes.every((x) => x.collide === 'none')).toBe(true);
+    const loaded = mk();
+    prop(loaded, 'hoist', 0, 4, 0, { len: 1.6, h: 2.4, n: 1 });
+    expect(loaded.data.brushes.length).toBe(plain.data.brushes.length + 1);
+    expect(loaded.data.brushes.some((x) => x.mat === 'crate')).toBe(true);
+    // Balken ragt in lokal +Z aus der Wand (rot 0), gedreht nach −X
+    const rot = mk();
+    prop(rot, 'hoist', 0, 4, 0, { rot: 1 });
+    expect(Math.min(...rot.data.brushes.map((x) => x.min[0]))).toBeLessThan(-1.4);
+  });
+
+  it('Torbogen: Pfeiler blockieren, Durchgang ist frei, Zwickel blocken nur Schüsse, Rundbogen als Deko', () => {
+    const b = mk();
+    b.floor(-10, -10, 10, 10, 0, 'concrete');
+    prop(b, 'archGate', 0, 0, 0, { len: 5, h: 4.4, n: 1.2 });
+    const ring = b.data.decor.find((d) => d.kind === 'archRing')!;
+    expect(ring.pos[1]).toBeCloseTo(4.4 - 2.5); // Kämpferhöhe = Scheitel − Radius
+    expect(ring.scale![0]).toBeCloseTo(2.5);
+    const col = colliderFromMap(b.data);
+    // Läuft man entlang Z durch die Mitte, stoppt der Bogen nicht
+    let m: PlayerMotion = { x: 0, y: PLAYER.eye, z: 6, vy: 0, grounded: true };
+    for (let i = 0; i < 200; i++) m = stepPlayer(m, 0, -4, false, 1 / 60, col);
+    expect(m.z).toBeLessThan(-4);
+    // durch den Pfeiler (x = −3.1) kommt man nicht
+    let p: PlayerMotion = { x: -3.1, y: PLAYER.eye, z: 6, vy: 0, grounded: true };
+    for (let i = 0; i < 200; i++) p = stepPlayer(p, 0, -4, false, 1 / 60, col);
+    expect(p.z).toBeGreaterThan(0.2);
+    // Zwickel über dem Kämpfer: Schuss blockiert, Bewegung nicht
+    const spandrel = b.data.brushes.filter((x) => x.collide === 'shot');
+    expect(spandrel).toHaveLength(14); // 7 Scheiben je Seite (die Scheitelscheibe entfällt)
+    expect(spandrel.every((x) => x.max[1] === 4.4)).toBe(true);
+  });
+
+  it('Aktenregal, Hafenkran, Baugerüst, Gaslaterne, Baumstämme', () => {
+    const a = mk();
+    prop(a, 'archive', 0, 0, 0, { len: 2.4 });
+    expect(a.data.brushes.filter((x) => (x.collide ?? 'all') === 'all')).toHaveLength(1);
+    expect(a.data.brushes.filter((x) => x.mat === 'carton').length).toBeGreaterThan(10);
+    const c = mk();
+    prop(c, 'crane', 0, 0, 0, { h: 11, len: 9 });
+    const solid = c.data.brushes.filter((x) => (x.collide ?? 'all') === 'all');
+    expect(solid).toHaveLength(2); // Sockel + Mast, Ausleger und Gegengewicht ohne Kollision
+    expect(Math.max(...c.data.brushes.map((x) => x.max[0]))).toBeCloseTo(9);
+    const s = mk();
+    prop(s, 'scaffold', 0, 0, 0, { len: 4, h: 6 });
+    expect(s.data.brushes.every((x) => x.collide === 'none' && x.noNav === true)).toBe(true);
+    expect(s.data.brushes.filter((x) => x.mat === 'wood')).toHaveLength(3); // Bohlen auf 2, 4 und 6 m
+    const g = mk();
+    prop(g, 'gasLamp', 5, 0, 5);
+    expect(g.data.decor.map((d) => d.kind)).toEqual(['lantern']);
+    expect(g.data.lights).toHaveLength(1);
+    expect(g.data.lights[0]!.pos[1]).toBeGreaterThan(3.5);
+    expect(g.data.brushes[0]!.tag).toBe('pillar');
+    const l = mk();
+    prop(l, 'logs', 0, 0, 0, { len: 3.2, n: 3 });
+    expect(l.data.decor.filter((d) => d.kind === 'log')).toHaveLength(6); // 3 + 2 + 1
+    expect(l.data.decor.every((d) => d.scale![0] === 3.2)).toBe(true);
+    expect(l.data.brushes[0]!.noNav).toBe(true);
   });
 });

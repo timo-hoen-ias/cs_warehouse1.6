@@ -174,6 +174,70 @@ export function decorGeometry(kind: DecorKind, low = false): THREE.BufferGeometr
       g = build(parts);
       break;
     }
+    case 'sack': {
+      // Jutesack (liegend, 0.9 × 0.3 × 0.5): abgeflachtes Ellipsoid mit gebundener Ecke
+      const seg = low ? 8 : 12;
+      const body = new THREE.SphereGeometry(1, seg, Math.max(5, seg / 2)).scale(0.46, 0.15, 0.26).translate(0, 0.15, 0);
+      g = build([{ geo: body, color: 0xffffff }, cyl(0.05, 0.1, 0.45, 0.17, 0.02, 0xd8c8a0, 'x', 6)]);
+      break;
+    }
+    case 'van': {
+      // Lieferwagen, Front +Z (4.6 × 1.9 × 2.3): Farbton = Karosserie, Fenster/Räder/Stoßfänger fest
+      const parts: Part[] = [
+        box(1.9, 0.9, 4.6, 0, 0.85, 0, 0xffffff), // Unterbau
+        box(1.9, 1.35, 3.05, 0, 1.58, -0.78, 0xffffff), // Kofferaufbau
+        box(1.84, 0.85, 1.2, 0, 1.72, 1.35, 0xffffff), // Fahrerhaus
+        box(1.92, 0.22, 2.7, 0, 1.2, -0.8, 0xb04030), // Zierstreifen
+        box(1.6, 0.5, 0.04, 0, 1.78, 1.96, 0x1c2830), // Windschutzscheibe
+        box(0.04, 0.46, 0.9, 0.93, 1.78, 1.36, 0x1c2830), box(0.04, 0.46, 0.9, -0.93, 1.78, 1.36, 0x1c2830),
+        box(1.98, 0.18, 0.2, 0, 0.55, 2.2, 0x2c2c2c), box(1.98, 0.18, 0.2, 0, 0.55, -2.2, 0x2c2c2c),
+        box(0.3, 0.14, 0.05, 0.66, 0.98, 2.28, 0xfff0c0, true), box(0.3, 0.14, 0.05, -0.66, 0.98, 2.28, 0xfff0c0, true),
+        box(0.03, 1.3, 0.03, 0, 1.58, -2.28, 0x606060),
+      ];
+      for (const wx of [-0.88, 0.88]) for (const wz of [1.45, -1.4]) parts.push(cyl(0.36, 0.26, wx, 0.36, wz, 0x1a1a1a, 'x', low ? 8 : 12), cyl(0.18, 0.28, wx, 0.36, wz, 0x8a8a8a, 'x', 8));
+      g = build(parts);
+      break;
+    }
+    case 'fountain': {
+      // Brunnen: Becken (Radius 1, Rand 0.75), Wasserfläche, Säule mit Schale und Kugel; Einheitsradius, Höhe ≈ 2.2
+      const seg = low ? 14 : 28;
+      const lathe = (pts: [number, number][], color: number): Part => ({ geo: new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg), color });
+      g = build([
+        lathe([[0, 0], [1.0, 0], [1.0, 0.75], [0.88, 0.75], [0.88, 0.45], [0, 0.45]], 0xffffff),
+        { geo: new THREE.CircleGeometry(0.88, seg).rotateX(-Math.PI / 2).translate(0, 0.66, 0), color: 0x3f7378 },
+        lathe([[0, 0.45], [0.26, 0.45], [0.2, 0.9], [0.13, 1.25], [0.16, 1.4], [0, 1.4]], 0xe8e2d4),
+        lathe([[0.04, 1.4], [0.5, 1.62], [0.58, 1.84], [0.48, 1.8], [0.04, 1.62]], 0xe8e2d4),
+        { geo: new THREE.SphereGeometry(0.1, 8, 6).translate(0, 1.7, 0), color: 0xd0c8b4 },
+        { geo: new THREE.CylinderGeometry(0.025, 0.025, 0.5, 6).translate(0, 1.9, 0), color: 0xaed6dc },
+      ]);
+      break;
+    }
+    case 'lantern': {
+      // Gaslaterne (4.2 m): gusseiserner Mast, Leiterbalken, Laternenkörper mit leuchtender Scheibe
+      g = build([
+        cyl(0.16, 0.7, 0, 0.35, 0, 0x2f3d36, 'y', 8), cyl(0.07, 3.2, 0, 2.3, 0, 0x2f3d36, 'y', 8), cyl(0.11, 0.1, 0, 0.75, 0, 0x2f3d36, 'y', 8),
+        box(0.8, 0.04, 0.04, 0, 3.3, 0, 0x2f3d36),
+        box(0.36, 0.5, 0.36, 0, 3.7, 0, 0xffe0a0, true), box(0.44, 0.06, 0.44, 0, 3.98, 0, 0x2f3d36), box(0.3, 0.12, 0.3, 0, 4.07, 0, 0x2f3d36), box(0.42, 0.05, 0.42, 0, 3.44, 0, 0x2f3d36),
+      ]);
+      break;
+    }
+    case 'log': {
+      // Baumstamm entlang X (Länge 1, Radius 0.27): Rinde (Farbton) und helle Schnittflächen
+      g = build([cyl(0.27, 1, 0, 0, 0, 0xffffff, 'x', low ? 8 : 12), cyl(0.255, 0.02, 0.505, 0, 0, 0xd9b07a, 'x', low ? 8 : 12), cyl(0.255, 0.02, -0.505, 0, 0, 0xd9b07a, 'x', low ? 8 : 12)]);
+      break;
+    }
+    case 'archRing': {
+      // Rundbogen-Laibung (Halbring, Radius 1, Dicke 0.14) mit Schlussstein; Ebene XY, Tiefe in Z (Einheit 1)
+      const seg = low ? 12 : 24;
+      const sh = new THREE.Shape();
+      sh.moveTo(1, 0);
+      sh.absarc(0, 0, 1, 0, Math.PI, false);
+      sh.lineTo(-0.86, 0);
+      sh.absarc(0, 0, 0.86, Math.PI, 0, true);
+      sh.closePath();
+      g = build([{ geo: new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false, curveSegments: seg }).translate(0, 0, -0.5), color: 0xffffff }, box(0.2, 0.28, 1.02, 0, 0.93, 0, 0xf2ead8)]);
+      break;
+    }
     default:
       g = build([box(0.5, 0.5, 0.5, 0, 0.25, 0, 0xff00ff)]);
   }
@@ -183,5 +247,5 @@ export function decorGeometry(kind: DecorKind, low = false): THREE.BufferGeometr
 
 /** Leuchtende Deko (Instanzfarbe nicht vom gebackenen Licht abdunkeln). */
 export function decorGlows(kind: DecorKind): boolean {
-  return kind === 'lampHall' || kind === 'lampWall' || kind === 'lampTube' || kind === 'lampPost' || kind === 'serverLeds';
+  return kind === 'lampHall' || kind === 'lampWall' || kind === 'lampTube' || kind === 'lampPost' || kind === 'serverLeds' || kind === 'lantern';
 }

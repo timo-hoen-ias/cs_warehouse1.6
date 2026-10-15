@@ -11,7 +11,8 @@ export type PropKind =
   | 'trailer' | 'truck' | 'forklift' | 'barrel' | 'barrelGroup' | 'drum' | 'rack' | 'shelf' | 'serverRack'
   | 'serverRow' | 'ups' | 'cooler' | 'conveyor' | 'cartons' | 'ibc' | 'desk' | 'bumper' | 'lampPost' | 'fence'
   | 'handTruck' | 'cableTray' | 'locker' | 'generator' | 'rollerDoor' | 'acUnit' | 'electricBox' | 'cones' | 'doorSteel'
-  | 'silo' | 'chiller' | 'compressor' | 'stripCurtain' | 'rollCage';
+  | 'silo' | 'chiller' | 'compressor' | 'stripCurtain' | 'rollCage'
+  | 'sacks' | 'van' | 'fountain' | 'hoist' | 'archGate' | 'archive' | 'crane' | 'scaffold' | 'gasLamp' | 'logs';
 
 export type PropOpts = { rot?: 0 | 1 | 2 | 3; tint?: number; h?: number; n?: number; len?: number; seed?: number; levels?: number; /** Tiefkühlware (weiß/blau) statt Karton-Farben. */ cold?: boolean };
 
@@ -348,14 +349,174 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
       box(-0.36, 0.2, -0.31, 0.36, 0.2 + (o.h ?? 1.0), 0.31, o.cold ? 'wrap' : 'carton', { tint: goods[Math.floor(rnd() * goods.length)] });
       break;
     }
+    case 'sacks': {
+      // Sackstapel (Kaffee/Gewürze, Sandsack-Ersatz der Banane): len = Breite (lokal X), n = Lagen. Je Lage zwei Säcke
+      // tief, jede höhere Lage um einen Sack kürzer (Pyramide). Kollision: ein Quader je Lage; Darstellung: Sack-Instanzen.
+      const len = o.len ?? 3.6;
+      const rows = o.n ?? 4;
+      for (let r = 0; r < rows; r++) {
+        const rl = len - r * SACK_L;
+        if (rl < SACK_L - 1e-6) break;
+        box(-rl / 2, r * SACK_H, -SACK_W, rl / 2, (r + 1) * SACK_H, SACK_W, 'sack', { visible: false, occlude: true });
+        const cols = Math.max(1, Math.round(rl / SACK_L));
+        for (let c = 0; c < cols; c++) for (const s of [-1, 1]) {
+          const [cx, cz] = place(x, z, rot, (c - (cols - 1) / 2) * SACK_L, s * SACK_W * 0.5, (c - (cols - 1) / 2) * SACK_L, s * SACK_W * 0.5);
+          b.decor('sack', [cx, y + r * SACK_H, cz], yawRot + (rnd() - 0.5) * 0.12, undefined, o.tint ?? SACK_TINTS[Math.floor(rnd() * SACK_TINTS.length)]);
+        }
+      }
+      break;
+    }
+    case 'van': {
+      // Lieferwagen (Front +Z, 4.6 × 1.9 m): Kofferaufbau und Fahrerhaus als Kollision, Darstellung als Deko-Modell
+      box(-0.95, 0.38, -2.25, 0.95, 2.3, 0.75, 'metal', { visible: false, occlude: true });
+      box(-0.95, 0.38, 0.75, 0.95, 1.55, 2.3, 'metal', { visible: false, occlude: true });
+      b.decor('van', [x, y, z], yawRot, undefined, o.tint ?? 0xd9d4c4);
+      break;
+    }
+    case 'fountain': {
+      // Brunnen: len = Beckendurchmesser; Kollision: gestufter Achteck-Kern (Beckenrand 0.75 m) + Sockel der Säule
+      const r = (o.len ?? 4.4) / 2;
+      const a = r * 0.92;
+      const c = r * 0.38;
+      const k = r * 0.66;
+      for (const [hx, hz] of [[a, c], [c, a], [k, k]] as const) box(-hx, 0, -hz, hx, 0.75, hz, 'concrete', { visible: false, occlude: true, noNav: true });
+      box(-0.45, 0.75, -0.45, 0.45, 2.3, 0.45, 'concrete', { visible: false, occlude: true });
+      b.decor('fountain', [x, y, z], 0, [r, o.h ?? 1, r], o.tint ?? 0xb8b0a0);
+      break;
+    }
+    case 'hoist': {
+      // Seilwinden-Erker (Speicherluke): Rückseite an der Wand (lokal z = 0), Front +Z. len = Luke breit, h = Luke hoch,
+      // n > 0: Last (Kiste) am Seil. Nur Optik (liegt über Kopfhöhe oder in der Fassade).
+      const w = o.len ?? 1.6;
+      const h = o.h ?? 2.4;
+      const fx = { collide: 'none' as const, noNav: true, occlude: false };
+      box(-w / 2, 0, 0, w / 2, h, 0.06, 'black', { ...fx, tint: 0x2a1c12 });
+      for (const s of [-1, 1]) box(s > 0 ? w / 2 : -w / 2 - 0.62, 0, 0.06, s > 0 ? w / 2 + 0.62 : -w / 2, h, 0.13, 'wood', { ...fx, tint: o.tint ?? 0x3c5a48 });
+      box(-w / 2 - 0.1, h, 0, w / 2 + 0.1, h + 0.2, 0.22, 'wood', { ...fx, tint: 0x4a3422 });
+      box(-w / 2 - 0.1, -0.12, 0, w / 2 + 0.1, 0.04, 0.34, 'concrete', { ...fx, tint: 0xa89c8c });
+      // Balken mit Seilrolle, Stütze, Schutzdach
+      box(-0.09, h + 0.62, 0, 0.09, h + 0.8, 1.6, 'wood', { ...fx, tint: 0x3a2a1c });
+      box(-0.07, h + 0.2, 0.0, 0.07, h + 0.62, 0.12, 'wood', { ...fx, tint: 0x3a2a1c });
+      box(-0.07, h + 0.2, 0.7, 0.07, h + 0.62, 0.78, 'wood', { ...fx, tint: 0x3a2a1c });
+      box(-w / 2 - 0.25, h + 0.82, 0, w / 2 + 0.25, h + 0.9, 1.0, 'roof', { ...fx, tint: 0x6a4a3a });
+      box(-0.02, h + 0.8 - 2.6, 1.5, 0.02, h + 0.62, 1.54, 'black', { ...fx, tint: 0x7a6a48 });
+      box(-0.07, h + 0.8 - 2.74, 1.45, 0.07, h + 0.8 - 2.6, 1.59, 'steel', { ...fx, tint: 0x4a4a4a });
+      if ((o.n ?? 0) > 0) box(-0.3, h + 0.8 - 3.34, 1.24, 0.3, h + 0.8 - 2.74, 1.84, 'crate', { ...fx, uv: 0.6 });
+      break;
+    }
+    case 'archGate': {
+      // Torbogen: len = lichte Weite (Rundbogen), h = Scheitelhöhe, n = Pfeilerbreite. Durchgang entlang lokal Z, Dicke 0.9 m.
+      // Pfeiler/Aufsatz sind massiv, die Zwickel (Schüsse blockiert, Bewegung frei) füllen die Lücke zum Rundbogen.
+      const w = o.len ?? 5;
+      const h = o.h ?? 4.4;
+      const pier = o.n ?? 1.2;
+      const t = 0.45;
+      const a = w / 2;
+      const spring = h - a;
+      const tint = o.tint ?? 0xc9a08c;
+      box(-a - pier, 0, -t, -a, h + 1, t, 'brick', { tint });
+      box(a, 0, -t, a + pier, h + 1, t, 'brick', { tint });
+      box(-a, h, -t, a, h + 1, t, 'brick', { tint });
+      const steps = 8;
+      for (let i = 0; i < steps; i++) {
+        const x0 = (a * i) / steps;
+        const x1 = (a * (i + 1)) / steps;
+        const top = spring + Math.sqrt(Math.max(0, a * a - x0 * x0));
+        if (top > h - 1e-6) continue; // Scheitelscheibe: kein Zwickel
+        for (const s of [-1, 1]) box(Math.min(s * x0, s * x1), top, -t, Math.max(s * x0, s * x1), h, t, 'brick', { tint, collide: 'shot', noNav: true });
+      }
+      box(-a - pier - 0.12, h + 1, -t - 0.12, a + pier + 0.12, h + 1.22, t + 0.12, 'concrete', { tint: 0xc8b8a0, collide: 'none', noNav: true });
+      b.decor('archRing', [x, y + spring, z], yawRot, [a, a, t * 2 + 0.14], 0xe4d6b8);
+      break;
+    }
+    case 'archive': {
+      // Aktenregal (Archiv/Bibliothek): len entlang lokal X, Tiefe 0.56, Höhe 2.3; Aktenordner als farbige Blöcke
+      const len = o.len ?? 2.4;
+      box(-len / 2, 0, -0.28, len / 2, 2.3, 0.28, 'wood', { visible: false, occlude: false, noNav: true });
+      for (const lx of [-len / 2, len / 2]) box(lx - 0.04, 0, -0.28, lx + 0.04, 2.3, 0.28, 'wood', { collide: 'none', tint: 0x5a3e26, noNav: true });
+      for (let lv = 0; lv < 5; lv++) {
+        const ly = 0.12 + lv * 0.5;
+        box(-len / 2, ly, -0.28, len / 2, ly + 0.04, 0.28, 'wood', { collide: 'none', tint: 0x6a4a30, noNav: true });
+        const groups = Math.max(2, Math.round(len / 0.5));
+        for (let g = 0; g < groups; g++) {
+          if (rnd() < 0.12) continue;
+          const gx0 = -len / 2 + 0.06 + (g * (len - 0.12)) / groups;
+          const gx1 = -len / 2 + 0.06 + ((g + 1) * (len - 0.12)) / groups - 0.03;
+          box(gx0, ly + 0.04, -0.24, gx1, ly + 0.04 + 0.28 + rnd() * 0.12, 0.24, 'carton', { collide: 'none', noNav: true, tint: ARCHIVE_TINTS[Math.floor(rnd() * ARCHIVE_TINTS.length)] });
+        }
+      }
+      break;
+    }
+    case 'crane': {
+      // Hafenkran (Ausleger entlang lokal +X): Sockel + Gittermast (Kollision: 0.8 m Pfeiler), Ausleger, Gegengewicht, Haken
+      const h = o.h ?? 11;
+      const jib = o.len ?? 9;
+      const rust = o.tint ?? 0x9a5a3a;
+      box(-1.1, 0, -1.1, 1.1, 0.5, 1.1, 'concrete', { tint: 0x8a8278 });
+      box(-0.4, 0.5, -0.4, 0.4, h, 0.4, 'steel', { visible: false, occlude: true, noNav: true });
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(sx * 0.36 - 0.04, 0.5, sz * 0.36 - 0.04, sx * 0.36 + 0.04, h, sz * 0.36 + 0.04, 'steel', { collide: 'none', tint: rust, noNav: true });
+      for (let ly = 1.2; ly < h; ly += 1.2) box(-0.4, ly, -0.4, 0.4, ly + 0.06, 0.4, 'steel', { collide: 'none', tint: rust, noNav: true, occlude: false });
+      box(-2.4, h, -0.22, jib, h + 0.5, 0.22, 'steel', { collide: 'none', tint: rust, noNav: true });
+      box(-3.0, h - 0.2, -0.6, -1.4, h + 0.5, 0.6, 'concrete', { collide: 'none', tint: 0x6a6a68, noNav: true });
+      box(-0.12, h + 0.5, -0.12, 0.12, h + 1.9, 0.12, 'steel', { collide: 'none', tint: rust, noNav: true });
+      box(0.5, h - 1.8, 0.2, 1.7, h - 0.2, 0.9, 'metal', { collide: 'none', tint: 0x5a6a60, noNav: true });
+      box(jib - 1.22, h - 7, -0.015, jib - 1.18, h, 0.015, 'black', { collide: 'none', tint: 0x4a4a4a, noNav: true, occlude: false });
+      box(jib - 1.35, h - 7.5, -0.14, jib - 1.05, h - 7, 0.14, 'steel', { collide: 'none', tint: 0x3a3a3a, noNav: true, occlude: false });
+      break;
+    }
+    case 'scaffold': {
+      // Baugerüst (nur Optik): len entlang lokal X, Tiefe 1.1, Höhe h, Bohlenlagen alle 2 m
+      const len = o.len ?? 4;
+      const h = o.h ?? 6;
+      const bays = Math.max(1, Math.round(len / 2));
+      for (let i = 0; i <= bays; i++) for (const s of [-1, 1]) {
+        const lx = -len / 2 + (len * i) / bays;
+        box(lx - 0.035, 0, s * 0.55 - 0.035, lx + 0.035, h, s * 0.55 + 0.035, 'steel', { collide: 'none', tint: 0x9aa0a4, noNav: true, occlude: false });
+      }
+      for (let ly = 2; ly <= h; ly += 2) {
+        for (const s of [-1, 1]) box(-len / 2, ly + 0.9, s * 0.55 - 0.02, len / 2, ly + 0.94, s * 0.55 + 0.02, 'steel', { collide: 'none', tint: 0x9aa0a4, noNav: true, occlude: false });
+        box(-len / 2, ly, -0.55, len / 2, ly + 0.05, 0.55, 'wood', { collide: 'none', tint: 0xb09060, noNav: true, occlude: false });
+      }
+      break;
+    }
+    case 'gasLamp': {
+      // Gaslaterne (4.2 m): Laternenmast als schlanke Säule (Kollision), warmes Licht
+      box(-0.1, 0, -0.1, 0.1, 4.2, 0.1, 'metal', { visible: false, occlude: true, noNav: true, tag: 'pillar' });
+      b.decor('lantern', [x, y, z], yawRot);
+      b.light({ kind: 'lamp', pos: [x, y + 3.85, z], color: 0xffb868, intensity: 1.05, range: 15 });
+      break;
+    }
+    case 'logs': {
+      // Baumstammstapel (liegend entlang lokal X, Länge len): n Stämme in der untersten Lage, jede Lage einer weniger
+      const len = o.len ?? 3.2;
+      const n = o.n ?? 3;
+      for (let r = 0; r < n; r++) {
+        const cnt = n - r;
+        for (let i = 0; i < cnt; i++) {
+          const [cx, cz] = place(x, z, rot, 0, (i - (cnt - 1) / 2) * LOG_D, 0, (i - (cnt - 1) / 2) * LOG_D);
+          b.decor('log', [cx, y + LOG_R + r * 0.47, cz], yawRot, [len, 1, 1], LOG_TINTS[Math.floor(rnd() * LOG_TINTS.length)]);
+        }
+      }
+      box(-len / 2, 0, -(n * LOG_D) / 2, len / 2, LOG_R * 2 + (n - 1) * 0.47, (n * LOG_D) / 2, 'wood', { visible: false, occlude: true, noNav: true });
+      break;
+    }
   }
 }
+
+const SACK_L = 0.9;
+const SACK_W = 0.5;
+const SACK_H = 0.28;
+const SACK_TINTS = [0xc9ad7c, 0xbf9f6c, 0xd2b88a, 0xb8996a, 0xcdb890];
+const ARCHIVE_TINTS = [0x8a3a30, 0x3a5a7a, 0x6a6a40, 0x7a5a3a, 0xc0a878, 0x4a6a50, 0x9a8a6a];
+const LOG_R = 0.27;
+const LOG_D = 0.54;
+const LOG_TINTS = [0x6b4a30, 0x7a5a3a, 0x5e4630, 0x80603e];
 
 /** Hilfsmaß: Grundfläche (Breite x Tiefe) einer Requisite nach Drehung. */
 export function propFootprint(kind: PropKind, rot = 0): [number, number] {
   const base: Partial<Record<PropKind, [number, number]>> = {
     pallet: [1.2, 0.8], palletGoods: [1.2, 0.8], crate: [1.2, 1.2], crateStack: [1.8, 1.8], container: [6.1, 2.44], container40: [12.2, 2.44],
-    trailer: [13.6, 2.6], forklift: [1.2, 2.0], barrel: [0.6, 0.6], gitterbox: [1.24, 0.84], serverRack: [0.6, 1.0],
+    trailer: [13.6, 2.6], forklift: [1.2, 2.0], barrel: [0.6, 0.6], gitterbox: [1.24, 0.84], serverRack: [0.6, 1.0], van: [1.9, 4.6],
   };
   const [w, d] = base[kind] ?? [1, 1];
   return dims(w, d, rot);

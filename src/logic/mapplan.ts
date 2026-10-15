@@ -21,7 +21,7 @@ export type CellKind = {
   roofTop?: number;
   roofMat?: MaterialId;
   /** Gebäude: Höhe und Fassadenmaterial. */
-  building?: { h: number; mat: MaterialId; tint?: number };
+  building?: { h: number; mat: MaterialId; tint?: number; /** Material der Oberseite (Standard `roof`; z. B. `water` für Kanäle). */ top?: MaterialId };
   /** Fensterwand (Gebäudezelle mit Öffnung zwischen sill und lintel). */
   window?: { sill: number; lintel: number };
   /** Bodenplatte als Tunnel markieren (Radar-Overlay). */
@@ -49,13 +49,16 @@ export type Rect = { x0: number; z0: number; x1: number; z1: number };
  * Grundfläche, Sockel, Farbband, Gesims, Fensterreihe, Pilaster, Fallrohre. Maße relativ
  * zum Boden des angrenzenden Bereichs.
  */
+export type FacadeWindows = { y: number; h: number; w: number; every: number; mat?: MaterialId; tint?: number };
+
 export type FacadeStyle = {
   mat: MaterialId;
   tint?: number;
   plinth?: { h: number; mat: MaterialId; tint?: number };
   band?: { y: number; h: number; mat: MaterialId; tint?: number };
   cornice?: { h: number; mat: MaterialId; tint?: number };
-  windows?: { y: number; h: number; w: number; every: number; mat?: MaterialId; tint?: number };
+  /** Eine Fensterreihe oder mehrere (Geschosse übereinander). */
+  windows?: FacadeWindows | FacadeWindows[];
   pilasters?: { every: number; w: number; mat: MaterialId; tint?: number };
   pipes?: number;
 };
@@ -131,7 +134,7 @@ export class CellPlan {
    * Erzeugt alle Grundriss-Brushes. legend: Zeichen → Zellart; unbekannte Zeichen
    * gelten als Gebäude (`fill`-Eintrag der Legende).
    */
-  build(b: MapBuilder, legend: Record<string, CellKind>, opts: { floorBottom?: number; lintelTop?: number; facades?: Record<string, FacadeStyle> } = {}): void {
+  build(b: MapBuilder, legend: Record<string, CellKind>, opts: { floorBottom?: number; lintelTop?: number; /** Material/Farbton der Stürze über Öffnungen (Standard Wellblech). */ lintelMat?: MaterialId; lintelTint?: number; facades?: Record<string, FacadeStyle> } = {}): void {
     const bottom = opts.floorBottom ?? -4;
     const lintelTop = opts.lintelTop ?? 9;
     const kindOf = (ch: string): CellKind => legend[ch] ?? legend[this.fill] ?? { building: { h: 9, mat: 'brick' } };
@@ -144,9 +147,9 @@ export class CellPlan {
           const bmat = k.building.mat;
           if (k.window) {
             b.box([r.x0, base, r.z0], [r.x1, k.window.sill, r.z1], bmat, { tag: 'wall', tint: k.building.tint, noNav: true });
-            b.box([r.x0, k.window.lintel, r.z0], [r.x1, k.building.h, r.z1], bmat, { tag: 'building', tint: k.building.tint, noNav: true, top: 'roof' });
+            b.box([r.x0, k.window.lintel, r.z0], [r.x1, k.building.h, r.z1], bmat, { tag: 'building', tint: k.building.tint, noNav: true, top: k.building.top ?? 'roof' });
           } else {
-            b.box([r.x0, base, r.z0], [r.x1, k.building.h, r.z1], bmat, { tag: 'building', top: 'roof', tint: k.building.tint, noNav: true });
+            b.box([r.x0, base, r.z0], [r.x1, k.building.h, r.z1], bmat, { tag: 'building', top: k.building.top ?? 'roof', tint: k.building.tint, noNav: true });
           }
           continue;
         }
@@ -198,8 +201,9 @@ export class CellPlan {
       // Wand auf der Innenseite der Kante (ragt nicht in den Nachbarbereich)
       const inner = s.side > 0 ? s.line - T : s.line;
       const outer = s.side > 0 ? s.line : s.line + T;
-      if (s.axis === 'z') b.box([inner, s.y0, s.a], [outer, s.y1, end], 'corrugated', { tag: 'wall', noNav: true });
-      else b.box([s.a, s.y0, inner], [end, s.y1, outer], 'corrugated', { tag: 'wall', noNav: true });
+      const lm = opts.lintelMat ?? 'corrugated';
+      if (s.axis === 'z') b.box([inner, s.y0, s.a], [outer, s.y1, end], lm, { tag: 'wall', noNav: true, tint: opts.lintelTint });
+      else b.box([s.a, s.y0, inner], [end, s.y1, outer], lm, { tag: 'wall', noNav: true, tint: opts.lintelTint });
       i = j;
     }
     if (opts.facades) this.buildFacades(b, kindOf, opts.facades);
@@ -287,13 +291,14 @@ export class CellPlan {
         slab(Math.max(s.a, a - w), Math.min(s.b, a + w), y0, y1, T, T + 0.22, st.pilasters.mat, st.pilasters.tint);
       }
     }
-    if (st.windows && y1 - s.y0 > st.windows.y + st.windows.h + 0.5 && len >= st.windows.w + 3) {
-      const n = Math.max(1, Math.floor((len - 2) / st.windows.every));
-      const pad = (len - n * st.windows.every) / 2;
+    for (const wd of st.windows === undefined ? [] : Array.isArray(st.windows) ? st.windows : [st.windows]) {
+      if (!(y1 - s.y0 > wd.y + wd.h + 0.5 && len >= wd.w + 3)) continue;
+      const n = Math.max(1, Math.floor((len - 2) / wd.every));
+      const pad = (len - n * wd.every) / 2;
       for (let k = 0; k < n; k++) {
-        const c = s.a + pad + st.windows.every * (k + 0.5);
-        slabFit(c - st.windows.w / 2, c + st.windows.w / 2, s.y0 + st.windows.y, s.y0 + st.windows.y + st.windows.h, T, T + 0.03, st.windows.mat ?? 'window', st.windows.tint);
-        slab(c - st.windows.w / 2 - 0.1, c + st.windows.w / 2 + 0.1, s.y0 + st.windows.y - 0.12, s.y0 + st.windows.y, T, T + 0.12, 'concrete', 0xb0aca4);
+        const c = s.a + pad + wd.every * (k + 0.5);
+        slabFit(c - wd.w / 2, c + wd.w / 2, s.y0 + wd.y, s.y0 + wd.y + wd.h, T, T + 0.03, wd.mat ?? 'window', wd.tint);
+        slab(c - wd.w / 2 - 0.1, c + wd.w / 2 + 0.1, s.y0 + wd.y - 0.12, s.y0 + wd.y, T, T + 0.12, 'concrete', 0xb0aca4);
       }
     }
     if (st.pipes && s.outdoor && len > 6) {

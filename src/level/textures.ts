@@ -524,6 +524,78 @@ const DRAW: Record<MaterialId, Draw> = {
     }
     noise(c, s, r, 3000, 0.3, 200, 255, 2);
   },
+  // Kopfsteinpflaster: gerundete Granitköpfe in versetzten Reihen, dunkle Fugen mit Moos/Schmutz
+  cobble: (c, s, r) => {
+    c.fillStyle = '#4a4640';
+    c.fillRect(0, 0, s, s);
+    const rows = 8, rh = s / rows;
+    for (let row = 0; row < rows; row++) {
+      const n = 6 + (row % 3 === 0 ? 1 : 0);
+      const cw = s / n;
+      const off = row % 2 ? cw / 2 : 0;
+      for (let k = -1; k <= n; k++) {
+        const cx = k * cw + off + cw / 2 + (r() - 0.5) * 2;
+        const cy = row * rh + rh / 2 + (r() - 0.5) * 2;
+        const v = 104 + Math.floor(r() * 56);
+        const warm = r() < 0.35 ? 10 : 0;
+        const rw = cw / 2 - 1.5 - r() * 1.5, rhh = rh / 2 - 1.2 - r() * 1.2;
+        const g = c.createRadialGradient(cx - rw * 0.25, cy - rhh * 0.3, 1, cx, cy, Math.max(rw, rhh));
+        g.addColorStop(0, `rgb(${v + 22 + warm},${v + 18},${v + 8})`);
+        g.addColorStop(1, `rgb(${v - 18 + warm},${v - 20},${v - 28})`);
+        c.fillStyle = g;
+        for (const dx of [-s, 0, s]) {
+          c.beginPath();
+          c.ellipse(cx + dx, cy, rw, rhh, 0, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+    }
+    blotches(c, s, r, 7, 'rgba(60,70,40,0.16)', 36);
+    blotches(c, s, r, 6, 'rgba(30,26,22,0.18)', 40);
+    noise(c, s, r, 1200, 0.14, 40, 190, 2);
+  },
+  // Kanalwasser (Fleet): dunkles Blaugrün, helle Wellenstriche, Algenflecken
+  water: (c, s, r) => {
+    const g = c.createLinearGradient(0, 0, s, s);
+    g.addColorStop(0, '#2c4a4a');
+    g.addColorStop(1, '#1f3a40');
+    c.fillStyle = g;
+    c.fillRect(0, 0, s, s);
+    blotches(c, s, r, 12, 'rgba(70,100,60,0.22)', 46);
+    blotches(c, s, r, 8, 'rgba(10,20,24,0.3)', 40);
+    c.lineWidth = 2;
+    for (let i = 0; i < 70; i++) {
+      const x = r() * s, y = r() * s, l = 14 + r() * 34;
+      c.strokeStyle = `rgba(190,215,215,${0.07 + r() * 0.16})`;
+      c.beginPath();
+      c.moveTo(x, y);
+      c.quadraticCurveTo(x + l / 2, y - 3 - r() * 3, x + l, y);
+      c.stroke();
+    }
+    noise(c, s, r, 900, 0.1, 80, 200, 2);
+  },
+  // Jutesack: grobes Gewebe, Naht und Aufdruck-Andeutung
+  sack: (c, s, r) => {
+    c.fillStyle = '#b79c6a';
+    c.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 4) {
+      c.fillStyle = `rgba(90,66,34,${0.1 + r() * 0.12})`;
+      c.fillRect(0, y, s, 1);
+    }
+    for (let x = 0; x < s; x += 4) {
+      c.fillStyle = `rgba(250,230,180,${0.05 + r() * 0.1})`;
+      c.fillRect(x, 0, 1, s);
+    }
+    blotches(c, s, r, 10, 'rgba(70,50,28,0.18)', 40);
+    // Aufdruck (verwaschenes Rechteck + Streifen) und Heftnaht
+    c.fillStyle = 'rgba(120,36,28,0.55)';
+    c.fillRect(s * 0.18, s * 0.34, s * 0.64, s * 0.2);
+    c.fillStyle = 'rgba(235,222,190,0.6)';
+    c.fillRect(s * 0.22, s * 0.4, s * 0.56, s * 0.04);
+    c.fillStyle = 'rgba(60,44,26,0.5)';
+    c.fillRect(0, 0, s, 6);
+    noise(c, s, r, 1500, 0.12, 60, 200, 1.5);
+  },
   vent: (c, s) => {
     c.fillStyle = '#8a9096';
     c.fillRect(0, 0, s, s);

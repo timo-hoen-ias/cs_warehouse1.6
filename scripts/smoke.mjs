@@ -6,7 +6,7 @@
 //   Browser: Edge (Windows-Standard) oder per Env BROWSER=/pfad/zu/chromium
 
 const BROWSER = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const CDP_PORT = 9223;
+const CDP_PORT = Number(process.env.CDP_PORT ?? 9223);
 const URL = process.env.URL ?? 'http://localhost:3000/?auto=1&fill=4&quality=low';
 const TIMEOUT = 20000;
 
