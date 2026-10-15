@@ -54,7 +54,7 @@ export function dressLobby(b: B): void {
   prop(b, 'shelf', 7, 0, -9.6, { len: 2.4 });
   prop(b, 'cartons', 12.5, 0, -8.8, { cold: true });
   prop(b, 'electricBox', 14 - F, 0, 0.4, { rot: 1 });
-  b.box([3.1, 0.9, -5.7], [3.5, 1.4, -5.1], 'emissive', { collide: 'none', tint: 0x6fb0ff, noNav: true, occlude: false });
+  b.box([3.1, 0.78, -5.6], [3.14, 1.15, -5.2], 'emissive', { collide: 'none', tint: 0x6fb0ff, noNav: true, occlude: false });
   b.sign('PFÖRTNER', [8, 3.1, 1.86], 'nz', 3, 0.7, { color: 0xffd040, sub: 'TÜR QUIETSCHT · NICHT ÖLEN' });
   b.sign('HALLE A', [8, 3.1, -9.86], 'pz', 3, 0.7, { color: 0xff7a5a, sub: 'KÜHLZONE · JACKE ANZIEHEN' });
   tubeRow(b, 5, -4, 11, -4, 2, 3.65, true, { intensity: 0.9, range: 8 });

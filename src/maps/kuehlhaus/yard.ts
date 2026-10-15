@@ -23,6 +23,10 @@ export function dressYard(b: B): void {
   prop(b, 'palletGoods', 6.5, 0, 59, { cold: true });
   prop(b, 'palletGoods', 6.5, 0, 60.3, { cold: true });
   prop(b, 'gitterbox', 5.4, 0, 56.4, { n: 2, rot: 1 });
+  // Notdusche/Augenspülung der Kältetechniker (Ammoniak) neben der Kompressorstation
+  b.box([0.2, 0, 61.4], [1.0, 2.3, 62.2], 'metal', { tint: 0x3a9a5a, tag: 'prop' });
+  b.box([0.1, 2.2, 61.3], [1.1, 2.4, 62.3], 'metal', { collide: 'none', tint: 0x3a9a5a, noNav: true, occlude: false });
+  b.sign('NOTDUSCHE', [0.6, 1.5, 62.25], 'pz', 1.6, 0.5, { color: 0xf0f6fa, bg: 0x2a8a50, sub: 'AUGENSPÜLUNG' });
   frost(b, 2, 0, 59, 12, 10);
   frost(b, 2, 0, 46, 10, 6);
 

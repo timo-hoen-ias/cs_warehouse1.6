@@ -107,6 +107,10 @@ export function dressHalleA(b: B): void {
   b.decal({ kind: 'letter', pos: [30, 0.02, -44], size: [5, 5], text: 'A', color: 0xff5a4a });
   b.decal({ kind: 'grid', pos: [30, 0.02, -44], size: [14, 14] });
   tape(b, 22, -52.5, 38, -52.5, 0);
+  // Provisorisch verlegtes Stromkabel der IT über den Hallenboden (Kabelbrücke, nur Optik)
+  b.box([20, 0, -53.2], [22.4, 0.07, -52.8], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 0.5 });
+  b.box([20, 0, -53.2], [20.4, 0.07, -46], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 0.5 });
+  b.sign('KABEL – STOLPERGEFAHR', [20.2, 0.9, -49.6], 'px', 2.2, 0.5, { color: 0xffd040, sub: 'IT PROVISORIUM' });
   hangSign(b, 'SERVERSCHRANK A', 30, 6.2, -50.4, 0xff5a4a, 'IT · NICHT BERÜHREN', 5);
   b.sign('KÄLTEMASCHINE', [43.85, 4.6, -42], 'nx', 4, 0.9, { color: 0x9fd0ff, sub: 'NH₃ · DRUCK 12 BAR' });
   b.light({ kind: 'lamp', pos: [30, 2.6, -52.8], color: 0x40c8ff, intensity: 0.5, range: 6 });

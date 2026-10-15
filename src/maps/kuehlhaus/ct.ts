@@ -21,6 +21,14 @@ export function dressCT(b: B): void {
   prop(b, 'handTruck', 18, 0, -72, { rot: 0 });
   prop(b, 'forklift', 31, 0, -83, { rot: 2, tint: 0x2f78c0 });
   for (const [x, z] of [[10, -74], [22, -74]] as const) b.box([x - 0.3, 0, z - 0.3], [x + 0.3, 7.3, z + 0.3], 'steel', { tint: 0x2f78c0, tag: 'pillar' });
+  // Pausenecke und Besprechungstisch: die Verwaltung wohnt hier
+  prop(b, 'desk', 30.4, 0, -76.4, { rot: 1 });
+  prop(b, 'desk', 30.4, 0, -77.6, { rot: 1 });
+  b.box([32.4, 0, -73.4], [33.6, 1.9, -72.6], 'metal', { tint: 0xd8e4ea }); // Getränkeautomat
+  b.box([32.5, 1.0, -72.58], [33.5, 1.7, -72.56], 'emissive', { collide: 'none', tint: 0x7fc0ff, noNav: true, occlude: false });
+  b.sign('PAUSE', [33, 2.4, -72.5], 'pz', 1.6, 0.5, { color: 0xffd040, sub: 'HEISSE SCHOKOLADE' });
+  b.decor('extinguisher', [4.3, 1.2, -62.4], 0);
+  for (const [x, z] of [[14, -83], [26, -83]] as const) prop(b, 'cartons', x, 0, z, { cold: true });
   b.decal({ kind: 'line', pos: [19, 0.02, -74], size: [30, 0.15], color: 0x7fc0ff });
   b.decal({ kind: 'letter', pos: [19, 0.02, -78], size: [3.2, 3.2], text: 'CT', color: 0x8fc0ff });
   b.decal({ kind: 'stripes', pos: [11, 0.02, -62.6], size: [6, 1] });

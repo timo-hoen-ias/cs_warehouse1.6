@@ -32,7 +32,7 @@ export function dressRoofs(b: B): void {
   b.ambient('compressor', [-24, 5, -42], 12, 0.4);
   // Rampenraum-/Flurdach (+4.5)
   prop(b, 'acUnit', -24, 4.5, 4, { rot: 1 });
-  prop(b, 'chiller', -24, 4.5, 24, { rot: 1 });
+  prop(b, 'chiller', -27, 4.5, 24, { rot: 1 });
   prop(b, 'crate', -20.6, 4.5, 12, { h: 1.1 });
   for (const z of [10, 26]) b.box([-26.4, 4.5, z - 1], [-23.6, 4.9, z + 1], 'skylight', { collide: 'none', tint: 0xdde8f0, noNav: true, occlude: false });
   snow(b, -28, 14, -22, 15, 4.5, 0.2);
