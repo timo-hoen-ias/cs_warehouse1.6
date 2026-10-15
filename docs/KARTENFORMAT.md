@@ -116,6 +116,41 @@ Hinweise: Rampen/Treppen auf eine höhere Fläche 1 m auf dieser enden lassen un
 - `b.spawn(team, x, y, z, yaw)` / `spawnGrid(...)` – mind. 8 je Team.
 - `b.buy(team, …)` – Kaufzonen (müssen die Spawns enthalten).
 - `b.room(kind, min, max)`, `b.ambient(sound, pos, radius, volume)` – Akustik (`src/logic/acoustics.ts`).
+- `b.botHint(h)` – **optionale Bot-Hinweise** (siehe „Bots“); Bots kommen auch ohne aus.
+
+## Bots (taktische KI, kartenunabhängig)
+
+Die Bots leiten alles aus der kompilierten Karte ab (`src/logic/botMap.ts`, einmal je Karte, ~20 ms):
+
+- **Zonen** = Callout-Bereiche (`b.area`); ohne Callouts bildet die Analyse automatische Zonen
+  (14-m-Raster × Höhenband). **Portale** = Durchgänge zwischen Zonen (je Öffnung eines).
+- **Distanzfelder** von T- und CT-Spawn: wer ist wo zuerst? Daraus „umkämpfte Punkte“, Gefahr
+  (Gehen statt Rennen) und die eigene Seite beim Halten.
+- **Spots**: Zonen mit dem Pflanzpunkt bzw. ≥ 40 % Knoten in der Spot-Box; Eingänge = Portale hinein,
+  getrennt nach Angriffs- (T-Routen) und Verteidigungsseite.
+- **Routen**: mehrere verschiedene Wege je Team und Spot über den Portalgraphen (benutzte Zonen werden
+  verteuert → lang/kurz/Mitte/Tunnel), nie durch den gegnerischen Spawn; mit Bereitstellungsraum vor
+  dem Eingang und Kontrollpunkt.
+- **Halte-Positionen**: Knoten mit Sicht auf einen Eingang, nicht auf der Anlaufseite, bewertet nach
+  Deckung, Höhe, Entfernung, Ducken-Möglichkeit und Angriffsfläche zu anderen Eingängen.
+
+Damit Bots gut spielen, sollte eine Karte: Callouts für alle Bereiche haben (sonst automatische Zonen),
+je Spot ≥ 2 Eingänge mit Deckung im Spot, und keine Sichtlinie aus einem Gang direkt in einen Spawn.
+Der Validator (`src/maps/maps.test.ts`) prüft je Karte: T-Routen zu jedem Spot, CT-Halte-Positionen an
+jedem Angriffseingang, gültige Hinweise.
+
+**Bot-Hinweise** (`MapData.botHints`, `b.botHint(...)`) — nur Aufwertung, nie Pflicht:
+
+| Art | Felder | Wirkung |
+|---|---|---|
+| `hold` | `pos`, `team?`, `site?` | Halte-Position (+4 Punkte, wenn sie die Sichtprüfung besteht) |
+| `sniper` | `pos`, `team?`, `site?` | wie `hold`, für Scharfschützen +6 (lange Sichtlinie) |
+| `plant` | `pos`, `site` | bevorzugter Pflanzplatz (muss in der Spot-Box liegen) |
+| `smoke` | `from`, `target`, `team`, `site?` | bewährter Rauch beim Ausführen (Ziel; `from` = Wurfposition, der Validator prüft den Wurf mit der Granatenphysik) |
+
+Werkzeug: `bun scripts/bot-sim.ts <karten-id> [runden] [je-team] [skill] [seed] --rounds` spielt Bot-gegen-Bot-
+Runden im Zeitraffer (Statistik: Siege, Pflanzrate, Entschärfungen, Eingänge, Festsitzen, Wand-/Fallfehler);
+`--trace=<runde>` zeigt alle 4 s Auftrag und Zustand je Bot. Im Spiel: `__bots()`, `__botPlan()`.
 
 ## Compiler und Laufzeit-API
 
@@ -155,7 +190,8 @@ Bewegungsregeln (Stufen, Rampen, Wände, Kopffreiheit), Herunterspringen als Ein
 3. Iterieren: `bun run overview de_meinekarte /tmp/karte.png 5 --areas` zeigt Draufsicht
    (Höhen farbig, Rampenpfeile, Spots, Spawns, Callouts), Knotenzahl und Laufzeiten.
 4. Validator: `bun run test src/maps` (Spawns auf Boden/frei/in Kaufzone, Spots begehbar,
-   Erreichbarkeit, keine Fallen, Laufzeiten, Callouts, Vertikalität, Determinismus).
+   Erreichbarkeit, keine Fallen, Laufzeiten, Callouts, Vertikalität, Determinismus, Bot-Routen/-Hinweise).
+   Bot-Probe: `bun scripts/bot-sim.ts de_meinekarte 20` (beide Teams gewinnen, es wird gepflanzt, niemand sitzt fest).
 5. Sichtprüfung im Spiel: Dev-Server + `scripts/screenshot.mjs`; Debug-Hooks `__teleport(x, z, yaw, y?)`,
    `__area()`, `__map()`, `__bots()` (inkl. Callout je Bot).
 

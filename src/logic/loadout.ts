@@ -196,24 +196,6 @@ export function carryOver(lo: Loadout, survived: boolean, team: Team): Loadout {
   return next;
 }
 
-/** Bot-Kauf-Heuristik: teuerste erschwingliche Primärwaffe, dann Weste, dann Granaten. */
-export function botBuy(lo: Loadout, money: Money, team: Team, rnd: () => number = Math.random): string[] {
-  const bought: string[] = [];
-  const primaries = Object.values(WEAPONS)
-    .filter((w) => w.slot === 1 && w.price > 0 && teamCanUse(w, team))
-    .sort((a, b) => b.price - a.price);
-  if (!lo.primary) {
-    // Erst sparen, wenn nicht mal eine günstige Primärwaffe + Weste drin ist (Eco-Runde)
-    const budget = money.amount - (rnd() < 0.5 ? 650 : 0);
-    const pick = primaries.find((w) => w.price <= budget && w.type !== 'mg' && w.type !== 'shotgun' && w.id !== 'scout');
-    if (pick && buyItem(lo, money, pick.id, team).ok) bought.push(pick.id);
-  }
-  if (lo.armor < 100 && money.amount >= 1000 && buyItem(lo, money, 'helmet', team).ok) bought.push('helmet');
-  else if (lo.armor < 100 && buyItem(lo, money, 'kevlar', team).ok) bought.push('kevlar');
-  if (team === 'CT' && !lo.defuseKit && money.amount >= 400 && buyItem(lo, money, 'defusekit', team).ok) bought.push('defusekit');
-  if (money.amount >= 800 && buyItem(lo, money, 'hegrenade', team).ok) bought.push('hegrenade');
-  if (money.amount >= 1200 && buyItem(lo, money, 'flashbang', team).ok) bought.push('flashbang');
-  return bought;
-}
+// Bot-Käufe (Economy, Rollen): src/logic/botBuy.ts
 
 export type { WeaponDef, EquipmentId };

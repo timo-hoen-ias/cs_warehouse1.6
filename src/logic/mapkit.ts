@@ -143,6 +143,17 @@ export type Site = { id: 'A' | 'B'; name: string; min: Vec3; max: Vec3; plant: V
 export type Spawn = { team: Team; pos: Vec3; yaw: number };
 export type BuyZone = { team: Team; min: Vec3; max: Vec3 };
 
+/**
+ * Optionale Bot-Hinweise (Bots funktionieren ohne; Hinweise werten nur auf):
+ * `hold`/`sniper` = gute Halte-/Scharfschützenposition (optional nur für ein Team/einen Spot),
+ * `plant` = bevorzugter Pflanzplatz, `smoke` = bewährter Rauchwurf (von `from` auf `target`,
+ * wird vor der Nutzung mit der Granatenphysik geprüft).
+ */
+export type BotHint =
+  | { kind: 'hold' | 'sniper'; pos: Vec3; team?: Team; site?: 'A' | 'B' }
+  | { kind: 'plant'; pos: Vec3; site: 'A' | 'B' }
+  | { kind: 'smoke'; from: Vec3; target: Vec3; team: Team; site?: 'A' | 'B' };
+
 export type MapEnv = {
   /** Richtung ZUR Sonne (normiert). */
   sunDir: Vec3;
@@ -174,6 +185,8 @@ export type MapData = {
   buyZones: BuyZone[];
   acoustics: { zones: AcousticZone[]; emitters: AmbientEmitter[] };
   env: MapEnv;
+  /** Optionale Bot-Hinweise (Halte-/Pflanzplätze, Rauchwürfe). */
+  botHints?: BotHint[];
 };
 
 /** Öffnung in einer Wand: Bereich entlang der Wand (from..to) und Höhe (bottom..top, absolut). */
@@ -394,5 +407,10 @@ export class MapBuilder {
 
   ambient(sound: AmbientSound, pos: Vec3, radius: number, volume?: number): void {
     this.data.acoustics.emitters.push({ sound, pos, radius, volume });
+  }
+
+  /** Bot-Hinweis (optional, siehe BotHint). */
+  botHint(h: BotHint): void {
+    (this.data.botHints ??= []).push(h);
   }
 }
