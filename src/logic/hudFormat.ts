@@ -80,6 +80,7 @@ export type KillFeedView = {
 
 function weaponName(id: string): string {
   if (id === 'c4') return 'C4-Explosion';
+  if (id === 'fall') return 'Sturz';
   if (id === 'knife_stab') return WEAPONS.knife?.name ?? 'Messer';
   return WEAPONS[id]?.name ?? id;
 }
@@ -111,8 +112,9 @@ export function deathInfo(e: KillEventLike, players: Record<string, (NamedPlayer
   if (e.victim !== localId) return null;
   const w = weaponName(e.weapon);
   if (!e.killer || e.killer === localId) {
-    const title = e.weapon === 'c4' ? 'Von der Bombe getötet' : 'Selbst ausgeschaltet';
-    return { title, detail: e.weapon === 'c4' ? 'Zu nah an der Explosion' : `mit ${w}`, killerTeam: null, killerHp: null, weapon: iconWeapon(e.weapon) };
+    const title = e.weapon === 'c4' ? 'Von der Bombe getötet' : e.weapon === 'fall' ? 'Zu tief gefallen' : 'Selbst ausgeschaltet';
+    const detail = e.weapon === 'c4' ? 'Zu nah an der Explosion' : e.weapon === 'fall' ? 'Sturzschaden' : `mit ${w}`;
+    return { title, detail, killerTeam: null, killerHp: null, weapon: iconWeapon(e.weapon) };
   }
   const k = players[e.killer];
   return {

@@ -1,6 +1,6 @@
 import { Behaviour, registerType } from '@needle-tools/engine';
 import * as THREE from 'three';
-import { WEAPONS, nextZoomLevel, zoomFov, type GrenadeKind, type WeaponDef } from '../logic/weapons';
+import { WEAPONS, nextZoomLevel, weaponSpeed, zoomFov, type GrenadeKind, type WeaponDef } from '../logic/weapons';
 import { fireSpread, makeGun, startReload, tickGun, tryShoot, type GunState } from '../logic/fire';
 import { VIEW_PUNCH_SHARE, defaultSpray, fireRecoil, makeRecoil, sprayOffset, tickRecoil, type RecoilState } from '../logic/recoil';
 import { offsetDir, resolveRay, shotDirs } from '../logic/combat';
@@ -222,6 +222,8 @@ export class Shooter extends Behaviour {
     this.time += dt;
     this.meleeCooldown = Math.max(0, this.meleeCooldown - dt);
     if (state) tickGun(state, def, dt);
+    // Lauftempo folgt der Waffe (CS: Messer 250 … AWP 210, mit Zielfernrohr 150)
+    if (this.player) this.player.runSpeed = weaponSpeed(def, this.zoomLevel > 0);
     // Nachladen beendet den Zoom; nach dem Repetieren wieder heranzoomen
     if (state && state.reloadLeft > 0 && this.zoomLevel > 0) this.setZoom(0);
     if (this.rezoomLevel > 0 && this.time >= this.rezoomAt) {
@@ -252,7 +254,7 @@ export class Shooter extends Behaviour {
 
     const blocked = this.blocked?.() ?? false;
     const menu = this.menuOpen?.() ?? false;
-    // Viewmodel: Bewegung (Sprint senkt die Waffe) und C4-Tippen beim Legen
+    // Viewmodel: Bewegung und C4-Tippen beim Legen
     this.viewModel?.setMotion(!!this.player?.moving(), !!this.player?.sprinting(), !!this.player?.crouching());
     this.viewModel?.setPlanting(def.mode === 'plant' && this.eHeld && !blocked && !menu);
     if (this.fireDown && def.rpm > 0 && def.mode === 'hit' && !blocked && !menu) this.fire(def);
@@ -275,7 +277,7 @@ export class Shooter extends Behaviour {
   }
 
   private spreadPx(def: WeaponDef, state: GunState): number {
-    const spread = fireSpread(def, state, !!this.player?.moving(), !!this.player?.crouching(), this.zoomLevel > 0);
+    const spread = fireSpread(def, state, this.player?.spreadState() ?? false, !!this.player?.crouching(), this.zoomLevel > 0);
     if (spread <= 0) return 0;
     const cam = this.context.mainCamera as THREE.PerspectiveCamera | undefined;
     const dom = this.context.renderer.domElement;
@@ -325,7 +327,7 @@ export class Shooter extends Behaviour {
       if (res.emptyAfter) this.reloadRequested = true;
     }
     const scoped = this.zoomLevel > 0;
-    const spread = state ? fireSpread(def, state, !!this.player?.moving(), !!this.player?.crouching(), scoped) : 0;
+    const spread = state ? fireSpread(def, state, this.player?.spreadState() ?? false, !!this.player?.crouching(), scoped) : 0;
 
     // Rückstoß: Automatikwaffen folgen einem festen CS-Spray-Muster (Kugeln weichen um den
     // nicht von der Kamera mitgenommenen Anteil ab → mit der Maus gegenziehen), Rest zufällig.

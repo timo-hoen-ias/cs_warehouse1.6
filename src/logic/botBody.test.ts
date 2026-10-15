@@ -3,7 +3,9 @@ import { BODY, BotBody, remainingVia } from './botBody';
 import type { Intent } from './botBrain';
 import { buildBotTestMap } from './botTestMap';
 import { compileMap } from './mapcompile';
+import { PLAYER } from './move';
 import type { XYZ } from './nav';
+import { WEAPONS, weaponSpeed } from './weapons';
 
 const m = compileMap(buildBotTestMap());
 const env = (now: number, mates: XYZ[] = []) => ({ col: m.collider, nav: m.nav, now, skill: 0.6, mates });
@@ -46,6 +48,19 @@ describe('Bot-Körper', () => {
     expect((74 - c.pose.z) / 2).toBeLessThanOrEqual(BODY.crouch + 0.05);
     run(c, intent({ speed: 'stop' }), 0.5);
     expect(c.stillFor).toBeGreaterThanOrEqual(0.45);
+  });
+
+  it('Waffentempo: schwere Waffe bremst den Bot im selben Verhältnis wie den Spieler', () => {
+    const dist = (scale: number): number => {
+      const body = new BotBody({ x: 40, y: 0, z: 74, yaw: 0, pitch: 0 });
+      body.speedScale = scale;
+      run(body, intent({ goal: { x: 40, y: 0, z: 30 }, speed: 'run' }), 2);
+      return 74 - body.pose.z;
+    };
+    const awp = weaponSpeed(WEAPONS['awp']!) / PLAYER.runSpeed;
+    expect(awp).toBeLessThan(0.9);
+    expect(dist(awp)).toBeLessThan(dist(1) * 0.95);
+    expect(dist(awp)).toBeGreaterThan(dist(1) * 0.7);
   });
 
   it('Routen-Wegpunkte werden der Reihe nach abgearbeitet und nach Umwegen nicht erneut angelaufen', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY } from './economy';
 import { buyItem } from './loadout';
 import {
-  MATCH, addPlayer, aliveCounts, applyExplosion, applyHit, balanceBots, beginRound, bombCarrier, finishRound,
+  MATCH, addPlayer, aliveCounts, applyExplosion, applyFall, applyHit, balanceBots, beginRound, bombCarrier, finishRound,
   newMatch, removePlayer, restartMatch, rewardAction, scoreboard, smallerTeam, switchTeam, teamCounts,
 } from './match';
 import { ROUND } from './round';
@@ -147,6 +147,27 @@ describe('applyHit', () => {
     const r2 = applyExplosion(m, 'b3', 'h1', 60)!;
     expect(r2.dmg).toBeLessThan(60);
     expect(m.feed).toHaveLength(0);
+  });
+
+  it('Sturzschaden: Rüstung schützt nicht, kein Angreifer, Tod landet als „fall“ im Kill-Feed', () => {
+    const m = setup();
+    m.players['b3']!.loadout.armor = 100;
+    m.players['b3']!.loadout.helmet = true;
+    const r = applyFall(m, 'b3', 30)!;
+    expect(r.dmg).toBe(30);
+    expect(m.players['b3']!.hp).toBe(70);
+    expect(m.players['b3']!.loadout.armor).toBe(100);
+    expect(applyFall(m, 'b3', 0)).toBeNull();
+    expect(applyFall(m, 'b3', -5)).toBeNull();
+    expect(applyFall(m, 'nobody', 20)).toBeNull();
+    const kills = m.players['h1']!.kills;
+    const k = applyFall(m, 'b3', 500)!;
+    expect(k.killed).toBe(true);
+    expect(m.players['b3']!.alive).toBe(false);
+    expect(m.players['b3']!.deaths).toBe(1);
+    expect(m.players['h1']!.kills).toBe(kills);
+    expect(m.feed.at(-1)).toMatchObject({ killer: null, victim: 'b3', weapon: 'fall', headshot: false });
+    expect(applyFall(m, 'b3', 10)).toBeNull(); // schon tot
   });
 
   it('Kill-Feed ist auf feedMax begrenzt', () => {

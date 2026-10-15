@@ -76,11 +76,43 @@ export const CROUCH_MOVE_MULT = 0.25;
 /** Zusatz-Streuung für Scharfschützengewehre ohne Zielfernrohr (CS: Noscope ist Glückssache). */
 export const NOSCOPE_SPREAD = 0.075;
 
-/** Aktuelle Streuung (Radiant) aus Waffe + Wärme + Bewegung (+ Ducken, + Zielfernrohr). */
-export function fireSpread(def: WeaponDef, s: GunState, moving: boolean, crouched = false, scoped = false): number {
+/**
+ * Bewegungs-Schwellen der Streuung (m/s): CS bestraft ab 140 u/s (3.47 m/s) — Schleichen (52 %) bleibt
+ * genau, Rennen voll ungenau; dazwischen weich überblendet (Anlaufen/Counter-Strafe bauen Genauigkeit
+ * in Sekundenbruchteilen ab bzw. auf).
+ */
+export const SPREAD_SPEED = { from: 3.47, full: 4.2, sniperFrom: 0.25, sniperFull: 1.0 } as const;
+
+/** Tatsächliche Bewegung des Schützen: Horizontaltempo (m/s) und ob er in der Luft ist. */
+export type MoveSpreadState = { speed: number; air: boolean };
+
+function smooth(from: number, to: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - from) / (to - from)));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Anteil (0..1) der Bewegungs-Streuung bei Tempo `speed` (m/s). Scharfschützengewehre sind schon bei
+ * leichter Bewegung ungenau (CS: AWP > 10 u/s), der Rest erst im Lauf.
+ */
+export function movePenalty(def: WeaponDef, speed: number): number {
+  const run = smooth(SPREAD_SPEED.from, SPREAD_SPEED.full, speed);
+  if (def.type !== 'sniper') return run;
+  return 0.4 * smooth(SPREAD_SPEED.sniperFrom, SPREAD_SPEED.sniperFull, speed) + 0.6 * run;
+}
+
+/**
+ * Aktuelle Streuung (Radiant) aus Waffe + Wärme + Bewegung (+ Ducken, + Zielfernrohr).
+ * `move`: `true`/`false` = voll bewegt bzw. still (Bots), oder echtes Tempo + Luft (Spieler).
+ * In der Luft gilt `airSpread` (Sprung = katastrophal, auch geduckt).
+ */
+export function fireSpread(def: WeaponDef, s: GunState, move: boolean | MoveSpreadState, crouched = false, scoped = false): number {
   const noscope = def.type === 'sniper' && !scoped ? NOSCOPE_SPREAD : 0;
   const base = def.spreadBase + s.heat * def.spreadPerShot + noscope;
-  if (!crouched) return base + (moving ? def.moveSpread : 0);
+  const state: MoveSpreadState = typeof move === 'boolean' ? { speed: move ? Infinity : 0, air: false } : move;
+  if (state.air) return base + (def.airSpread ?? def.moveSpread * 2);
+  const f = movePenalty(def, state.speed);
+  if (!crouched) return base + def.moveSpread * f;
   // Geduckt: Waffe enger; Bewegung fast ohne Effekt (CS-Feeling).
-  return (base + (moving ? def.moveSpread * CROUCH_MOVE_MULT : 0)) * CROUCH_SPREAD_MULT;
+  return (base + def.moveSpread * CROUCH_MOVE_MULT * f) * CROUCH_SPREAD_MULT;
 }

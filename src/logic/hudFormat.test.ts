@@ -105,6 +105,10 @@ describe('Todesinfo', () => {
     expect(deathInfo({ killer: 'me', victim: 'a', weapon: 'awp', hs: false }, players, 'me')).toBeNull();
   });
 
+  it('Sturz: eigener Titel', () => {
+    expect(deathInfo({ killer: null, victim: 'me', weapon: 'fall', hs: false }, players, 'me')).toMatchObject({ title: 'Zu tief gefallen', detail: 'Sturzschaden', killerTeam: null });
+  });
+
   it('Bombe und Selbsttod', () => {
     expect(deathInfo({ killer: null, victim: 'me', weapon: 'c4', hs: false }, players, 'me')?.title).toBe('Von der Bombe getötet');
     expect(deathInfo({ killer: 'me', victim: 'me', weapon: 'hegrenade', hs: false }, players, 'me')).toMatchObject({ title: 'Selbst ausgeschaltet', detail: 'mit HE-Granate' });

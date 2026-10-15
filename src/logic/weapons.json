@@ -26,7 +26,8 @@
       "cap": 0,
       "recovery": 0.2
     },
-    "cycle": 0.45
+    "cycle": 0.45,
+    "maxSpeed": 250
   },
   "glock": {
     "id": "glock",
@@ -44,6 +45,7 @@
     "spreadBase": 0.006,
     "spreadPerShot": 0.004,
     "moveSpread": 0.03,
+    "airSpread": 0.1,
     "range": 120,
     "mode": "hit",
     "armorPen": 0.47,
@@ -54,7 +56,8 @@
       "ramp": 0.12,
       "cap": 0.06,
       "recovery": 0.3
-    }
+    },
+    "maxSpeed": 250
   },
   "usp": {
     "id": "usp",
@@ -72,6 +75,7 @@
     "spreadBase": 0.004,
     "spreadPerShot": 0.005,
     "moveSpread": 0.025,
+    "airSpread": 0.1,
     "range": 120,
     "mode": "hit",
     "armorPen": 0.5,
@@ -83,7 +87,8 @@
       "cap": 0.06,
       "recovery": 0.32
     },
-    "cycle": 0.15
+    "cycle": 0.15,
+    "maxSpeed": 250
   },
   "p228": {
     "id": "p228",
@@ -101,6 +106,7 @@
     "spreadBase": 0.005,
     "spreadPerShot": 0.005,
     "moveSpread": 0.028,
+    "airSpread": 0.1,
     "range": 120,
     "mode": "hit",
     "armorPen": 0.6,
@@ -112,7 +118,8 @@
       "cap": 0.06,
       "recovery": 0.32
     },
-    "cycle": 0.15
+    "cycle": 0.15,
+    "maxSpeed": 250
   },
   "deagle": {
     "id": "deagle",
@@ -130,6 +137,7 @@
     "spreadBase": 0.006,
     "spreadPerShot": 0.012,
     "moveSpread": 0.04,
+    "airSpread": 0.1,
     "range": 130,
     "mode": "hit",
     "armorPen": 0.75,
@@ -141,7 +149,8 @@
       "cap": 0.1,
       "recovery": 0.45
     },
-    "cycle": 0.25
+    "cycle": 0.25,
+    "maxSpeed": 250
   },
   "fiveseven": {
     "id": "fiveseven",
@@ -159,6 +168,7 @@
     "spreadBase": 0.005,
     "spreadPerShot": 0.004,
     "moveSpread": 0.026,
+    "airSpread": 0.1,
     "range": 120,
     "mode": "hit",
     "armorPen": 0.7,
@@ -170,7 +180,8 @@
       "cap": 0.06,
       "recovery": 0.3
     },
-    "cycle": 0.15
+    "cycle": 0.15,
+    "maxSpeed": 250
   },
   "elite": {
     "id": "elite",
@@ -188,6 +199,7 @@
     "spreadBase": 0.007,
     "spreadPerShot": 0.005,
     "moveSpread": 0.03,
+    "airSpread": 0.1,
     "range": 120,
     "mode": "hit",
     "armorPen": 0.5,
@@ -206,7 +218,8 @@
         "y": -0.12,
         "z": -0.3
       }
-    }
+    },
+    "maxSpeed": 250
   },
   "m3": {
     "id": "m3",
@@ -224,6 +237,7 @@
     "spreadBase": 0.045,
     "spreadPerShot": 0.01,
     "moveSpread": 0.06,
+    "airSpread": 0.09,
     "range": 35,
     "mode": "hit",
     "armorPen": 0.5,
@@ -234,7 +248,8 @@
       "ramp": 0.05,
       "cap": 0.14,
       "recovery": 0.55
-    }
+    },
+    "maxSpeed": 230
   },
   "xm1014": {
     "id": "xm1014",
@@ -252,6 +267,7 @@
     "spreadBase": 0.05,
     "spreadPerShot": 0.012,
     "moveSpread": 0.07,
+    "airSpread": 0.09,
     "range": 35,
     "mode": "hit",
     "armorPen": 0.5,
@@ -262,7 +278,8 @@
       "ramp": 0.08,
       "cap": 0.14,
       "recovery": 0.5
-    }
+    },
+    "maxSpeed": 240
   },
   "mac10": {
     "id": "mac10",
@@ -280,6 +297,7 @@
     "spreadBase": 0.014,
     "spreadPerShot": 0.007,
     "moveSpread": 0.04,
+    "airSpread": 0.14,
     "range": 100,
     "mode": "hit",
     "armorPen": 0.5,
@@ -297,7 +315,8 @@
         "y": -0.13,
         "z": -0.3
       }
-    }
+    },
+    "maxSpeed": 250
   },
   "tmp": {
     "id": "tmp",
@@ -315,6 +334,7 @@
     "spreadBase": 0.013,
     "spreadPerShot": 0.006,
     "moveSpread": 0.04,
+    "airSpread": 0.14,
     "range": 100,
     "mode": "hit",
     "armorPen": 0.5,
@@ -332,7 +352,8 @@
         "y": -0.13,
         "z": -0.3
       }
-    }
+    },
+    "maxSpeed": 250
   },
   "mp5": {
     "id": "mp5",
@@ -350,6 +371,7 @@
     "spreadBase": 0.012,
     "spreadPerShot": 0.006,
     "moveSpread": 0.045,
+    "airSpread": 0.14,
     "range": 140,
     "mode": "hit",
     "armorPen": 0.5,
@@ -360,7 +382,8 @@
       "ramp": 0.18,
       "cap": 0.09,
       "recovery": 0.32
-    }
+    },
+    "maxSpeed": 250
   },
   "ump45": {
     "id": "ump45",
@@ -378,6 +401,7 @@
     "spreadBase": 0.012,
     "spreadPerShot": 0.006,
     "moveSpread": 0.045,
+    "airSpread": 0.14,
     "range": 140,
     "mode": "hit",
     "armorPen": 0.65,
@@ -388,7 +412,8 @@
       "ramp": 0.16,
       "cap": 0.09,
       "recovery": 0.34
-    }
+    },
+    "maxSpeed": 250
   },
   "p90": {
     "id": "p90",
@@ -406,6 +431,7 @@
     "spreadBase": 0.013,
     "spreadPerShot": 0.005,
     "moveSpread": 0.045,
+    "airSpread": 0.14,
     "range": 140,
     "mode": "hit",
     "armorPen": 0.65,
@@ -423,7 +449,8 @@
         "y": -0.135,
         "z": -0.3
       }
-    }
+    },
+    "maxSpeed": 245
   },
   "galil": {
     "id": "galil",
@@ -441,6 +468,7 @@
     "spreadBase": 0.011,
     "spreadPerShot": 0.008,
     "moveSpread": 0.06,
+    "airSpread": 0.16,
     "range": 160,
     "mode": "hit",
     "armorPen": 0.775,
@@ -451,7 +479,8 @@
       "ramp": 0.28,
       "cap": 0.15,
       "recovery": 0.48
-    }
+    },
+    "maxSpeed": 240
   },
   "famas": {
     "id": "famas",
@@ -469,6 +498,7 @@
     "spreadBase": 0.01,
     "spreadPerShot": 0.007,
     "moveSpread": 0.055,
+    "airSpread": 0.16,
     "range": 160,
     "mode": "hit",
     "armorPen": 0.7,
@@ -486,7 +516,8 @@
         "y": -0.13,
         "z": -0.3
       }
-    }
+    },
+    "maxSpeed": 220
   },
   "ak47": {
     "id": "ak47",
@@ -504,6 +535,7 @@
     "spreadBase": 0.01,
     "spreadPerShot": 0.008,
     "moveSpread": 0.06,
+    "airSpread": 0.16,
     "range": 160,
     "mode": "hit",
     "armorPen": 0.775,
@@ -514,7 +546,8 @@
       "ramp": 0.3,
       "cap": 0.16,
       "recovery": 0.5
-    }
+    },
+    "maxSpeed": 221
   },
   "m4a1": {
     "id": "m4a1",
@@ -532,6 +565,7 @@
     "spreadBase": 0.008,
     "spreadPerShot": 0.007,
     "moveSpread": 0.055,
+    "airSpread": 0.16,
     "range": 160,
     "mode": "hit",
     "armorPen": 0.7,
@@ -542,7 +576,8 @@
       "ramp": 0.26,
       "cap": 0.14,
       "recovery": 0.45
-    }
+    },
+    "maxSpeed": 230
   },
   "sg552": {
     "id": "sg552",
@@ -560,6 +595,7 @@
     "spreadBase": 0.009,
     "spreadPerShot": 0.007,
     "moveSpread": 0.055,
+    "airSpread": 0.16,
     "range": 170,
     "mode": "hit",
     "armorPen": 0.69,
@@ -573,7 +609,8 @@
     },
     "zoom": [
       55
-    ]
+    ],
+    "maxSpeed": 235
   },
   "aug": {
     "id": "aug",
@@ -591,6 +628,7 @@
     "spreadBase": 0.009,
     "spreadPerShot": 0.007,
     "moveSpread": 0.055,
+    "airSpread": 0.16,
     "range": 170,
     "mode": "hit",
     "armorPen": 0.9,
@@ -611,7 +649,8 @@
         "y": -0.13,
         "z": -0.3
       }
-    }
+    },
+    "maxSpeed": 221
   },
   "scout": {
     "id": "scout",
@@ -629,6 +668,7 @@
     "spreadBase": 0.002,
     "spreadPerShot": 0,
     "moveSpread": 0.08,
+    "airSpread": 0.3,
     "range": 300,
     "mode": "hit",
     "armorPen": 0.85,
@@ -644,7 +684,9 @@
       40,
       15
     ],
-    "cycle": 1.25
+    "cycle": 1.25,
+    "maxSpeed": 260,
+    "scopedSpeed": 220
   },
   "awp": {
     "id": "awp",
@@ -662,6 +704,7 @@
     "spreadBase": 0.001,
     "spreadPerShot": 0,
     "moveSpread": 0.1,
+    "airSpread": 0.3,
     "range": 300,
     "mode": "hit",
     "armorPen": 0.975,
@@ -677,7 +720,9 @@
       40,
       15
     ],
-    "cycle": 1.45
+    "cycle": 1.45,
+    "maxSpeed": 210,
+    "scopedSpeed": 150
   },
   "g3sg1": {
     "id": "g3sg1",
@@ -695,6 +740,7 @@
     "spreadBase": 0.004,
     "spreadPerShot": 0.006,
     "moveSpread": 0.09,
+    "airSpread": 0.3,
     "range": 300,
     "mode": "hit",
     "armorPen": 0.825,
@@ -709,7 +755,9 @@
     "zoom": [
       40,
       20
-    ]
+    ],
+    "maxSpeed": 210,
+    "scopedSpeed": 150
   },
   "sg550": {
     "id": "sg550",
@@ -727,6 +775,7 @@
     "spreadBase": 0.004,
     "spreadPerShot": 0.006,
     "moveSpread": 0.09,
+    "airSpread": 0.3,
     "range": 300,
     "mode": "hit",
     "armorPen": 0.8,
@@ -741,7 +790,9 @@
     "zoom": [
       40,
       20
-    ]
+    ],
+    "maxSpeed": 210,
+    "scopedSpeed": 150
   },
   "m249": {
     "id": "m249",
@@ -759,6 +810,7 @@
     "spreadBase": 0.012,
     "spreadPerShot": 0.006,
     "moveSpread": 0.07,
+    "airSpread": 0.18,
     "range": 160,
     "mode": "hit",
     "armorPen": 0.8,
@@ -769,7 +821,8 @@
       "ramp": 0.22,
       "cap": 0.16,
       "recovery": 0.5
-    }
+    },
+    "maxSpeed": 220
   },
   "hegrenade": {
     "id": "hegrenade",
@@ -798,7 +851,8 @@
       "cap": 0,
       "recovery": 0.2
     },
-    "grenadeKind": "he"
+    "grenadeKind": "he",
+    "maxSpeed": 250
   },
   "flashbang": {
     "id": "flashbang",
@@ -827,7 +881,8 @@
       "cap": 0,
       "recovery": 0.2
     },
-    "grenadeKind": "flash"
+    "grenadeKind": "flash",
+    "maxSpeed": 250
   },
   "smokegrenade": {
     "id": "smokegrenade",
@@ -856,7 +911,8 @@
       "cap": 0,
       "recovery": 0.2
     },
-    "grenadeKind": "smoke"
+    "grenadeKind": "smoke",
+    "maxSpeed": 250
   },
   "c4": {
     "id": "c4",
@@ -884,7 +940,8 @@
       "ramp": 0,
       "cap": 0,
       "recovery": 0.2
-    }
+    },
+    "maxSpeed": 250
   },
   "knife_stab": {
     "id": "knife_stab",
@@ -916,6 +973,7 @@
     "visual": {
       "model": "knife"
     },
-    "cycle": 1.0
+    "cycle": 1.0,
+    "maxSpeed": 250
   }
 }
