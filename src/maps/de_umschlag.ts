@@ -32,13 +32,13 @@ export function buildUmschlag(): MapData {
     description: 'Cross-Docking-Hub nach dem Vorbild de_mirage: Palast und T-Rampe nach A, Fenster über der langen Mitte, Steg und Unterführung nach B.',
     bounds: { min: [-92, -8, -92], max: [92, 24, 92] },
     env: {
-      sunDir: [-0.55, 0.5, 0.67],
+      sunDir: [0.35, 0.78, 0.52],
       sunColor: 0xffd9a0,
       sunIntensity: 1.6,
       skyTop: 0x4f86c6,
       skyHorizon: 0xf2dcb4,
       skyIntensity: 0.6,
-      ambient: 0.14,
+      ambient: 0.18,
       fogColor: 0xd6c6a4,
       fogNear: 70,
       fogFar: 260,
@@ -101,29 +101,29 @@ export function buildUmschlag(): MapData {
     R: { building: { h: 4, mat: 'concrete', tint: 0xb8b2a4 } },
     d: { building: { h: 5.2, mat: 'concrete', tint: 0xb8b2a4 } },
     K: { building: { h: 4, mat: 'concrete', tint: 0xb8b2a4 } },
-    q: { building: { h: 7, mat: 'concrete', tint: 0xb0aaa0 } },
+    q: { building: { h: 7, mat: 'plaster', tint: 0xe6dcc4 } },
     D: { building: { h: 12, mat: 'corrugated', tint: 0xb4bcc2 }, window: { sill: LV.up, lintel: LV.up + 3.2 } },
     X: { building: { h: 12, mat: 'corrugated', tint: 0xb4bcc2 }, window: { sill: 1.0, lintel: 2.6 } },
-    Y: { floor: 0, mat: 'asphalt', tint: 0xc9c2b4, ...out },
-    S: { floor: 0, mat: 'concrete', tint: 0xc4bcae, ramp: true, ...out },
-    T: { floor: 0, mat: 'concrete', tint: 0xc4bcae, ramp: true, ...out },
-    P: { floor: LV.apron, mat: 'concrete', tint: 0xc9c0ae, ...out },
+    Y: { floor: 0, mat: 'asphalt', tint: 0xe2dccd, ...out },
+    S: { floor: 0, mat: 'concrete', tint: 0xe0d8c8, ramp: true, ...out },
+    T: { floor: 0, mat: 'concrete', tint: 0xe0d8c8, ramp: true, ...out },
+    P: { floor: LV.apron, mat: 'concrete', tint: 0xdcd2bf, ...out },
     V: { floor: LV.apron, mat: 'concrete', tint: 0xb8b0a0, roof: 7.2, roofTop: 7.6, roofMat: 'corrugatedDark', room: 'hall' },
-    L: { floor: 0, mat: 'paving', tint: 0xbab2a2, ...out },
-    N: { floor: 0, mat: 'paving', tint: 0xbab2a2, ...out },
+    L: { floor: 0, mat: 'paving', tint: 0xd8d0c0, ...out },
+    N: { floor: 0, mat: 'paving', tint: 0xd8d0c0, ...out },
     J: { floor: 0, mat: 'paving', tint: 0xb0b8a8, ...out },
-    c: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 4.8, roofTop: 12, roofMat: 'concreteDark', room: 'room' },
+    c: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 4.8, roofTop: 12, roofMat: 'concrete', room: 'room' },
     H: { floor: 0, mat: 'epoxy', tint: 0xb4b8b4, roof: 11, roofTop: 11.5, roofMat: 'roof', room: 'hall' },
-    g: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 6, roofTop: 12, roofMat: 'concreteDark', room: 'hall' },
-    n: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 6, roofTop: 12, roofMat: 'concreteDark', room: 'hall' },
-    e: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 4.4, roofTop: 12, roofMat: 'concreteDark', room: 'room' },
+    g: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 6, roofTop: 12, roofMat: 'concrete', room: 'hall' },
+    n: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 6, roofTop: 12, roofMat: 'concrete', room: 'hall' },
+    e: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 4.4, roofTop: 12, roofMat: 'concrete', room: 'room' },
     v: { floor: LV.under, bottom: -8, mat: 'concreteDark', tint: 0xa8a8a0, roof: 11, roofTop: 11.5, roofMat: 'roof', room: 'tunnel' },
-    r: { floor: LV.under, bottom: -8, mat: 'concreteDark', tint: 0xa8a8a0, roof: 3.6, roofTop: 12, roofMat: 'concreteDark', room: 'tunnel' },
+    r: { floor: LV.under, bottom: -8, mat: 'concreteDark', tint: 0xa8a8a0, roof: 3.6, roofTop: 12, roofMat: 'concrete', room: 'tunnel' },
     C: { floor: 0, mat: 'epoxy', tint: 0xb8bcb8, roof: 8.6, roofTop: 9.1, roofMat: 'roof', room: 'hall' },
     B: { floor: 0, mat: 'epoxy', tint: 0xb4b8b4, roof: 8.2, roofTop: 8.7, roofMat: 'roof', room: 'hall' },
-    M: { floor: 0, mat: 'wood', tint: 0xb8a890, roof: 4.6, roofTop: 12, roofMat: 'concreteDark', room: 'room' },
-    E: { floor: 0, mat: 'tile', tint: 0xd0d4d0, roof: 4.2, roofTop: 12, roofMat: 'concreteDark', room: 'room' },
-    o: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 3.6, roofTop: 12, roofMat: 'concreteDark', room: 'room' },
+    M: { floor: 0, mat: 'wood', tint: 0xb8a890, roof: 4.6, roofTop: 12, roofMat: 'concrete', room: 'room' },
+    E: { floor: 0, mat: 'tile', tint: 0xd0d4d0, roof: 4.2, roofTop: 12, roofMat: 'concrete', room: 'room' },
+    o: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 3.6, roofTop: 12, roofMat: 'concrete', room: 'room' },
   };
   const hallWall = (tint: number, pil = 0x3a6fa8, win = { y: 7.6, h: 2.0 }): FacadeStyle => ({
     mat: 'corrugated', tint, plinth: { h: 1.6, mat: 'concrete', tint: 0x8d8a84 }, band: { y: 1.6, h: 0.3, mat: 'hazard' },
@@ -139,7 +139,7 @@ export function buildUmschlag(): MapData {
     '@R': { mat: 'concrete', tint: 0xb8b2a4 },
     '@d': { mat: 'concrete', tint: 0xb8b2a4, plinth: { h: 1.0, mat: 'concreteDark', tint: 0x8a8580 } },
     '@K': { mat: 'concrete', tint: 0xb8b2a4 },
-    '@q': { mat: 'concrete', tint: 0xb0aaa0, band: { y: 1.0, h: 0.25, mat: 'hazard' } },
+    '@q': { mat: 'plaster', tint: 0xe6dcc4, band: { y: 1.0, h: 0.25, mat: 'hazard' } },
     H: hallWall(0xd2d6d6),
     C: hallWall(0xd6d8d4, 0xe08a1c, { y: 5.8, h: 1.8 }),
     B: hallWall(0xd2d4d0, 0x2f7d6f, { y: 5.4, h: 1.6 }),
@@ -157,8 +157,8 @@ export function buildUmschlag(): MapData {
     L: { mat: 'brick', tint: 0xb48a74, plinth: { h: 0.8, mat: 'concreteDark', tint: 0x8a8580 } },
     N: { mat: 'brick', tint: 0xb48a74, plinth: { h: 0.8, mat: 'concreteDark', tint: 0x8a8580 } },
     P: { mat: 'brick', tint: 0xb48a74, plinth: { h: 0.9, mat: 'concreteDark', tint: 0x8a8580 } },
-    S: { mat: 'concrete', tint: 0xb0aaa0, band: { y: 1.0, h: 0.25, mat: 'hazard' } },
-    T: { mat: 'concrete', tint: 0xb0aaa0, band: { y: 1.0, h: 0.25, mat: 'hazard' } },
+    S: { mat: 'plaster', tint: 0xe6dcc4, band: { y: 1.0, h: 0.25, mat: 'hazard' } },
+    T: { mat: 'plaster', tint: 0xe6dcc4, band: { y: 1.0, h: 0.25, mat: 'hazard' } },
   };
   G.build(b, legend, { floorBottom: -0.3, lintelTop: 11.5, facades: facadesG });
 
@@ -196,9 +196,8 @@ export function buildUmschlag(): MapData {
     // Leitstand (Fenster)
     .rect('W', 0, -36, 14, -20)
     .rect('W', 4, -38, 12, -34)
-    .rect('w', 2, -34, 12, -22)
+    .rect('w', 2, -34, 12, -20)
     .rect('w', 6, -38, 10, -34)
-    .rect('X', 2, -22, 12, -20)
     // Palast (Disposition) und Balkon
     .rect('W', 68, -8, 90, 34)
     .rect('p', 76, 22, 84, 34)
@@ -209,15 +208,14 @@ export function buildUmschlag(): MapData {
   const olegend: Record<string, CellKind> = {
     '.': {},
     W: { building: { h: 8.2, mat: 'plaster', tint: 0xd8cdb4 }, bottom: LV.up - 0.4 },
-    k: { floor: LV.up, bottom: LV.up - 0.4, mat: 'tile', tint: 0xcfc8b8, roof: 7.8, roofTop: 8.2, roofMat: 'concreteDark', room: 'room' },
-    o: { floor: LV.up, bottom: LV.up - 0.4, mat: 'wood', tint: 0xc4b49c, roof: 7.8, roofTop: 8.2, roofMat: 'concreteDark', room: 'room' },
-    w: { floor: LV.up, bottom: LV.up - 0.4, mat: 'tile', tint: 0xb8c0c4, roof: 8.0, roofTop: 8.4, roofMat: 'concreteDark', room: 'room' },
-    X: { building: { h: 8.4, mat: 'plaster', tint: 0xd8cdb4 }, bottom: LV.up - 0.4, window: { sill: LV.up + 1.0, lintel: LV.up + 2.8 } },
+    k: { floor: LV.up, bottom: LV.up - 0.4, mat: 'tile', tint: 0xcfc8b8, roof: 7.8, roofTop: 8.2, roofMat: 'concrete', room: 'room' },
+    o: { floor: LV.up, bottom: LV.up - 0.4, mat: 'wood', tint: 0xc4b49c, roof: 7.8, roofTop: 8.2, roofMat: 'concrete', room: 'room' },
+    w: { floor: LV.up, bottom: LV.up - 0.4, mat: 'tile', tint: 0xb8c0c4, roof: 8.0, roofTop: 8.4, roofMat: 'concrete', room: 'room' },
     x: { floor: LV.up, bottom: LV.up - 0.4, mat: 'steel', top: 'grating', tint: 0x5a6a7a },
     b: { floor: LV.up, bottom: LV.up - 0.4, mat: 'steel', top: 'grating', tint: 0x5a6a7a },
-    y: { floor: LV.palace, bottom: LV.palace - 0.4, mat: 'steel', top: 'grating', tint: 0x5a6a7a },
-    p: { floor: LV.palace, bottom: LV.palace - 0.4, mat: 'wood', tint: 0xc4b49c, roof: 9.0, roofTop: 9.4, roofMat: 'concreteDark', room: 'room' },
-    P: { floor: LV.palace, bottom: LV.palace - 0.4, mat: 'wood', tint: 0xc4b49c, roof: 9.0, roofTop: 9.4, roofMat: 'concreteDark', room: 'room' },
+    y: { floor: LV.palace, bottom: LV.palace - 0.4, mat: 'concrete', tint: 0xc4bcae },
+    p: { floor: LV.palace, bottom: LV.palace - 0.4, mat: 'wood', tint: 0xdccdb4, roof: 9.0, roofTop: 9.4, roofMat: 'plaster', room: 'room' },
+    P: { floor: LV.palace, bottom: LV.palace - 0.4, mat: 'wood', tint: 0xdccdb4, roof: 9.0, roofTop: 9.4, roofMat: 'plaster', room: 'room' },
     Q: { building: { h: 9.4, mat: 'plaster', tint: 0xd8cdb4 }, bottom: LV.palace - 0.4, window: { sill: LV.palace + 1.0, lintel: LV.palace + 2.8 } },
   };
   const ofacades: Record<string, FacadeStyle> = {
@@ -276,7 +274,12 @@ export function buildUmschlag(): MapData {
   b.area('Treppe', 46, -6, 54, 2, -1, 3);
   b.area('Rampe A', 16, 2, 68, 30, 1, 4);
   b.area('Spot A', 36, 4, 56, 20, 1, 4);
-  b.area('Sandwich', 16, 4, 28, 30, 1, 6);
+  b.area('Sandwich', 16, 4, 30, 17, 1, 8);
+  b.area('Feuerkiste', 47, 2.5, 54, 8.5, 1, 4);
+  b.area('Dreierkiste', 38, 7, 44, 13, 1, 5);
+  b.area('Pförtnerhaus', 56, 3, 63, 10, 1, 5);
+  b.area('Lieferwagen', -70, -51, -62, -41, -1, 4);
+  b.area('Bank', -40, -45, -32, -38, -1, 4);
   b.area('Balkon', 58, 8, 68, 24, 3.5, 10);
   b.area('Palast', 68, 4, 90, 34, 5, 11);
 

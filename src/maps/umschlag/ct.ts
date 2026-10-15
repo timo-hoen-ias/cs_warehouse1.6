@@ -47,12 +47,12 @@ export function dressCT(b: B): void {
   prop(b, 'conveyor', 20, 0, -70.4, { rot: 0, len: 8 });
   parcelPile(b, 0, 0, -44.6, 0, 5);
   prop(b, 'cartons', 4, 0, -62, { seed: 19 });
-  pillars(b, [[8, -58], [24, -64], [30, -52]], 0, 7.8, 0x2f6fb0, 0.6);
+  pillars(b, [[8, -58], [24, -64], [35.5, -52]], 0, 7.8, 0x2f6fb0, 0.6);
   prop(b, 'handTruck', 12, 0, -50, { rot: 1 });
   prop(b, 'crateStack', -5, 0, -62);
   prop(b, 'palletGoods', -7, 0, -56, { rot: 1, seed: 6 });
   b.box([-7.6, 0, -68.4], [-5.8, 1.9, -67.6], 'metal', { tint: 0xc03a2a }); // Getränkeautomat
-  b.box([-7.5, 0.8, -67.6], [-5.9, 1.7, -67.56], 'emissive', { collide: 'none', tint: 0x7fc0ff, noNav: true, occlude: false });
+  b.box([-7.5, 0.8, -67.6], [-5.9, 1.7, -67.56], 'emissive', { collide: 'none', tint: 0x4a90c8, noNav: true, occlude: false });
   b.sign('PAUSE', [-6.7, 2.4, -67.5], 'pz', 1.6, 0.5, { color: 0xffd040, sub: 'KALTGETRÄNKE' });
 
   // Leitstand-Treppe (x 6…10, z −50…−38): Schild und Kante

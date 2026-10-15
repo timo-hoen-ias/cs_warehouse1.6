@@ -81,7 +81,7 @@ function spotB(b: B): void {
   prop(b, 'palletGoods', -38.2, 0, -49.6, { tint: 0xe8e8e8, h: 1.1 });
   b.box([-54.5, 0, -46.3], [-40.4, 0.15, -44.6], 'pallet', { collide: 'none', noNav: true, occlude: false });
   tape(b, -55, -43.8, -39, -43.8, 0);
-  tape(b, -55, -43.8, -55, -35, 0);
+  tape(b, -55.02, -43.8, -55, -35, 0);
   b.box([-57.4, 0, -43.9], [-55, 0.07, -43.5], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 0.5 });
   b.box([-57.4, 0, -43.9], [-57, 0.07, -36], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 0.5 });
   hangSign(b, 'SERVERSCHRANK B', -48, 6.2, -44, 0xff5a4a, 'IT · NICHT BERÜHREN · PROVISORIUM', { w: 5.4 });

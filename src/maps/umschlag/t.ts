@@ -46,7 +46,7 @@ function ladehof(b: B): void {
   line(b, 'cones', -83, 0, 52, -83, 60, 3, {});
   line(b, 'bumper', -20, 0, 87.5, 12, 87.5, 5, {});
   // Licht: Mastleuchten im warmen Natriumlicht
-  for (const [x, z] of [[-76, 62], [-46, 66], [-14, 62], [18, 64], [52, 64], [80, 58], [-30, 84], [30, 84]] as const) prop(b, 'lampPost', x, 0, z);
+  for (const [x, z] of [[-76, 62], [-46, 66], [-14, 62], [18, 64], [52, 64], [80, 58], [-12, 84], [30, 84]] as const) prop(b, 'lampPost', x, 0, z);
   b.ambient('traffic', [0, 6, 80], 60, 0.4);
   b.ambient('forklift', [-6, 1, 82], 14, 0.4);
   b.ambient('wind', [0, 8, 60], 80, 0.4);

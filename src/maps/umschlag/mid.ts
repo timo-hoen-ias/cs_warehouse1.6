@@ -84,9 +84,11 @@ function steg(b: B): void {
 function fenster(b: B): void {
   const Y = LV.up;
   // Fensterpfosten in der Scheibenwand (z −22…−20) über der Brüstung (1.0 m)
-  for (const x of [5, 9]) b.box([x - 0.07, Y + 1.0, -22], [x + 0.07, Y + 2.8, -20], 'steel', { tint: 0x4a5a6a, tag: 'pillar' });
-  b.box([2, Y + 2.78, -22.05], [12, Y + 2.9, -19.95], 'steel', { collide: 'none', tint: 0x6a7480, noNav: true, occlude: false });
-  b.box([2, Y + 0.96, -20.05], [12, Y + 1.04, -19.9], 'metal', { collide: 'none', tint: 0xd8b020, noNav: true, occlude: false });
+  // dünne Scheibenwand (0.4 m) mit 10 m breiter, offener Öffnung: Brüstung 1 m, Sturz ab 2.8 m über dem Boden
+  b.wallX(2, 12, -20.2, Y - 0.4, 8.4, 'plaster', [{ from: 2, to: 12, bottom: Y + 1.0, top: Y + 2.8 }], { thick: 0.4, tint: 0xd8cdb4 });
+  for (const x of [5, 9]) b.box([x - 0.07, Y + 1.0, -20.4], [x + 0.07, Y + 2.8, -20.0], 'steel', { tint: 0x4a5a6a, tag: 'pillar' });
+  b.box([2, Y + 2.78, -20.45], [12, Y + 2.9, -19.95], 'steel', { collide: 'none', tint: 0x6a7480, noNav: true, occlude: false });
+  b.box([2, Y + 0.96, -20.45], [12, Y + 1.04, -19.9], 'metal', { collide: 'none', tint: 0xd8b020, noNav: true, occlude: false });
   b.sign('LEITSTAND', [7, 7.9, -19.88], 'pz', 8, 1.2, { color: 0xf0f0f0, bg: 0x2f6fb0, sub: 'UMSCHLAG · SCHICHTLEITUNG · FENSTER' });
   // Möblierung: Pulte mit Blick auf die Halle, Serverschrank (IT), Tafel, Stühle
   prop(b, 'console', 4.2, Y, -24.6, { rot: 2, len: 3 });

@@ -90,7 +90,7 @@ function spotA(b: B): void {
   prop(b, 'palletGoods', 47.6, A, 18.6, { tint: 0xe8e8e8, h: 1.1 });
   b.box([40.4, A, 17.2], [53, A + 0.15, 19.4], 'pallet', { collide: 'none', noNav: true, occlude: false });
   tape(b, 40, 19.6, 54, 19.6, A);
-  tape(b, 40, 19.6, 40, 4.4, A);
+  tape(b, 40.02, 19.6, 40.04, 4.4, A);
   b.box([37.4, A, 15.0], [40.2, A + 0.07, 15.4], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 0.5 }); // Kabelbrücke
   b.box([37.4, A, 14.0], [37.8, A + 0.07, 15.4], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 0.5 });
   b.box([37.4, A, 14.0], [30, A + 0.07, 14.4], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 0.5 });
@@ -164,9 +164,9 @@ function palast(b: B): void {
   prop(b, 'cartons', 74, P, 20.8, { seed: 5 });
   b.sign('DISPOSITION', [83.88, P + 2.6, 14], 'nx', 5, 1.2, { color: 0xf0f0f0, bg: 0x6a3a1c, sub: 'TOURENPLANUNG · LKW-ZUTEILUNG · RAMPE A' });
   b.sign('TOURENPLAN', [83.88, P + 1.1, 9], 'nx', 2.4, 1.0, { color: 0xffd040, bg: 0x20262c, sub: 'A · B · MITTE' });
-  tubeRow(b, 72, 8, 82, 8, 3, P + 3.2, true, { intensity: 1.0, range: 10, color: 0xfff0d0 });
-  tubeRow(b, 72, 14, 82, 14, 3, P + 3.2, true, { intensity: 1.0, range: 10, color: 0xfff0d0 });
-  tubeRow(b, 72, 20, 82, 20, 3, P + 3.2, true, { intensity: 1.0, range: 10, color: 0xfff0d0 });
+  tubeRow(b, 72, 8, 82, 8, 3, P + 3.2, true, { intensity: 1.6, range: 12, color: 0xfff0d0 });
+  tubeRow(b, 72, 14, 82, 14, 3, P + 3.2, true, { intensity: 1.6, range: 12, color: 0xfff0d0 });
+  tubeRow(b, 72, 20, 82, 20, 3, P + 3.2, true, { intensity: 1.6, range: 12, color: 0xfff0d0 });
   b.light({ kind: 'window', pos: [70.6, P + 2.0, 14], color: 0xffe0b0, intensity: 1.2, range: 12 });
   b.light({ kind: 'window', pos: [70.6, P + 2.0, 9], color: 0xffe0b0, intensity: 0.9, range: 10 });
   b.light({ kind: 'window', pos: [70.6, P + 2.0, 19], color: 0xffe0b0, intensity: 0.9, range: 10 });
@@ -177,7 +177,7 @@ function palast(b: B): void {
     b.box([83.4, P, z - 0.15], [83.8, P + 3.0, z + 0.15], 'wood', { collide: 'none', tint: 0x8a6a4a, noNav: true, occlude: false });
     b.box([76.2, P + 2.7, z - 0.15], [83.8, P + 3.0, z + 0.15], 'wood', { collide: 'none', tint: 0x8a6a4a, noNav: true, occlude: false });
   }
-  tubeRow(b, 80, 24, 80, 33, 3, P + 3.2, false, { intensity: 1.0, range: 9, color: 0xfff0d0 });
+  tubeRow(b, 80, 24, 80, 33, 3, P + 3.2, false, { intensity: 1.6, range: 11, color: 0xfff0d0 });
   prop(b, 'plant', 76.8, P, 33, { h: 1.6 });
   prop(b, 'plant', 83.2, P, 26, { h: 1.6 });
   prop(b, 'bench', 83.4, P, 29.5, { rot: 1, len: 2.4 });
@@ -257,7 +257,7 @@ function dschungel(b: B): void {
   prop(b, 'drum', 21.2, 0, -8.6, { rot: 0 });
   // Getränkeautomat und Pergola
   b.box([23.2, 0, -23.8], [24.8, 1.9, -23.0], 'metal', { tint: 0xc03a2a });
-  b.box([23.3, 0.8, -23.0], [24.7, 1.7, -22.96], 'emissive', { collide: 'none', tint: 0x7fc0ff, noNav: true, occlude: false });
+  b.box([23.3, 0.8, -23.0], [24.7, 1.7, -22.96], 'emissive', { collide: 'none', tint: 0x4a90c8, noNav: true, occlude: false });
   b.sign('KALTGETRÄNKE', [24, 2.4, -22.9], 'pz', 1.8, 0.4, { color: 0xffd040, bg: 0x20262c });
   for (const x of [26, 30, 34]) b.box([x - 0.1, 3.6, -22], [x + 0.1, 3.75, -10], 'wood', { collide: 'none', tint: 0x7a5a3a, noNav: true, occlude: false });
   for (const z of [-22, -10]) b.box([24, 3.5, z - 0.1], [36, 3.65, z + 0.1], 'wood', { collide: 'none', tint: 0x7a5a3a, noNav: true, occlude: false });
