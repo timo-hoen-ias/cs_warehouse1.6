@@ -72,6 +72,7 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 | Karte | Beschreibung |
 |---|---|
 | `de_lagerstaub` | **Lagerstaub** — Logistikzentrum im Abendlicht nach klassischem Grundriss: T-Hof (Speditionshof), Außen Lang → Hallentor → Lang A mit Grube und Stapler („Auto“), A-Rampe auf die Laderampe mit dem „Serverschrank A“, Kurz A über den Gitterrost-Steg aus der Mitte (Xbox-Kiste), Mitteltür (Brandschutztor) zum CT-Bereich, Außen Tunnel → Ober-/Untertunnel (Versorgungstunnel) → Serverraum B mit Hinterer Plattform, B-Empore, B-Fenster und B-Tür. |
+| `de_gueterbahnhof` | **Güterbahnhof** — de_train als Bahn-Logistikzentrum (≈ 184 × 172 m, Ebenen −1.4 … +8.4 m): T-Hof mit den Ausgängen Efeu (efeubewachsener Außengang), Hauptgang und Ostgang; überdachtes Gleisfeld A (Gleise 1–5 mit Güterwagen, Hängekran-Kranbahn, Himmel-Galerie über dem Sandwich, Leiterraum-Treppe, Popdog-Revisionsgrube, Bombenzug mit IT-Wagen „Serverschrank A“), Mitte mit Altzug, Packhallen-Dachterrasse und Stellwerk-Balkon (Sniper-Nest), Z-Verbindung nach Gleisfeld B (Serverinsel zwischen zwei Gleisen, Obere Empore, Untere/Obere Halle B), CT-Hof mit Lokschuppen. |
 
 Laufzeiten (Sprint): T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
 Das Kartenformat und eine Anleitung für neue Karten stehen in [`docs/KARTENFORMAT.md`](docs/KARTENFORMAT.md).

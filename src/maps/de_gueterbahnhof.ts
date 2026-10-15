@@ -186,7 +186,7 @@ export function buildGueterbahnhof(): MapData {
   b.site('A', 'Serverschrank A', [HALL_A.itX - 10, 0, -42.5], [HALL_A.itX + 10, 5.5, -29.5], [HALL_A.itX, WAGON.floor, -36]);
   b.site('B', 'Serverschrank B', [62, 0, -48], [84, 6, -18], [73, HALL_B.island, -33]);
   b.spawnGrid('T', -4, 0, 68, 8, 2, 3, 0);
-  b.spawnGrid('CT', 20, 0, -74, 8, 2, 3, Math.PI);
+  b.spawnGrid('CT', 16, 0, -74, 8, 2, 3, Math.PI);
   b.buy('T', -34, 40, 56, 76);
   b.buy('CT', -30, -88, 50, -66);
 

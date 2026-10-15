@@ -68,6 +68,17 @@ Rampe selbst setzt man danach explizit mit `b.ramp` bzw. `b.stairs`.
 (`rot 2` → Front nach −Z, `rot 1` → −X, `rot 3` → +X). `(x, y, z)` = Fußpunkt-Mitte. Oberseiten
 höher als 1.9 m sind automatisch kein Navigationsboden.
 
+#### Bahn-Requisiten (`src/logic/railprops.ts`, Referenz: `de_gueterbahnhof`)
+
+`track` (Schotterbett, Schienen im Regelspurabstand, Schwellen; `len`), `boxcar`/`tankcar`/`flatcar`/`loco`
+(Maße in `WAGON`, Abstand `WAGON.pitch`; Boden +1.3 m, Dach +3.74 m), `cargoContainer`, `bufferStop`,
+`signal`, `catenary`, `ivy` (Efeu an einer Wand, `len`/`h`), `truss` (Hallenbinder). Wagen-Optionen: `doors`
+(`closed`/`front`/`both`; offene Wagen sind begehbar und bekommen eine Innenleuchte), `ramp` + `rampLen`
+(Verladerampe an der offenen Tür), `walkRoof` (Dach = Navigationsboden, Zugang selbst bauen), `worn` (Rost).
+`MapBuilder.walkway(x0, z0, x1, z1, y, { rails })` baut einen Gitterrost-Laufsteg mit Geländer.
+Hinweise: Rampen/Treppen auf eine höhere Fläche 1 m auf dieser enden lassen und ≤ 0.5 m Anstieg je Meter
+(sonst reißt die Navigation ab); `occlude: false` für dünne Plattenaufsätze; Deko-Farbtöne hell wählen.
+
 ### Deko, Licht, Schilder, Markierungen
 
 - `b.decor(kind, pos, rot, scale, tint)` – instanzierte Formen (Fässer, Rohre, Stapler, Server …).
