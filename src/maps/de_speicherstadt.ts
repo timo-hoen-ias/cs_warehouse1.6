@@ -63,8 +63,8 @@ export function buildSpeicherstadt(): MapData {
     .rect('.', -76, -30, -64, 16) // Banane-Brücke → B-Eingang
     .rect('W', -78, -4, -76, 4)
     .rect('W', -64, -4, -62, 4)
-    .rect('K', -76, 6, -70, 12) // Pförtnerhaus (Schikane)
-    .rect('K', -70, -18, -64, -12) // Pumpenhaus (Schikane)
+    .rect('K', -70, 6, -64, 12) // Pförtnerhaus (Schikane)
+    .rect('K', -76, -18, -70, -12) // Pumpenhaus (Schikane)
     .rect('.', -10, 8, 4, 48) // Untere Mitte (Lane unter der T-Rampe)
     .rect('.', 4, 22, 18, 46) // Kistenhof
     .rect('.', -18, -20, 10, 8) // Mitte
@@ -230,7 +230,7 @@ export function buildSpeicherstadt(): MapData {
   b.area('Lange Halle', 62, -38, 72, 4);
   b.area('Grube', 56, -52, 72, -38, -1, 1);
   b.area('Grubenrampe', 48, -52, 56, -42, -1, 3);
-  b.area('Spot A', 38, -76, 66, -52, 0.5, 8);
+  b.area('Spot A', 38, -76, 66, -46, 0.5, 8);
   b.area('A-Hof', 34, -84, 72, -52, 0.5, 8);
   b.area('Bogen', 16, -84, 34, -74, 0.5, 8);
   b.area('Bibliothek', 18, -70, 32, -54, 0.5, 8);
@@ -253,7 +253,7 @@ export function buildSpeicherstadt(): MapData {
   b.area('Büro', -58, -72, -48, -64);
 
   // ------------------------------------------------------------------ Spots, Spawns, Kaufzonen
-  b.site('A', 'Serverschrank A', [38, 1.0, -76], [66, 8, -52], [45.5, 1.6, -55]);
+  b.site('A', 'Serverschrank A', [38, 1.0, -76], [66, 8, -46], [45.5, 1.6, -55]);
   b.site('B', 'Serverschrank B', [-74, -1, -54], [-38, 4, -28], [-65.6, 0, -32.6]);
 
   // Bot-Hinweise: bewährte Rauchwürfe der T (Sichtblocker vor den Halte-Positionen der CT), Werte per Wurfsimulation geprüft

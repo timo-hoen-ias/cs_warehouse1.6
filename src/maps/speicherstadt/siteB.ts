@@ -28,13 +28,10 @@ export function dressSiteB(b: B): void {
   prop(b, 'crate', -41.6, 2.4, -33.4, { h: 1.2 });
   prop(b, 'crate', -43.6, 0, -35.6, { h: 1.2 });
   // Deckung im Hof
-  prop(b, 'sacks', -72.4, 0, -46, { len: 3.6, n: 3, rot: 1 });
-  prop(b, 'palletStack', -72.6, 0, -50.4, { n: 6 });
   prop(b, 'barrelGroup', -58, 0, -50.6, {});
   prop(b, 'palletGoods', -70, 0, -29.8, { tint: 0xd2b88a });
   prop(b, 'crateStack', -48, 0, -31);
   prop(b, 'handTruck', -58, 0, -31, { rot: 2 });
-  prop(b, 'logs', -73, 0, -41, { len: 3.2, n: 2, rot: 1 });
   prop(b, 'gasLamp', -45, 0, -52.4);
   prop(b, 'gasLamp', -74, 0, -52.4);
   prop(b, 'gasLamp', -37.6, 0, -30);

@@ -7,7 +7,7 @@ Akustik; die Darstellung (`src/level/LevelView.ts`) baut Geometrie mit gebackene
 **keinen Bake-Schritt**: alle Clients rechnen aus demselben Code dasselbe Ergebnis (der Host
 wählt nur die Karten-ID).
 
-Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`).
+Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`) und `src/maps/de_speicherstadt.ts` (de_inferno als Hafen-Speicherviertel: Backstein, Kopfstein, Kanäle, Speicherböden über einer Gasse; Ausstattung in `src/maps/speicherstadt/*.ts`).
 
 ## Koordinaten und Maße
 
@@ -51,7 +51,12 @@ Gebäudemasse. `plan.build(builder, legend, { facades })` erzeugt:
 - Akustik-Zonen (`room`), Radar-Tunnel (`tunnel`),
 - **Fassaden** (`FacadeStyle`): Verkleidung, Sockel, Farbband, Gesims mit Attika, Fensterreihen,
   Pilaster, Fallrohre — Stil je Zeichen der angrenzenden begehbaren Zelle (Innenräume) oder
-  `'@' + Gebäudezeichen` (Außenfassaden).
+  `'@' + Gebäudezeichen` (Außenfassaden). `windows` darf ein **Array** sein (mehrere Geschosse übereinander).
+- `build(…, { lintelMat, lintelTint })` – Material/Farbton der Stürze (Standard Wellblech; für Backstein-Karten `'brick'`).
+- `CellKind.building.top` – Material der Oberseite eines Gebäudeblocks (z. B. `'water'`: Gebäudezelle mit `h: −1.2` = **Kanal/Hafenbecken**,
+  nicht begehbar; Brücken sind normale Straßenzellen darüber, Brüstungen `h ≥ 1.7`, damit niemand hineinspringt).
+- Ein Plan genügt auch für **Speicherböden über Gassen**: die Brücke zwischen zwei Obergeschossen baut man explizit (Platte, Dach, Wände) über die
+  Straßenzellen; die Anschlusszellen an beiden Enden sind Boden auf Höhe des Obergeschosses (`de_speicherstadt`, „Speicherbrücke“).
 
 Rampen-/Treppenzellen bekommen in der Legende `ramp: true` (Unterbau auf Höhe `floor`), die
 Rampe selbst setzt man danach explizit mit `b.ramp` bzw. `b.stairs`.
@@ -72,7 +77,7 @@ Ein `CellPlan` kennt je Zelle nur einen Boden. Für übereinanderliegende Ebenen
 - **Steigung:** Clip-Rampen/Treppen über 40° wirken wie Wände. Bei 5 m Höhenunterschied ≥ 8 m Lauflänge einplanen (Treppe: die Clip-Rampe deckt nur n−1 Stufen).
 - Bomben-Spots übereinander: `site`-Boxen mit getrennten Höhen (A: `y ≥ −0.4`, B: `y ≤ −1.2`), damit `siteAt` eindeutig bleibt.
 
-Weitere Bausteine: Materialien `panel` (Sandwichpaneel) und `frost` (Reif/Eis), Decal `frost`, Deko `tank`/`tankDome`/`stripCurtain`/`compressor`/`condenser`
+Weitere Bausteine: Materialien `cobble` (Kopfsteinpflaster, Oberfläche gravel), `water` (Kanal/Hafen), `sack` (Jute) sowie `panel` (Sandwichpaneel) und `frost` (Reif/Eis), Decal `frost`, Deko `tank`/`tankDome`/`stripCurtain`/`compressor`/`condenser`
 (Frost-Optik außerdem über Tönung und `room: 'cold'` für die Akustik).
 
 ### Requisiten (`prop(builder, kind, x, y, z, { rot, … })`)
@@ -86,6 +91,20 @@ Weitere Bausteine: Materialien `panel` (Sandwichpaneel) und `frost` (Reif/Eis), 
 `rot` in Vierteldrehungen (0..3), damit Kollisionsquader achsenparallel bleiben; lokale Front = +Z
 (`rot 2` → Front nach −Z, `rot 1` → −X, `rot 3` → +X). `(x, y, z)` = Fußpunkt-Mitte. Oberseiten
 höher als 1.9 m sind automatisch kein Navigationsboden.
+
+#### Hafen-/Speicher-Requisiten (Referenz: `de_speicherstadt`)
+
+`sacks` (Sackstapel/Sandsack-Barrikade: `len` = Breite, `n` = Lagen; Pyramide, Deko-Instanz je Sack, Kollision je Lage), `van` (Lieferwagen,
+Front +Z, `tint` = Lack), `fountain` (Brunnen, `len` = Beckendurchmesser; Beckenrand ist kein Navigationsboden), `hoist` (Seilwinden-Erker:
+Luke mit Läden, Balken, Seilrolle, Seil; `len`/`h` = Lukenmaß, `n: 1` hängt eine Kiste ans Seil; nur Optik, Rückseite an der Wand),
+`archGate` (Rundbogen-Tor: `len` = lichte Weite, `h` = Scheitel, `n` = Pfeilerbreite; Pfeiler und Aufsatz massiv, Zwickel blockieren nur Schüsse),
+`archive` (Aktenregal), `crane` (rostiger Hafenkran: Mast = Kollisionspfeiler, `len` = Ausleger entlang lokal +X, `h` = Höhe),
+`scaffold` (Baugerüst, nur Optik), `gasLamp` (Gaslaterne 4.2 m mit warmem Licht), `logs` (Baumstammstapel liegend entlang X, `n` = unterste Lage).
+Deko-Formen dazu: `sack`, `van`, `fountain`, `lantern`, `log`, `archRing`.
+
+Ausstattungs-Helfer der Karte (`src/maps/speicherstadt/helpers.ts`): `hoists(b, face, wall, a0, a1, floorY, row, every)` setzt Speicherluken in
+die Lücken zwischen den Fensterreihen einer Backsteinfassade (Geschoss `row` 1–3), `plate`/`shop` (Straßen- bzw. Firmenschild), `awning`,
+`barge` (Lastkahn im Wasser), `ladder`, `chain`, `bollard`.
 
 #### Bahn-Requisiten (`src/logic/railprops.ts`, Referenz: `de_gueterbahnhof`)
 
@@ -178,7 +197,9 @@ Bewegungsregeln (Stufen, Rampen, Wände, Kopffreiheit), Herunterspringen als Ein
 4. **Vertikalität:** mehrere begehbare Ebenen (Laufstege, Emporen, Rampen, Treppen, Gruben,
    Tunnel), erhöhte Positionen mit Gegenspiel.
 5. Durchgänge **≥ 2 m** breit (Navigationsraster 1 m), Kopffreiheit ≥ 2.2 m, Rampen ≤ 30° bevorzugt.
-6. Lange Sichtlinien (> 50 m) nur gezielt (Lang A, Mitte) und mit Deckung entlang des Weges.
+6. Lange Sichtlinien (> 50 m) nur gezielt (Lang A, Mitte) und mit Deckung entlang des Weges. Lange gekrümmte Gassen (Banane) brauchen **versetzte Abschnitte**
+   (Mittelachse je ≥ 6 m verschoben, sonst bleibt eine Diagonale frei) und Schikanen; Sichtachsen zwischen den Spawns mit einem Gebäude in der Mitte brechen
+   (Messung: Knotenpaare mit `collider.clear` wie in `de_speicherstadt.test.ts`).
 7. Thema erzählen: Requisiten, Schilder mit Callouts, Licht (Hallen warm, Serverräume kühl).
 
 ## Neue Karte anlegen – Kurzanleitung
