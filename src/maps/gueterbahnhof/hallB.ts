@@ -34,7 +34,7 @@ export function buildHallB(b: MapBuilder): void {
   // Gleis links: Durchgangswagen (Dach begehbar), Container-Flachwagen, Kesselwagen
   prop(b, 'boxcar', HALL_B.trackL, 0, -18, { rot: 1, doors: 'both', ramp: 'both', rampLen: 3.4, tint: 0x6a4a34, seed: 101 });
   prop(b, 'flatcar', HALL_B.trackL, 0, -32.5, { rot: 1, n: 2, levels: 1, seed: 102 });
-  prop(b, 'tankcar', HALL_B.trackL, 0, -47, { rot: 1, tint: 0x4a5057 });
+  prop(b, 'tankcar', HALL_B.trackL, 0, -47, { rot: 1, tint: 0xa8b4bc });
   // Gleis rechts: Durchgangswagen mit begehbarem Dach (Zugang von der Empore)
   prop(b, 'boxcar', HALL_B.trackR, 0, -26.5, { rot: 1, tint: 0x35557a, walkRoof: true, seed: 103 });
   b.ramp(78.5, -36.4, 81.5, -33.5, GY, WAGON.roof + 0.14, 'pz', 'steel', { top: 'grating', tint: 0x6a7480, tag: 'ramp' });
@@ -116,7 +116,7 @@ export function buildHallB(b: MapBuilder): void {
   b.decal({ kind: 'stain', pos: [84, 0.02, -34], size: [5, 4] });
 
   // ---------------------------------------------------------------- Licht
-  for (const x of [58, 66, 74, 82]) for (const z of [-52, -42, -32, -22, -13]) b.hallLamp(x, 10.6, z, { color: 0xe2eeff, intensity: 1.15, range: 18 });
+  for (const x of [58, 66, 74, 82]) for (const z of [-52, -42, -32, -22, -13]) b.hallLamp(x, 10.6, z, { color: 0xe2eeff, intensity: 2.0, range: 22 });
   for (const z of [-36, -50]) b.tubeLamp(55, 4.8, z, false, { color: 0xd8ecff, intensity: 0.7, range: 8 });
   b.wallLamp(54.2, 4.6, -43, 'px', { intensity: 0.7, range: 10 });
   b.wallLamp(54.2, 4.6, -27, 'px', { intensity: 0.7, range: 10 });

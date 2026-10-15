@@ -123,6 +123,23 @@ describe('Bahn-Requisiten', () => {
     expect(roofOf(c).max[1]).toBeCloseTo(WAGON.roof + 0.14, 5);
   });
 
+  it('Frachtcontainer: Maße, Türplatte wirft keinen Schatten, offene Wagen bekommen eine Innenleuchte', () => {
+    const c = mk();
+    prop(c, 'cargoContainer', 0, 0, 0, { tint: 0xaa3322 });
+    const body = c.data.brushes.find((x) => x.mat === 'container' && (x.collide ?? 'all') === 'all')!;
+    expect(body.max[0] - body.min[0]).toBeCloseTo(6.06, 2);
+    expect(c.data.brushes.filter((x) => x.occlude === false && x.mat === 'door')).toHaveLength(1);
+    const long = mk();
+    prop(long, 'cargoContainer', 0, 0, 0, { len: 12.19 });
+    expect(long.data.brushes[0]!.max[0] - long.data.brushes[0]!.min[0]).toBeCloseTo(12.19, 2);
+    const open = mk();
+    prop(open, 'boxcar', 0, 0, 0, { doors: 'both' });
+    expect(open.data.lights).toHaveLength(1);
+    const closed = mk();
+    prop(closed, 'boxcar', 0, 0, 0, {});
+    expect(closed.data.lights).toHaveLength(0);
+  });
+
   it('Flachwagen: n Container (1 mittig, 2 an den Enden), levels stapelt; Kesselwagen kollidiert schmaler als sichtbar', () => {
     const one = mk();
     prop(one, 'flatcar', 0, 0, 0, { n: 1 });

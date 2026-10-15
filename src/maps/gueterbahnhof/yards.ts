@@ -48,14 +48,14 @@ function tHof(b: MapBuilder): void {
     prop(b, 'bufferStop', x, 0, 75.4, { rot: 1 });
   }
   trainZ(b, -24, 68, -1, [{ kind: 'boxcar', opts: { worn: true, tint: 0x8a3a2c, seed: 51 } }, { kind: 'flatcar', opts: { n: 2, seed: 52 } }]);
-  trainZ(b, 36, 68, -1, [{ kind: 'tankcar', opts: { tint: 0x4a5057 } }, { kind: 'boxcar', opts: { doors: 'both', ramp: 'both', rampLen: 3.6, tint: 0x6a4a34, seed: 53 } }]);
+  trainZ(b, 36, 68, -1, [{ kind: 'tankcar', opts: { tint: 0xa8b4bc } }, { kind: 'boxcar', opts: { doors: 'both', ramp: 'both', rampLen: 3.6, tint: 0x6a4a34, seed: 53 } }]);
 
   // Docks: Auflieger an den Toren, Container, Paletten, Stapler
   prop(b, 'trailer', 22, 0, 68.9, { rot: 1, tint: 0xe6e6e6 });
   prop(b, 'trailer', 46, 0, 68.9, { rot: 1, tint: 0x2a5aa8 });
-  prop(b, 'container', -31, 0, 66, { rot: 1, tint: 0x2f7d4f });
-  prop(b, 'container', -31, 2.59, 66, { rot: 1, tint: 0xa8432b });
-  prop(b, 'container', 14.5, 0, 52, { rot: 0, tint: 0xb7791f });
+  prop(b, 'cargoContainer', -31, 0, 66, { rot: 1, tint: 0x2f7d4f });
+  prop(b, 'cargoContainer', -31, 2.59, 66, { rot: 1, tint: 0xa8432b });
+  prop(b, 'cargoContainer', 14.5, 0, 52, { rot: 0, tint: 0xb7791f });
   prop(b, 'palletStack', 3, 0, 72.6, { n: 6 });
   prop(b, 'palletGoods', 4.6, 0, 72.6, {});
   prop(b, 'palletGoods', 6, 0, 72.6, {});
@@ -97,7 +97,7 @@ function efeu(b: MapBuilder): void {
   }
   prop(b, 'boxcar', -52, 0, 57, { worn: true, tint: 0x6a4a34, seed: 61 });
   prop(b, 'flatcar', -67, 0, 57, { n: 1, seed: 62 });
-  prop(b, 'tankcar', -46, 0, 67, { tint: 0x55606a });
+  prop(b, 'tankcar', -46, 0, 67, { tint: 0xb8c4cc });
   prop(b, 'boxcar', -66.6, 0, 67, { doors: 'front', ramp: 'front', rampLen: 3.4, tint: 0x3f6a48, seed: 63 });
   prop(b, 'palletStack', -40, 0, 54, { n: 6 });
   prop(b, 'crate', -38.2, 0, 53.2, { h: 1.2 });
@@ -118,7 +118,7 @@ function efeu(b: MapBuilder): void {
   prop(b, 'bufferStop', -75, 0, -16.6, { rot: 3 });
   prop(b, 'boxcar', -75, 0, 38, { rot: 1, worn: true, tint: 0x8a3a2c, seed: 65 });
   prop(b, 'flatcar', -75, 0, 8, { rot: 1, n: 1, seed: 66 });
-  prop(b, 'container', -78.6, 0, 21, { rot: 1, tint: 0x2b5f9e });
+  prop(b, 'cargoContainer', -78.6, 0, 21, { rot: 1, tint: 0x2b5f9e });
   prop(b, 'crate', -71.4, 0, 25, { h: 1.2 });
   prop(b, 'crate', -71.4, 0, 26.3, { h: 1.2 });
   prop(b, 'palletStack', -78.8, 0, 47, { n: 5 });
@@ -146,7 +146,7 @@ function hauptgang(b: MapBuilder): void {
   trainZ(b, -2, 34, -1, [
     { kind: 'flatcar', opts: { n: 2, levels: 1, seed: 71 } },
     { kind: 'boxcar', opts: { doors: 'both', ramp: 'both', rampLen: 4, tint: 0x35557a, seed: 72 } },
-    { kind: 'tankcar', opts: { tint: 0xb8a448 } },
+    { kind: 'tankcar', opts: { tint: 0xe0c860 } },
   ]);
   // Altzug (x = 14.5): rostiger „alter Bombenzug“ mit Durchgangswagen und alter Lok
   prop(b, 'track', 14.5, 0, 6, { len: 76, rot: 1 });
@@ -159,7 +159,7 @@ function hauptgang(b: MapBuilder): void {
   ]);
   b.sign('ALTER BOMBENZUG', [14.5, 4.6, 34 + 7.1 + 0.02], 'pz', 3.2, 0.8, { color: 0xffb13a, sub: 'AUSSER DIENST · BETRETEN VERBOTEN' });
   // Deckung im Hauptgang
-  prop(b, 'container', -10.2, 0, 26, { rot: 1, tint: 0x8a8f96 });
+  prop(b, 'cargoContainer', -10.2, 0, 26, { rot: 1, tint: 0x8a8f96 });
   prop(b, 'palletStack', 6.6, 0, 22, { n: 6 });
   prop(b, 'palletGoods', 6.6, 0, 20.4, { rot: 1 });
   prop(b, 'crate', -10.5, 0, 12, { h: 1.2 });
@@ -189,9 +189,9 @@ function mitte(b: MapBuilder): void {
   prop(b, 'boxcar', -2.9, 0, -36, { doors: 'both', ramp: 'both', rampLen: 3.6, tint: 0x7a7f84, seed: 81 });
   prop(b, 'flatcar', 21.8, 0, -36, { n: 2, levels: 1, seed: 82 });
   // Container-Burg und Deckung
-  prop(b, 'container', 6, 0, -17, { rot: 1, tint: 0xa8432b });
-  prop(b, 'container', 6, 2.59, -17, { rot: 1, tint: 0x2b5f9e });
-  prop(b, 'container', 9.6, 0, -22.2, { rot: 0, tint: 0x8a8f96 });
+  prop(b, 'cargoContainer', 6, 0, -17, { rot: 1, tint: 0xa8432b });
+  prop(b, 'cargoContainer', 6, 2.59, -17, { rot: 1, tint: 0x2b5f9e });
+  prop(b, 'cargoContainer', 9.6, 0, -22.2, { rot: 0, tint: 0x8a8f96 });
   prop(b, 'palletStack', 18, 0, -8, { n: 6 });
   prop(b, 'palletGoods', 19.5, 0, -8, {});
   prop(b, 'crateStack', 2, 0, -3, {});
@@ -261,8 +261,8 @@ function ostgang(b: MapBuilder): void {
   prop(b, 'crate', 54.6, WAGON.floor, 38.5, { h: 1.1 });
   b.sign('LADERAMPE', [56 - 0.12, WAGON.floor + 5.4, 28], 'nx', 4, 1, { color: 0xffd040, sub: 'GÜTERSCHUPPEN · TOR 1–3' });
   // Ostgang-Deckung
-  prop(b, 'container', 38.5, 0, 30, { rot: 1, tint: 0xa8432b });
-  prop(b, 'container', 38.5, 0, 22, { rot: 1, tint: 0x8a8f96 });
+  prop(b, 'cargoContainer', 38.5, 0, 30, { rot: 1, tint: 0xa8432b });
+  prop(b, 'cargoContainer', 38.5, 0, 22, { rot: 1, tint: 0x8a8f96 });
   prop(b, 'palletStack', 36, 0, 12, { n: 5 });
   prop(b, 'crate', 42.8, 0, 8, { h: 1.2 });
   prop(b, 'crate', 42.8, 0, 6.7, { h: 1.2 });
@@ -277,7 +277,7 @@ function ostgang(b: MapBuilder): void {
   // Ladestraße Süd (vor dem Süd-Tor von Gleisfeld B)
   prop(b, 'trailer', 70, 0, 4.6, { rot: 0, tint: 0xe6e6e6 });
   prop(b, 'trailer', 85.5, 0, 3.6, { rot: 1, tint: 0x2a5aa8 });
-  prop(b, 'container', 60, 0, -2, { rot: 1, tint: 0x6b3a7a });
+  prop(b, 'cargoContainer', 60, 0, -2, { rot: 1, tint: 0x6b3a7a });
   prop(b, 'palletStack', 62.5, 0, 8, { n: 6 });
   prop(b, 'palletGoods', 64, 0, 8, {});
   prop(b, 'palletGoods', 77, 0, 8.6, { rot: 1, h: 1.3 });

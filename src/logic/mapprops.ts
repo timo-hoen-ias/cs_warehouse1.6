@@ -299,7 +299,7 @@ export function propFootprint(kind: PropKind, rot = 0): [number, number] {
   const base: Partial<Record<PropKind, [number, number]>> = {
     pallet: [1.2, 0.8], palletGoods: [1.2, 0.8], crate: [1.2, 1.2], crateStack: [1.8, 1.8], container: [6.1, 2.44], container40: [12.2, 2.44],
     trailer: [13.6, 2.6], forklift: [1.2, 2.0], barrel: [0.6, 0.6], gitterbox: [1.24, 0.84], serverRack: [0.6, 1.0],
-    boxcar: [14, 3], tankcar: [14, 3], flatcar: [14, 3], loco: [18, 3], bufferStop: [0.9, 2.6], signal: [0.6, 0.6],
+    cargoContainer: [6.06, 2.44], boxcar: [14, 3], tankcar: [14, 3], flatcar: [14, 3], loco: [18, 3], bufferStop: [0.9, 2.6], signal: [0.6, 0.6],
   };
   const [w, d] = base[kind] ?? [1, 1];
   return dims(w, d, rot);

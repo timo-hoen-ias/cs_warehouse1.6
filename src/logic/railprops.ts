@@ -12,9 +12,9 @@ import { mulberry32 } from './rng';
  * das Innere frei, Verladerampen (`ramp`) führen hinauf; das Dach ist nur Navigationsboden,
  * wenn die Karte einen Aufgang baut (`walkRoof`).
  */
-export type RailPropKind = 'track' | 'boxcar' | 'tankcar' | 'flatcar' | 'loco' | 'bufferStop' | 'signal' | 'catenary' | 'ivy' | 'truss';
+export type RailPropKind = 'track' | 'cargoContainer' | 'boxcar' | 'tankcar' | 'flatcar' | 'loco' | 'bufferStop' | 'signal' | 'catenary' | 'ivy' | 'truss';
 
-export const RAIL_KINDS: readonly RailPropKind[] = ['track', 'boxcar', 'tankcar', 'flatcar', 'loco', 'bufferStop', 'signal', 'catenary', 'ivy', 'truss'];
+export const RAIL_KINDS: readonly RailPropKind[] = ['track', 'cargoContainer', 'boxcar', 'tankcar', 'flatcar', 'loco', 'bufferStop', 'signal', 'catenary', 'ivy', 'truss'];
 
 export function isRailKind(kind: string): kind is RailPropKind {
   return (RAIL_KINDS as readonly string[]).includes(kind);
@@ -55,6 +55,15 @@ export function railProp(b: MapBuilder, kind: RailPropKind, x: number, y: number
         deco(-len / 2, 0.03, c - 0.08, len / 2, 0.06, c + 0.08, 'steel', 0x4a4038);
       }
       for (let lx = -len / 2 + 0.4; lx < len / 2; lx += 0.8) deco(lx - 0.13, 0.03, -1.3, lx + 0.13, 0.12, 1.3, 'wood', 0x40342a, { uv: 1 });
+      break;
+    }
+    case 'cargoContainer': {
+      // Frachtcontainer (len 6.06 = 20 ft, 12.19 = 40 ft); Türplatte ohne Schattenwurf (sonst wird das Stirnende schwarz gebacken)
+      const len = o.len ?? 6.06;
+      const tint = o.tint ?? CONTAINER_TINTS[Math.floor(rnd() * CONTAINER_TINTS.length)]!;
+      box(-len / 2, 0, -1.22, len / 2, 2.59, 1.22, 'container', { tint });
+      deco(len / 2, 0.05, -1.15, len / 2 + 0.04, 2.5, 1.15, 'door', 0x9a9a9a);
+      deco(-len / 2 - 0.04, 0.05, -1.15, -len / 2, 2.5, 1.15, 'container', tint);
       break;
     }
     case 'boxcar':
@@ -181,6 +190,11 @@ export function railProp(b: MapBuilder, kind: RailPropKind, x: number, y: number
         }
       }
       box(-HL, R, -HW, HL, R + 0.14, HW, 'metal', { tint: 0x6a7076, noNav: !o.walkRoof, uv: 3 });
+      // offene Wagen bekommen eine Innenleuchte (sonst schwarz)
+      if (doors !== 'closed') {
+        const [lx, lz] = localPoint(x, z, rot, 0, 0);
+        b.light({ kind: 'lamp', pos: [lx, y + R - 0.35, lz], color: 0xffe2b8, intensity: 0.9, range: 7 });
+      }
       // Dachaufbau: Lüfter und Handlauf-Strebe (Optik)
       deco(-4.5, R + 0.14, -0.3, -3.5, R + 0.3, 0.3, 'vent', 0x7a8086);
       deco(3.5, R + 0.14, -0.3, 4.5, R + 0.3, 0.3, 'vent', 0x7a8086);
@@ -194,8 +208,9 @@ export function railProp(b: MapBuilder, kind: RailPropKind, x: number, y: number
       }
     } else if (k === 'tankcar') {
       box(-HL, 0.95, -1.15, HL, 1.15, 1.15, 'steel', { tint: 0x2e2e30, noNav: true });
-      box(-6.4, 1.15, -1.2, 6.4, 3.3, 1.2, 'steel', { visible: false, occlude: true, tag: 'prop' });
-      decor('pipeX', 0, 2.15, 0, [12.9, 8.6, 8.6], tint);
+      box(-6.4, 1.15, -1.2, 6.4, 3.3, 1.2, 'steel', { visible: false, occlude: false, tag: 'prop' });
+      // Dekor-Farbton multipliziert das gebackene Licht → helle Kesselfarben wählen (dunkle werden schwarz)
+      decor('pipeX', 0, 2.15, 0, [12.9, 8.6, 8.6], o.tint ?? 0xc8ccd0);
       decor('pipeY', 0, 3.3, 0, [3.0, 0.55, 3.0], 0x55595e);
       for (const lx of [-3.6, 3.6]) deco(lx - 0.1, 1.15, -1.28, lx + 0.1, 3.0, 1.28, 'steel', 0x3a3a3e);
       deco(-5, 3.43, -0.25, 5, 3.48, 0.25, 'grating', 0x555a60);

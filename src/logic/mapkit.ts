@@ -51,7 +51,7 @@ export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
   door: { surface: 'metal', uv: 2.2 },
   gate: { surface: 'metal', uv: 3 },
   epoxy: { surface: 'tile', uv: 4 },
-  gravel: { surface: 'gravel', uv: 3 },
+  gravel: { surface: 'gravel', uv: 5 },
   foliage: { surface: 'concrete', uv: 2 },
   rust: { surface: 'metal', uv: 3 },
   black: { surface: 'metal', uv: 2 },

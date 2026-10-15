@@ -45,10 +45,10 @@ export function buildHallA(b: MapBuilder): void {
   // Gleis 1 (Sandwich-Seite): Altzug mit begehbaren Dächern (Aufgang von Himmel)
   prop(b, 'boxcar', S1, 0, G1, { worn: true, walkRoof: true, tint: 0x8a3a2c, seed: 3 });
   prop(b, 'boxcar', S2, 0, G1, { worn: true, walkRoof: true, tint: 0x6a4a34, seed: 4 });
-  prop(b, 'tankcar', S3, 0, G1, { tint: 0x4a5057 });
+  prop(b, 'tankcar', S3, 0, G1, { tint: 0xa8b4bc });
   // Gleis 2: Container-Flachwagen, Kesselwagen, hochgestapelte Container
   prop(b, 'flatcar', S1, 0, G2, { n: 2, levels: 1, seed: 11 });
-  prop(b, 'tankcar', S2, 0, G2, { tint: 0xb8a448 });
+  prop(b, 'tankcar', S2, 0, G2, { tint: 0xe0c860 });
   prop(b, 'flatcar', S3, 0, G2, { n: 1, levels: 2, seed: 12 });
   // Gleis 3: Bombenzug — IT-Wagen, Durchgangswagen, einfahrende Lok (steht im Ost-Tor)
   const IT = HALL_A.itX;
@@ -202,7 +202,9 @@ export function buildHallA(b: MapBuilder): void {
   b.decal({ kind: 'stain', pos: [-60, 0.02, -48], size: [5, 3] });
 
   // ---------------------------------------------------------------- Licht
-  for (const x of [-60, -48, -35, -22]) for (const z of [-58, -47, -33, -23, -12]) b.hallLamp(x, 12.6, z, { color: 0xffe6c0, intensity: 1.25, range: 20 });
+  for (const x of [-60, -48, -35, -22]) for (const z of [-58, -47, -33, -23, -12]) b.hallLamp(x, 12.6, z, { color: 0xffe6c0, intensity: 2.3, range: 24 });
+  // Kranlampen am Träger: beleuchten Wagendächer und Gänge von oben
+  for (const x of [-62, -52, -42, -32, -22]) b.hallLamp(x, 7.8, -34.4, { color: 0xfff0d0, intensity: 1.6, range: 14 });
   for (const x of [-64, -55, -46, -37, -28, -19]) b.tubeLamp(x, 4.35, -58.5, true, { color: 0xd8ecff, intensity: 0.8, range: 9 });
   for (const z of [-56, -46, -30, -20, -12]) b.tubeLamp(-15.5, CY + 2.4, z, false, { color: 0xfff0d0, intensity: 0.6, range: 8 });
   for (const x of [-60, -48, -24]) b.tubeLamp(x, CY + 2.4, -38, true, { color: 0xfff0d0, intensity: 0.6, range: 8 });

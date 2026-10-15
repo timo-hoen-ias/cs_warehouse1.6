@@ -594,7 +594,13 @@ export function signTexture(text: string, color: string, bg = '#16191d', sub?: s
     }
     c.fillText(text, s / 2, sub ? h * 0.42 : h / 2 + 3);
     if (sub) {
-      c.font = 'bold 22px Arial';
+      // Unterzeile verkleinern, bis sie ins Schild passt
+      let subSize = 22;
+      c.font = `bold ${subSize}px Arial`;
+      while (c.measureText(sub).width > s - 24 && subSize > 9) {
+        subSize -= 1;
+        c.font = `bold ${subSize}px Arial`;
+      }
       c.fillStyle = 'rgba(230,230,230,0.85)';
       c.fillText(sub, s / 2, h * 0.78);
     }

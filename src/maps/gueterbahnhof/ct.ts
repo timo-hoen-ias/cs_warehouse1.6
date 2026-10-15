@@ -27,9 +27,9 @@ function ctHof(b: MapBuilder): void {
   prop(b, 'bufferStop', -26.4, 0, -82, { rot: 2 });
   prop(b, 'boxcar', -14, 0, -82, { doors: 'front', ramp: 'front', rampLen: 3.2, tint: 0x3f6a48, seed: 111 });
   prop(b, 'flatcar', 0.6, 0, -82, { n: 2, levels: 2, seed: 112 });
-  prop(b, 'tankcar', 36, 0, -82, { tint: 0x55606a });
+  prop(b, 'tankcar', 36, 0, -82, { tint: 0xb8c4cc });
   // Deckung und Dressing
-  prop(b, 'container', -22, 0, -72, { rot: 0, tint: 0xb7791f });
+  prop(b, 'cargoContainer', -22, 0, -72, { rot: 0, tint: 0xb7791f });
   prop(b, 'palletStack', 4, 0, -69, { n: 6 });
   prop(b, 'palletGoods', 5.6, 0, -69, {});
   prop(b, 'gitterbox', 31, 0, -69.5, { n: 2 });
@@ -50,6 +50,13 @@ function ctHof(b: MapBuilder): void {
   b.decal({ kind: 'stain', pos: [18, 0.02, -78], size: [8, 4] });
   b.decal({ kind: 'letter', pos: [18, 0.02, -69], size: [2.4, 2.4], text: 'CT', color: 0x8fc0ff });
   b.decal({ kind: 'stripes', pos: [-21, 0.02, -64], size: [10, 1] });
+  // Südseite des CT-Hofs: Lokschuppen-Fassade (Tore, Rohre, Beschriftung)
+  for (const x of [34, 42]) prop(b, 'rollerDoor', x, 0, -66 - F, { rot: 2, len: 4.4, h: 4.6 });
+  b.sign('LOKSCHUPPEN', [38, 7.4, -66 - F - 0.02], 'nz', 7, 1.3, { color: 0xf0f0f0, bg: 0x6a3a2a, sub: 'WERKSTATT · RANGIERDIENST' });
+  for (const x of [30, 38, 46]) b.wallLamp(x, 6.6, -66 - F - 0.05, 'nz', { intensity: 0.8, range: 12 });
+  prop(b, 'electricBox', 16, 0, -66 - F, { rot: 2 });
+  prop(b, 'acUnit', 22, 0, -67.2, { rot: 0 });
+  b.decal({ kind: 'stripes', pos: [38, 0.02, -67.2], size: [10, 1] });
   // Sandwich-Tor (Halle A) und Leiterraum
   b.sign('SANDWICH ↓', [-21, 5.6, -66 + 0.12], 'pz', 4, 1, { color: 0xffd040, sub: 'ZUM GLEISFELD A' });
   b.sign('LEITERRAUM', [-7, 8.8, -66 + 0.0], 'pz', 4, 0.9, { color: 0xe8e8e8, sub: 'TREPPE → HIMMEL' });
@@ -58,7 +65,7 @@ function ctHof(b: MapBuilder): void {
 }
 
 function mitteNord(b: MapBuilder): void {
-  prop(b, 'container', 6, 0, -62, { rot: 1, tint: 0x6b3a7a });
+  prop(b, 'cargoContainer', 6, 0, -62, { rot: 1, tint: 0x6b3a7a });
   prop(b, 'palletGoods', 2.4, 0, -55, { rot: 1 });
   prop(b, 'palletGoods', 2.4, 0, -53.8, { rot: 1 });
   prop(b, 'gitterbox', 10.4, 0, -52, { n: 2 });

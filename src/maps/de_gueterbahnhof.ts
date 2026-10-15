@@ -34,7 +34,7 @@ export function buildGueterbahnhof(): MapData {
       skyTop: 0x5a7fae,
       skyHorizon: 0xe6d6b8,
       skyIntensity: 0.55,
-      ambient: 0.12,
+      ambient: 0.17,
       fogColor: 0xbdb7a8,
       fogNear: 70,
       fogFar: 260,
