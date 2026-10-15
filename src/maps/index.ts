@@ -3,6 +3,7 @@ import { buildGueterbahnhof } from './de_gueterbahnhof';
 import { buildLagerstaub } from './de_lagerstaub';
 import { buildKuehlhaus } from './de_kuehlhaus';
 import { buildSpeicherstadt } from './de_speicherstadt';
+import { buildUmschlag } from './de_umschlag';
 
 /**
  * Karten-Registry (pure): handgebaute Karten als Module. Die Lobby listet sie, der Host
@@ -34,6 +35,12 @@ export const MAPS: MapEntry[] = [
     name: 'Speicherstadt',
     description: 'Hafen-Speicherviertel (de_inferno): Banane mit Lieferwagen nach B, Wohnungen und Speicherbrücke zum Balkon über A, Kurz über den Kessel, Lange Halle zur Grube.',
     build: buildSpeicherstadt,
+  },
+  {
+    id: 'de_umschlag',
+    name: 'Umschlag',
+    description: 'Cross-Docking-Hub nach dem Vorbild de_mirage: Palast und T-Rampe nach A, Fenster über der langen Mitte, Steg und Unterführung nach B.',
+    build: buildUmschlag,
   },
 ];
 

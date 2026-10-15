@@ -1,5 +1,6 @@
 import type { MapBuilder, MaterialId, Vec3 } from './mapkit';
 import { dims, place, type PropOpts } from './propgeom';
+import { hubFootprint, hubProp, isHubKind, type HubPropKind } from './hubprops';
 import { isRailKind, railProp, type RailPropKind } from './railprops';
 import { mulberry32 } from './rng';
 
@@ -15,7 +16,7 @@ export type PropKind =
   | 'handTruck' | 'cableTray' | 'locker' | 'generator' | 'rollerDoor' | 'acUnit' | 'electricBox' | 'cones' | 'doorSteel'
   | 'silo' | 'chiller' | 'compressor' | 'stripCurtain' | 'rollCage'
   | 'sacks' | 'van' | 'fountain' | 'hoist' | 'archGate' | 'archive' | 'crane' | 'scaffold' | 'gasLamp' | 'logs'
-  | RailPropKind;
+  | RailPropKind | HubPropKind;
 
 
 const GOODS = [0xc9a26b, 0xb8895a, 0xd8c09a, 0x9fb7c9, 0xc6c6c0, 0xd0a060, 0x8fa86a, 0xc77b5a];
@@ -25,6 +26,10 @@ const CONTAINERS = [0xa8432b, 0x2b5f9e, 0x2f7d4f, 0xb7791f, 0x8a8f96, 0x6b3a7a, 
 export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: number, o: PropOpts = {}): void {
   if (isRailKind(kind)) {
     railProp(b, kind, x, y, z, o);
+    return;
+  }
+  if (isHubKind(kind)) {
+    hubProp(b, kind, x, y, z, o);
     return;
   }
   const rot = o.rot ?? 0;
@@ -502,6 +507,7 @@ const LOG_TINTS = [0x6b4a30, 0x7a5a3a, 0x5e4630, 0x80603e];
 
 /** Hilfsmaß: Grundfläche (Breite x Tiefe) einer Requisite nach Drehung. */
 export function propFootprint(kind: PropKind, rot = 0): [number, number] {
+  if (isHubKind(kind)) return hubFootprint(kind, rot);
   const base: Partial<Record<PropKind, [number, number]>> = {
     pallet: [1.2, 0.8], palletGoods: [1.2, 0.8], crate: [1.2, 1.2], crateStack: [1.8, 1.8], container: [6.1, 2.44], container40: [12.2, 2.44],
     trailer: [13.6, 2.6], forklift: [1.2, 2.0], barrel: [0.6, 0.6], gitterbox: [1.24, 0.84], serverRack: [0.6, 1.0], van: [1.9, 4.6],

@@ -7,7 +7,7 @@ Akustik; die Darstellung (`src/level/LevelView.ts`) baut Geometrie mit gebackene
 **keinen Bake-Schritt**: alle Clients rechnen aus demselben Code dasselbe Ergebnis (der Host
 wählt nur die Karten-ID).
 
-Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`) und `src/maps/de_speicherstadt.ts` (de_inferno als Hafen-Speicherviertel: Backstein, Kopfstein, Kanäle, Speicherböden über einer Gasse; Ausstattung in `src/maps/speicherstadt/*.ts`).
+Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik), `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`), `src/maps/de_gueterbahnhof.ts` (Bahn-Requisiten), `src/maps/de_speicherstadt.ts` (de_inferno als Hafen-Speicherviertel: Backstein, Kopfstein, Kanäle, Speicherböden über einer Gasse; Ausstattung in `src/maps/speicherstadt/*.ts`) und `src/maps/de_umschlag.ts` (drei Ebenen übereinander: Unterführung −3.6 m, Erdgeschoss, Obergeschoss +4.4/+5.5 m; Ausstattung in `src/maps/umschlag/*.ts`).
 
 ## Koordinaten und Maße
 
@@ -125,6 +125,26 @@ die Lücken zwischen den Fensterreihen einer Backsteinfassade (Geschoss `row` 1�
 Hinweise: Rampen/Treppen auf eine höhere Fläche 1 m auf dieser enden lassen und ≤ 0.5 m Anstieg je Meter
 (sonst reißt die Navigation ab); `occlude: false` für dünne Plattenaufsätze; Deko-Farbtöne hell wählen.
 
+#### Umschlag-Requisiten (`src/logic/hubprops.ts`, Referenz: `de_umschlag`)
+
+Generisch für Logistik-/Büro-/Kantinen-Szenen: `parcelVan` (Paket-Lieferwagen 5.6 × 2.1 × 2.7 m, Nase bei +X, Hecktüren, 4 Räder), `dockBay`
+(Rolltor-Bucht an einer Fassade, Rückseite bei lokal z = 0, Tor halb offen mit Dunkelheit dahinter, Puffer, Warnleuchte, Nummernschild
+aus `n`, `len`/`h`), `plant` (Topfpflanze; nur der Topf kollidiert, `h` = Gesamthöhe), `chairStack` (Stuhlstapel, `n`), `table`
+(Kantinentisch mit Bänken, `len`), `bench` (Bank, Sitzhöhe 0.5 m), `counter` (Edelstahl-Arbeitstisch/Küchenzeile, `len`), `stove`
+(Großküchenherd mit Haube), `gantryConveyor` (aufgeständerter Sortierförderer, Band auf `h` = 3 m, darunter frei begehbar, Stützen alle 4 m,
+Pakete obendrauf, `len`), `gatehouse` (Pförtnerhaus/Ticket-Häuschen 4 × 3 m mit Fenster nach +Z), `console` (Leitstand-Pult mit Monitoren).
+`dockRow(b, axis, wall, from, to, facing, …)` (in `src/maps/umschlag/common.ts`) setzt eine Reihe nummerierter Buchten entlang einer Fassade.
+
+#### Obergeschosse auf Sockeln und dünne Fensterwände (Referenz: `de_umschlag`)
+
+Zusätzlich zum Keller-Muster (Kühlhaus) lassen sich **Obergeschosse** als eigener `CellPlan` bauen (Fülltyp `.` = leer, Vorbild
+`de_umschlag.ts`, Plan `O`): Räume stehen auf **massiven Sockeln** (Erdgeschoss-Gebäudezellen mit `h` = Unterkante des Obergeschosses, z. B.
+4.0 m für Boden +4.4 m); die Obergeschoss-Zellen setzen `bottom: Boden − 0.4`, Wände sind Gebäudezellen mit `bottom`, Laufstege/Brücken
+frei schwebende Plattenzellen (`floor` + `bottom`, ohne `roof`). Brücken über niedrige Anbauten stehen auf deren Dach (Sockelhöhe = `bottom`).
+Durchgänge durch dicke Wände in der Höhe: Gebäudezelle mit `window: { sill: Obergeschoss-Boden, lintel: +3.2 }`. **Dünne Fensterwände**
+(offene Scheibenöffnung mit 1 m Brüstung, 0.4 m dick) baut man besser mit `b.wallX/wallZ(…, openings)` als mit 2-m-Zellen — sonst verdeckt die
+2 m tiefe Brüstung den Blick nach unten.
+
 ### Deko, Licht, Schilder, Markierungen
 
 - `b.decor(kind, pos, rot, scale, tint)` – instanzierte Formen (Fässer, Rohre, Stapler, Server …).
@@ -234,5 +254,8 @@ Bewegungsregeln (Stufen, Rampen, Wände, Kopffreiheit), Herunterspringen als Ein
   Frustum-Culling je Kachel); verdeckte Teilflächen entfallen.
 - Licht wird beim Laden gebacken (Voxel-Schatten für Sonne/Lampen, Himmelsverdeckung, AO):
   „hoch“ ≈ 1.25-m-Unterteilung, „niedrig“ ≈ 2.5 m. Materialien sind unbeleuchtet → sehr günstig.
+- **Bodenhöhen im Freien auf das 0.5-m-Voxelraster legen:** Das Backen nutzt 0.5-m-Voxel; liegt die Oberkante einer Platte knapp über einer
+  Voxelgrenze (z. B. 5.6 m → Voxel 5.5–6.0 ist „belegt“), verschattet sich die Fläche selbst gegen die Sonne und wird dunkel. Gut: Vielfache von
+  0.5 m (2.0, 5.5) oder Höhen mit Rest ≥ 0.4 (4.4, 4.9); schlecht: Rest 0.05–0.35 (5.6, 3.2) bei Außenflächen.
 - Richtwert Lagerstaub: ~1600 Brushes, ~140 k Vertices (hoch) / ~65 k (niedrig), ~11 k Navigationsknoten,
   Kompilieren + Backen ≈ 1–3 s im Browser.
