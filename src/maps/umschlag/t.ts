@@ -82,8 +82,8 @@ function aufgaenge(b: B): void {
   b.sign('RAMPE A ↑', [46 - F, 4.2, 40], 'nx', 3.4, 0.9, { color: 0xff7a5a, sub: 'T-RAMPE · LKW-AUFFAHRT' });
   hazardEdge(b, 34, 47.7, 46, 48, 0);
   hazardEdge(b, 34, 29.7, 46, 30, LV.apron);
-  prop(b, 'bumper', 35, 0, 47.4);
-  prop(b, 'bumper', 45, 0, 47.4);
+  prop(b, 'bumper', 35, 0, 48.5);
+  prop(b, 'bumper', 45, 0, 48.5);
   for (const z of [34, 42]) { b.wallLamp(34 + F, 6.2, z, 'px', { intensity: 1.0, range: 12, color: 0xffd9a0 }); b.wallLamp(46 - F, 6.2, z, 'nx', { intensity: 1.0, range: 12, color: 0xffd9a0 }); }
   stripe(b, 40, 30, 40, 47, 0, 0xe8e8e8, 0.2);
   b.decal({ kind: 'arrow', pos: [40, 0.03, 40], size: [3, 4], rot: 0, color: 0xe8e8e8 });

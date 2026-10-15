@@ -51,8 +51,8 @@ function steg(b: B): void {
   b.rail(-14, -25.95, -10, -25.95, Y);
   b.rail(-26, -25.95, -16, -25.95, Y);
   b.rail(-26, -20.05, -16, -20.05, Y);
-  b.rail(-36, -20.05, -28, -20.05, Y);
-  b.rail(-36.05, -26, -36.05, -20, Y);
+  b.rail(-38, -20.05, -28, -20.05, Y);
+  b.rail(-38.05, -26, -38.05, -20, Y);
   // Stützen unter dem Steg (Deckung auf Bodenhöhe), Streben
   pillars(b, [[-10.3, -24], [-10.3, -14], [-10.3, -4], [-10.3, 1.4]], 0, Y - 0.4, 0x2f6fb0);
   b.box([-14, Y - 0.9, -26], [-10, Y - 0.4, 2], 'steel', { collide: 'none', tint: 0x4a5a6a, noNav: true, occlude: false });
@@ -70,13 +70,13 @@ function steg(b: B): void {
   b.sign('KURZ B →', [-15.88, 7.2, -17], 'pz', 3.6, 0.9, { color: 0xffb13a, sub: 'BRÜCKE ZUR PAKETSORTIERUNG' });
   b.sign('STEG ↑', [-13.85, 3.3, 11], 'px', 2.6, 0.8, { color: 0xffd040, sub: 'NUR PERSONAL' });
   b.sign('SORTIERANLAGE', [-6.5, 4.1, 6.4], 'pz', 3.2, 0.7, { color: 0xf0f0f0, bg: 0x2f6fb0, sub: 'BAND 4 · NICHT BETRETEN' });
-  parcelPile(b, -12, 0, 6, 1, 4);
+  parcelPile(b, -12.4, 0, 24, 1, 4);
   // Ladung der Anlage: Gitterboxen am Bandende, Rollcontainer
   prop(b, 'gitterbox', -9, 0, -27, { n: 1 });
   prop(b, 'rollCage', -8.9, 0, -25.6, { h: 1.2 });
   prop(b, 'rollCage', -8, 0, -25.6, { h: 0.9 });
   // B-Seite: Kante und Lampe der Plattform
-  hazardEdge(b, -36, -26.3, -28, -26, Y);
+  hazardEdge(b, -38, -26.3, -30, -26, Y);
   b.tubeLamp(-32, Y + 3.0, -23, true, { intensity: 0.9, range: 9 });
 }
 
@@ -195,7 +195,7 @@ function hallCover(b: B): void {
   prop(b, 'forklift', -2.6, 0, -22, { rot: 2, tint: 0x2f78c0 });
   prop(b, 'gitterbox', -6, 0, -31, { n: 2 });
   prop(b, 'gitterbox', -4.8, 0, -31, { n: 2 });
-  parcelPile(b, 1.8, 0, -30.6, 0, 6);
+  parcelPile(b, -2.8, 0, -30.6, 0, 6);
   prop(b, 'rollCage', 10.6, 0, -14.4, { h: 1.1 });
   prop(b, 'cartons', 12.2, 0, -12, { seed: 14 });
   // Sockel des Leitstands: Wandschrank, Feuerlöscher, Schild
@@ -216,7 +216,7 @@ function hallSigns(b: B): void {
   // Außen: große Aufschrift über dem Tor
   b.sign('UMSCHLAGHALLE', [0, 8.8, 30.12], 'pz', 12, 2.0, { color: 0xf0f0f0, bg: 0x2f6fb0, sub: 'CROSS-DOCKING · TOR SÜD · 24 H' });
   for (const x of [-8.5, 8.5]) b.wallLamp(x, 6.8, 30.12, 'pz', { intensity: 1.2, range: 14, color: 0xffd9a0 });
-  prop(b, 'bumper', -9, 0, 29.6);
-  prop(b, 'bumper', 9, 0, 29.6);
+  prop(b, 'bumper', -7.4, 0, 29.4);
+  prop(b, 'bumper', 7.4, 0, 29.4);
   hazardEdge(b, -8, 25.7, 8, 26, 0);
 }

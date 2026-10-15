@@ -31,12 +31,12 @@ function halle(b: B): void {
   // Sortieranlage im Süden: niedrige Bänder (Deckung) mit Rollcontainern, Lücken ≥ 3 m
   prop(b, 'conveyor', -58, 0, -23, { rot: 0, len: 8 });
   prop(b, 'conveyor', -39, 0, -23, { rot: 0, len: 8 });
-  prop(b, 'gantryConveyor', -48, 0, -30, { rot: 0, len: 22 });
+  prop(b, 'gantryConveyor', -50, 0, -30, { rot: 0, len: 18 });
   line(b, 'rollCage', -59.5, 0, -26.5, -56.5, -26.5, 3, { h: 1.2 });
   line(b, 'rollCage', -42, 0, -26.8, -39, -26.8, 3, { h: 1.0 });
   prop(b, 'gitterbox', -36, 0, -17.5, { n: 2 });
   prop(b, 'gitterbox', -36, 0, -18.8, { n: 2 });
-  parcelPile(b, -66.4, 0, -23.8, 1, 5);
+  parcelPile(b, -67.8, 0, -32.2, 1, 5);
   prop(b, 'palletStack', -44, 0, -18, { n: 6 });
   prop(b, 'forklift', -57, 0, -18.4, { rot: 0, tint: 0x2f78c0 });
   b.sign('SORTIERBAND 2', [-48, 4.1, -30 + 0.0 + 0.6], 'pz', 3.6, 0.7, { color: 0xf0f0f0, bg: 0x2f7d6f, sub: 'PAKETE · NACH ZIELGEBIET' });
@@ -55,7 +55,7 @@ function halle(b: B): void {
   prop(b, 'crateStack', -31, 0, -45);
   prop(b, 'palletStack', -30, 0, -52, { n: 7 });
   prop(b, 'handTruck', -29.8, 0, -56, { rot: 3 });
-  prop(b, 'forklift', -32, 0, -33.4, { rot: 2, tint: 0xe0a020 });
+  prop(b, 'forklift', -56, 0, -33.5, { rot: 0, tint: 0xe0a020 });
   b.decal({ kind: 'line', pos: [-50, 0.02, -38], size: [40, 0.15], color: 0xe8c020 });
   stripe(b, -70, -20, -30, -20, 0, 0xe8e8e8, 0.2);
   b.decal({ kind: 'stripes', pos: [-49, 0.02, -17.2], size: [6, 1.2] });
@@ -69,7 +69,7 @@ function halle(b: B): void {
   b.sign('UNTERFÜHRUNG ↓', [-49, 3.4, -16 - 0.12], 'nz', 5, 0.9, { color: 0xffd040, sub: 'SERVICEGANG · ↓ MITTE' });
   hazardEdge(b, -52, -16.4, -46, -16, 0);
   hazardEdge(b, -70, -28.3, -64, -28, 0);
-  hazardEdge(b, -36, -38.3, -28, -38, 0);
+  hazardEdge(b, -38, -38.3, -30, -38, 0);
 }
 
 function spotB(b: B): void {

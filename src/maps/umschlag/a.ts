@@ -41,7 +41,7 @@ function rampe(b: B): void {
   for (const x of [34, 56]) prop(b, 'rollerDoor', x, A, 2 + F, { rot: 0, len: 3.6, h: 4 });
   b.sign('PFÖRTNER ↑', [64, A + 4.0, 2 + F + 0.02], 'pz', 3.4, 0.9, { color: 0xffd040, sub: 'TREPPE · CT-GASSE' });
   // Mastleuchten in der Mitte der Rampe (warmes Abendlicht)
-  for (const [x, z] of [[36, 9], [58, 12], [44, 26], [62, 26]] as const) prop(b, 'lampPost', x, A, z);
+  for (const [x, z] of [[36, 9], [58, 12], [44, 26], [66.6, 27]] as const) prop(b, 'lampPost', x, A, z);
   // Bodenmarkierungen: Stellplätze, Fahrspuren, A
   stripe(b, 30, 4, 30, 28, A, 0xe8e8e8, 0.2);
   stripe(b, 66, 4, 66, 28, A, 0xe8e8e8, 0.2);
@@ -118,9 +118,8 @@ function spotA(b: B): void {
   b.box([62.8, A + 0.9, 6.6], [66, A + 1.0, 6.8], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 0.5 }); // Schranke
   prop(b, 'bumper', 62.6, A, 7.4);
   // Deckung über die Rampe verteilt: Container, Paletten, Gitterboxen (Lücken ≥ 3 m)
-  prop(b, 'container', 62, A, 24, { rot: 0, tint: 0xa8432b });
-  prop(b, 'container', 62, A + 2.59, 24, { rot: 0, tint: 0xb7791f });
-  prop(b, 'cargoContainer', 52, A, 25, { rot: 1, tint: 0x2f7d4f });
+  prop(b, 'container', 62, A, 26.6, { rot: 0, tint: 0xa8432b });
+  prop(b, 'cargoContainer', 47.6, A, 25.4, { rot: 1, tint: 0x2f7d4f });
   prop(b, 'crateStack', 36.4, A, 21.6);
   prop(b, 'palletStack', 32.6, A, 17.8, { n: 6 });
   prop(b, 'palletGoods', 32.6, A, 19.0, { seed: 15 });
@@ -149,6 +148,10 @@ function palast(b: B): void {
   prop(b, 'crate', 63.2, P, 10.5, { h: 0.9 });
   b.sign('BALKON', [64, P + 1.2, 7.9], 'pz', 2.4, 0.6, { color: 0xffd040, bg: 0x20262c, sub: 'RAUCHERBEREICH' });
   hazardEdge(b, 60, 7.7, 68, 8, P);
+  // Lampen über Deck und Treppe (das Deck liegt im Schatten der Disposition)
+  for (const [x, z] of [[63.5, 12], [63.5, 20]] as const) b.light({ kind: 'lamp', pos: [x, P + 2.8, z], color: 0xffd9a0, intensity: 1.2, range: 11 });
+  b.light({ kind: 'lamp', pos: [56, A + 4.4, 20], color: 0xffd9a0, intensity: 1.0, range: 10 });
+  prop(b, 'lampPost', 61.5, P, 10.5);
   hazardEdge(b, 59.7, 16, 60, 24, P);
   b.wallLamp(67.9, P + 3.0, 8.4, 'nx', { intensity: 1.0, range: 11, color: 0xffd9a0 });
   b.wallLamp(67.9, P + 3.0, 23.6, 'nx', { intensity: 1.0, range: 11, color: 0xffd9a0 });
@@ -157,8 +160,8 @@ function palast(b: B): void {
   prop(b, 'desk', 78, P, 8.4, { rot: 0 });
   prop(b, 'desk', 81.6, P, 8.4, { rot: 0 });
   prop(b, 'console', 80, P, 14.6, { rot: 0, len: 3 });
-  line(b, 'locker', 82.6, P, 6.8, 82.6, 6.8, 1, {});
-  line(b, 'shelf', 77, P, 5.7, 83, 5.7, 3, { rot: 0, len: 2.4 });
+  line(b, 'locker', 83.4, P, 6.9, 83.4, 6.9, 1, {});
+  line(b, 'shelf', 75.5, P, 6.5, 80.5, 6.5, 3, { rot: 0, len: 2.4 });
   prop(b, 'plant', 71, P, 6.8, { h: 1.7 });
   prop(b, 'plant', 83.2, P, 21, { h: 1.7 });
   prop(b, 'cartons', 74, P, 20.8, { seed: 5 });
@@ -208,7 +211,7 @@ function nordSeite(b: B): void {
   prop(b, 'palletGoods', 63.9, 0, -12.2, { seed: 4 });
   prop(b, 'crate', 58.5, 0, -12.6, { h: 1.1 });
   prop(b, 'cartons', 40.4, 0, -8, { seed: 6 });
-  prop(b, 'drum', 65.4, 0, -9, { rot: 1 });
+  prop(b, 'drum', 64.6, 0, -9, { rot: 1 });
   prop(b, 'handTruck', 38.8, 0, -9.5, { rot: 0 });
   b.sign('PFÖRTNER-GASSE', [52, 5.6, -14 + F + 0.02], 'pz', 6, 1.1, { color: 0xf0f0f0, bg: 0x6a3a1c, sub: '← DSCHUNGEL · TREPPE ↓ RAMPE A' });
   b.sign('→ CT', [66 - F, 3.4, -10], 'nx', 2.6, 0.8, { color: 0x8fc0ff, sub: 'CT-GASSE' });

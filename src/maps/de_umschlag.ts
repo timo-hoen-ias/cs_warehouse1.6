@@ -32,7 +32,7 @@ export function buildUmschlag(): MapData {
     description: 'Cross-Docking-Hub nach dem Vorbild de_mirage: Palast und T-Rampe nach A, Fenster über der langen Mitte, Steg und Unterführung nach B.',
     bounds: { min: [-92, -8, -92], max: [92, 24, 92] },
     env: {
-      sunDir: [0.35, 0.78, 0.52],
+      sunDir: [-0.35, 0.78, 0.52],
       sunColor: 0xffd9a0,
       sunIntensity: 1.6,
       skyTop: 0x4f86c6,
@@ -104,7 +104,7 @@ export function buildUmschlag(): MapData {
     q: { building: { h: 7, mat: 'plaster', tint: 0xe6dcc4 } },
     D: { building: { h: 12, mat: 'corrugated', tint: 0xb4bcc2 }, window: { sill: LV.up, lintel: LV.up + 3.2 } },
     X: { building: { h: 12, mat: 'corrugated', tint: 0xb4bcc2 }, window: { sill: 1.0, lintel: 2.6 } },
-    Y: { floor: 0, mat: 'asphalt', tint: 0xe2dccd, ...out },
+    Y: { floor: 0, mat: 'concrete', tint: 0xcdcdc6, ...out },
     S: { floor: 0, mat: 'concrete', tint: 0xe0d8c8, ramp: true, ...out },
     T: { floor: 0, mat: 'concrete', tint: 0xe0d8c8, ramp: true, ...out },
     P: { floor: LV.apron, mat: 'concrete', tint: 0xdcd2bf, ...out },
@@ -192,7 +192,7 @@ export function buildUmschlag(): MapData {
     .rect('x', -16, -26, -14, -20)
     .rect('b', -26, -26, -16, -20)
     .rect('x', -28, -26, -26, -20)
-    .rect('x', -36, -26, -28, -20)
+    .rect('x', -38, -26, -28, -20)
     // Leitstand (Fenster)
     .rect('W', 0, -36, 14, -20)
     .rect('W', 4, -38, 12, -34)
@@ -231,7 +231,7 @@ export function buildUmschlag(): MapData {
   b.stairs(-70, 26, -64, 38, 0, LV.up, 'nz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Wohnungs-Treppe
   railedStairs(b, -70, -28, -64, -16, 0, LV.up, 'pz', {}); // Wohnungen → B
   railedStairs(b, -14, 2, -10, 14, 0, LV.up, 'nz', {}); // Steg-Treppe
-  railedStairs(b, -36, -38, -28, -26, 0, LV.up, 'pz', {}); // Kurz → B
+  railedStairs(b, -38, -38, -30, -26, 0, LV.up, 'pz', {}); // Kurz → B
   b.stairs(-14, 16, -4, 22, LV.under, 0, 'px', 'concrete', { tint: 0xa8a49c }); // Unterführung
   b.ramp(-52, -16, -46, -2, LV.under, 0, 'nz', 'concreteDark', { tag: 'ramp' }); // Unterführungs-Rampe
   b.ramp(34, 30, 46, 48, 0, LV.apron, 'nz', 'asphalt', { tag: 'ramp', tint: 0xc9c2b4 }); // T-Rampe (Lkw-Rampe)
