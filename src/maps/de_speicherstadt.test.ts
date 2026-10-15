@@ -4,7 +4,7 @@ import { compileMap, brushItem, siteAt } from '../logic/mapcompile';
 import { astar, nearestNode, routeLength } from '../logic/nav';
 import { MAX_WALK_SLOPE, rampSlope } from '../logic/collision';
 import { PLAYER } from '../logic/move';
-import { HeadlessMatch, summarize } from '../logic/botSim';
+import { balanceGuard } from './balanceGuard';
 
 /**
  * Kartenspezifische Topologie von de_speicherstadt (de_inferno als Hafen-Speicherviertel):
@@ -233,25 +233,7 @@ describe('de_speicherstadt: Balance (Sichtlinien, Laufzeiten)', () => {
 });
 
 /**
- * Balance-Wächter: Bot-Simulation (5 gegen 5, Skill 0.6, 4 Seeds × 20 Runden). Vor dem Umbau ≈ 38 % T (Autor: 31 %), B nur ≈ 35 %.
- * Die Schwellen sind weit, weil die Simulation je Seed stark streut (Economy-Schneeball). Läuft mit dem Spiel-Standard (Friendly Fire aus, Bots
- * schießen nie durch Kameraden): ohne die früheren Teamkills der T-Warteschlangen liegt die T-Quote bei ≈ 64 % (vorher ≈ 46 %), siehe IMPLEMENTIERUNGSPLAN M6.2.
+ * Balance-Wächter (gemeinsam für alle Karten, `balanceGuard.ts`): 5 Seeds × 20 Runden, T 30–70 %, Plants auf beiden Spots, niemand sitzt fest.
+ * Historie: vor dem Kartenumbau ≈ 38 % T, B nur ≈ 35 % der Plants; Stand und Messung: IMPLEMENTIERUNGSPLAN M6.3.
  */
-describe('de_speicherstadt: Balance (Bot-Simulation)', () => {
-  it('T gewinnen 30–70 % der Runden, es wird auf beiden Spots gepflanzt, niemand sitzt fest', () => {
-    const stats = [1, 2, 3, 4].flatMap((seed) => {
-      const sim = new HeadlessMatch(map, { perTeam: 5, skill: 0.6, seed });
-      sim.runRounds(20);
-      return sim.stats;
-    });
-    const s = summarize(stats);
-    const tShare = (s.tWins as number) / stats.length;
-    expect(stats.length).toBeGreaterThanOrEqual(60);
-    expect(tShare).toBeGreaterThanOrEqual(0.3);
-    expect(tShare).toBeLessThanOrEqual(0.7);
-    for (const site of ['a', 'b']) expect(stats.filter((r) => r.plantSite === site).length, `Plants ${site}`).toBeGreaterThanOrEqual(10);
-    expect(s.wallViolations).toBe(0);
-    expect(s.fallViolations).toBe(0);
-    expect(s.maxStuck as number).toBeLessThanOrEqual(6);
-  }, 180_000);
-});
+balanceGuard('de_speicherstadt');

@@ -339,8 +339,65 @@ Auslöser: In der Bot-Simulation waren ≈ 11–26 % der T-Tode Teamkills (Bots 
 | de_umschlag | 15.0 % | 25.9 % | 0.2 % | 46 % | 77 % | 77 % |
 
   Mit Friendly Fire aus gibt es 0 Teamkills (Kugeln/HE wirkungslos), mit an ≈ 0.1–0.2 % (Reste: Streuungsausreißer, HE-Läufer).
-- **Befund Balance**: Die Karten waren mit den Teamkills der T-Warteschlangen eingestellt (siehe Balance-Umbau Speicherstadt: „≈ 25 % der T-Tode sind Teamkills“). Ohne sie gewinnen die T überall deutlich öfter (+8 … +36 Punkte, Lagerstaub und Umschlag > 70 %, Speicherstadt ≈ 64 %, Kühlhaus ≈ 65 %); die Wächter in `de_kuehlhaus.test.ts`/`de_speicherstadt.test.ts` (30–70 %, 4 Seeds × 20 Runden) bleiben im Fenster, liegen aber nahe an der Obergrenze — bei Änderungen am Bot-Verhalten schwanken sie um ±6 Punkte (Kühlhaus 61–72 %, Speicherstadt 60–71 % je nach Streuungsrand). Die Wächter laufen mit dem Spiel-Standard (Friendly Fire aus); da die Bots auch mit „an“ kaum noch Teamkills machen, ist das Ergebnis mit „an“ praktisch gleich. **Offen:** Karten/Bot-Trainer neu austarieren (CT-Seite stärken), sobald die T-Quote dauerhaft > 60 % liegt. Der Wächter in `botSim.test.ts` (Lagerstaub: T ≥ 20 %, Plant-Rate 0.3–0.9) bleibt grün.
+- **Befund Balance**: Die Karten waren mit den Teamkills der T-Warteschlangen eingestellt (siehe Balance-Umbau Speicherstadt: „≈ 25 % der T-Tode sind Teamkills“). Ohne sie gewinnen die T überall deutlich öfter (+8 … +36 Punkte, Lagerstaub und Umschlag > 70 %, Speicherstadt ≈ 64 %, Kühlhaus ≈ 65 %); die Wächter in `de_kuehlhaus.test.ts`/`de_speicherstadt.test.ts` (30–70 %, 4 Seeds × 20 Runden) bleiben im Fenster, liegen aber nahe an der Obergrenze — bei Änderungen am Bot-Verhalten schwanken sie um ±6 Punkte (Kühlhaus 61–72 %, Speicherstadt 60–71 % je nach Streuungsrand). Die Wächter laufen mit dem Spiel-Standard (Friendly Fire aus); da die Bots auch mit „an“ kaum noch Teamkills machen, ist das Ergebnis mit „an“ praktisch gleich. **Erledigt in M6.3:** CT-Seite der Bots gestärkt (siehe unten). Der Wächter in `botSim.test.ts` (Lagerstaub: T ≥ 20 %, Plant-Rate 0.3–0.9) bleibt grün.
 - **Tests**: `friendlyFire`, `botFriendly` (Strecken-Abstand, Schussfeld, Seitenschritt, Granaten), `botBrain` (Feuer halten/Seitenschritt/Ausweichen/HE/Wurf-Abbruch), `botSystem` (enge Gasse: kein Treffer auf Kameraden), `botSim` (Teamkill-Anteil ≤ 2 %), `botThrow` (`reject`), `match` (Friendly Fire an/aus), `net`/`netValidate`/`lobby`/`serverList`/`menu`; Lobbytest prüft `?ff=1` (Host, Client-Spiegel, Lobby-Text, FF-Kennzeichen im Browser).
+
+### M6.3 — CT-Seite der Bots stärken: Balance nach dem Teamkill-Fix (Okt 2026) ✅
+Auslöser (M6.2): Ohne die früheren Teamkills der T-Warteschlangen gewannen die T auf allen Karten deutlich öfter (Lagerstaub/Umschlag > 70 %). Ziel: alle Karten ≈ 42–58 % T,
+Plants auf beiden Spots, glaubwürdiges Verhalten — über allgemeine Bot-Logik statt T-Zielschwächung oder Kartenumbau.
+
+**Diagnose** (Skripte mit Kill-/Rundenprotokoll: Opfer-/Täterauftrag, Zustand, Distanz, Waffe, Lebende beim Plant, Kauf je Runde, K/D je Halte-Position):
+- **Halter ohne Halter-Vorteil**: CT auf ihren Halte-Positionen hatten K/D 0.5–0.7, die eindringenden T 1.8. Gefechte dauern ≈ 2 s Zielzeit (Erstsicht-Zielfehler 0.06 rad
+  ≈ 2 m auf 37 m) → die Überzahl der Ausführung entscheidet, nicht wer den Winkel vorbereitet hält. ≈ ⅓ der toten Halter starb im „Rückzug".
+- **Halte-Positionen mit Sicht auf einen zweiten Eingang** (Strafe nur 1.5 Punkte): Anker wurden von der Seite erschossen (z. B. Speicherstadt B: aus Brückengasse/Ladehof 40–70 m).
+- **Retake**: Sammelpunkte 9 m vor der Tür waren aus dem Spot einsehbar („Sammeln Retake" = häufigster CT-Tod nach dem Plant), Sammelnde lieferten sich Fernduelle (40–60 m) mit
+  vorzielenden T, der Entschärfer lief als Erster auf die Bombe, 1-gegen-3-Retakes kosteten die Waffen; nach dem Plant gewannen die T 74–86 %.
+- **Economy**: Halbkauf der CT = SMG (UMP war die häufigste CT-Waffe), T kauften in ≈ 80 % der Runden voll.
+- **Fehler T**: T starben an der eigenen Bombe (Speicherstadt ≈ 60 von 446 T-Toden): Flucht erst bei 4 s, Ziel oft *an der Bombe vorbei*, kämpfend im Explosionsradius.
+- **Festsitzen**: Bots blieben an Kistenecken/Geländerenden hängen, die der geglättete Weg streift (bis 30 s), bzw. drückten gegen Kameraden am Treppenfuß.
+
+**Änderungen** (alles pure Logik + Tests):
+- [x] **Vorzielen** (`botDecide.firstSight`, `botPerception.viewAngle`): wer ≥ 0.3 s still steht und schon dorthin schaut, wo der Gegner auftaucht (±7°), reagiert in 50 % der Zeit und
+  hat das Ziel 0.8 s „eingeschwungen" (CS-Fadenkreuz-Platzierung; gilt für beide Teams, auch für T nach dem Plant). Größter Einzeleffekt (≈ −12 Punkte T).
+- [x] **Halte-Positionen** (`BOTMAP.exposedPenalty` 1.5 → 3.5): Sicht auf weitere Eingänge des Spots kostet deutlich (≈ −4 Punkte).
+- [x] **Retake** (`botCoach`, `botStrategy`): Sammelpunkt `retakeStaging` hinter der Ecke — ohne Sicht auf den Bereich hinter der Tür und den Pflanzpunkt, möglichst auch nicht aus den
+  Lieblingsplätzen der T nach dem Plant; Sammelwege nicht quer an der Bombe vorbei (`RETAKE_PATH`), überlebende Anker im Spot bleiben versteckt; **erst räumen, dann entschärfen**
+  (`retakeSiteClear`: Gegnermeldungen ≤ 24 m an der Bombe in den letzten 4 s halten den Kit-Träger zurück, außer bei Zeitnot); **Retten** bei aussichtsloser Lage
+  (`retakeHopeless`: ≤ 2 CT gegen ≥ 2 T mehr) zum CT-Spawn (`saveSpot`, außer der liegt an der Bombe).
+- [x] **Eilige Wege ohne Fernduell** (`BRAIN.passRange` 25 m): wer zum Sammelpunkt/Retten läuft (Auftrag `move`, eilig), bleibt für weit entfernte Gegner nicht stehen, sondern läuft
+  weiter (Blick auf den Gegner, bei Treffern Deckung).
+- [x] **Halbkauf** (`botBuy`): Famas/Galil + Weste, wenn das Geld reicht (CT mit Kit-Reserve), sonst SMG.
+- [x] **Bombenflucht der T** (`BOMB_ESCAPE`, `bombEscape`, `bombFlight`): ab 5.5 s Restzeit (danach schafft auch ein Kit-Entschärfer es nicht mehr) zum nächsten Punkt ≥ 22 m von
+  der Bombe *auf der eigenen Seite*; im Explosionsradius wird nicht mehr gekämpft (außer der Gegner steht < 8 m). Glaubwürdiger, hebt die T-Quote aber um ≈ 4 Punkte (Economy).
+- [x] **Festsitzen** (`botBody`): nach dem ersten Festfahren die nächsten Knotenmitten ungeglättet anlaufen, dabei Kameraden nicht mehr ausweichen (vorbeidrücken), nahe Ziele
+  nach 3.6 s aufgeben (dort stehen bleiben).
+- [x] **Balance-Wächter für alle Karten** (`src/maps/balanceGuard.ts`, aufgerufen in `de_<karte>.test.ts` — eine Datei je Karte, Vitest rechnet sie parallel): 5 Seeds × 20 Runden,
+  Spiel-Standard (5v5, Skill 0.6, Friendly Fire aus), T 30–70 %, ≥ 10 Plants je Spot, keine Wand-/Fallfehler, Festsitzen ≤ 6 s. Die bisherigen Wächter in `de_kuehlhaus.test.ts`/
+  `de_speicherstadt.test.ts` (4 Seeds) laufen jetzt darüber (gleiche Schwellen, ein Seed mehr). Laufzeit ≈ 30–45 s je Karte, parallel ≈ 45 s; `bun run test` gesamt ≈ 105 s (4 Kerne).
+- **Verworfen** (gemessen ohne Wirkung oder schädlich, je 12–24 Seeds × 5 Karten): Halter ziehen sich nie zurück, CT-Verzögerungsrauch an der Engstelle, Kreuzfeuer (zweiter CT
+  am selben Eingang), vorgeschobene CT fallen nach Kontakt zurück, weniger vorgeschobene CT, Rotierer warten vor gefallenem Spot auf den Retake, Rotation zum „heißen" Eingang,
+  Druck aus weiter vorn liegenden Zonen, AWP für CT ab 5400 $, kürzere Halte-Distanzen (stark kartenabhängig), noch stärkeres Vorzielen (Spreizung zwischen den Karten wächst),
+  kürzere Deckungssuche, Abzug für Fernsicht aus T-Wegen, CT-Plätze nach Spawn-Nähe verteilen (Speicherstadt B schwächer). Kartenversuche Speicherstadt (zentrale Plant-Hinweise,
+  CT-Halte-Hinweise, Container gegen die Sichtachse Mitte → CT-Spawn, Schikane in der Brückengasse): keine messbare Wirkung, zurückgenommen.
+
+**Messung** (5v5, Skill 0.6, Friendly Fire aus, 20 Runden je Seed; Entwicklungsblock Seeds 1–24, Kontrollblock 101–124; vorher = Stand M6.2):
+
+| Karte | T vorher (1–24 / 101–124) | T nachher (1–24 / 101–124) | T nach Plant vorher → nachher | Plants A/B nachher (1–24) |
+|---|---|---|---|---|
+| de_lagerstaub | 68.6 % / 63.0 % | **47.1 % / 55.0 %** | 82 % → 77 % | 123 / 153 |
+| de_kuehlhaus | 60.9 % / 61.7 % | **43.2 % / 41.9 %** | 74 % → 65 % | 126 / 179 |
+| de_gueterbahnhof | 57.8 % / 62.6 % | **47.9 % / 50.0 %** | 67 % → 63 % | 193 / 173 |
+| de_speicherstadt | 64.3 % / 67.8 % | **65.1 % / 69.5 %** | 72 % → 80 % | 201 / 186 |
+| de_umschlag | 76.1 % / 73.3 % | **57.2 % / 57.7 %** | 86 % → 84 % | 163 / 158 |
+| Mittel | 65.5 % / 65.7 % | **52.1 % / 54.8 %** | | |
+
+  CT kaufen öfter voll (Lagerstaub 118 → 201 von 480 Runden), Halbkäufe mit Famas. 0 Wandfehler, Festsitzen ≤ 3.6 s (vorher bis 12 s); vereinzelte „Fallfehler" (Umschlag 2,
+  Speicherstadt 8 im Kontrollblock) sind Bots, die beim Seitenschritt in eine 0.46-m-Lücke zwischen zwei Requisiten gedrückt werden (gab es vorher auch, Umschlag 17).
+  Streuung: ±4–5 Punkte je Karte und 24-Seed-Block (Economy-Schneeball, einzelne Seeds 25–90 % T).
+- **Offen: de_speicherstadt bleibt T-lastig (≈ 65–70 %)** — die allgemeinen CT-Verbesserungen wirken dort nicht, weil die Karte lange T-Sichtachsen auf die CT-Plätze hat:
+  Anker B am B-Eingang K/D 0.4–0.5 (gleichzeitig vom B-Eingang und durch Brückengasse/Ladehof 40–70 m einsehbar; Halter an der Brückengasse K/D 1.3), Wohnungen Nord/Speicherbrücke
+  → Spot A (55–70 m), Mitte/Obere Mitte → CT-Rampe → CT-Spawn (55–77 m, trifft Rotierer und Rettende). Dazu kommt die reparierte Bomben-Flucht der T (vorher ≈ 13 % der T-Tode dort).
+  Braucht einen Kartenumbau von Hof B (Deckung für CT mit nur einem Eingang im Blick) und das Brechen der Sichtachsen; de_kuehlhaus liegt mit ≈ 42 % am CT-Rand (Nuke-Charakter).
 
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON
@@ -349,6 +406,7 @@ Auslöser: In der Bot-Simulation waren ≈ 11–26 % der T-Tode Teamkills (Bots 
 - [ ] Weitere Karten im neuen Format (z. B. Hafen/Containerterminal, Kühlhaus)
 - [ ] Bots: Sprung-/Kistenpositionen (Navigation ohne Sprungkanten), Wallbangs, Messer-Rush bei Eco, Sprachausgabe der Funksprüche, Lerneffekte über Runden (CT merkt sich bevorzugte T-Routen)
 - [ ] Sprung-Kanten in der Navigation (Kisten ≤ 1.1 m), Leitern
+- [ ] de_speicherstadt: Hof B für CT umbauen (Deckung mit nur einem Eingang im Blick), Sichtachsen Brückengasse/Ladehof → B, Wohnungen Nord → A und Mitte → CT-Spawn brechen (M6.3: ≈ 65–70 % T)
 - [ ] Anti-Cheat jenseits der Plausibilitätsprüfungen (Absender-IDs sind im Needle-Protokoll nicht signiert)
 
 ---

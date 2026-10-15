@@ -5,7 +5,7 @@ import { astar, nearestNode, routeLength } from '../logic/nav';
 import { MAX_WALK_SLOPE, rampSlope } from '../logic/collision';
 import { brushItem, siteAt } from '../logic/mapcompile';
 import { PLAYER } from '../logic/move';
-import { HeadlessMatch, summarize } from '../logic/botSim';
+import { balanceGuard } from './balanceGuard';
 
 /**
  * Kartenspezifische Topologie von de_kuehlhaus (de_nuke als Kühlhaus): B liegt direkt UNTER A,
@@ -192,24 +192,7 @@ describe('de_kuehlhaus: Balance (Zugänge, Sichtlinien)', () => {
 });
 
 /**
- * Balance-Wächter: die Bot-Simulation (5 gegen 5, Skill 0.6, 4 Seeds × 20 Runden) zeigte vor dem Umbau T 14 : CT 79 (≈ 15 %).
- * Jetzt liegen die T bei ≈ 50 %. Die Schwellen sind weit, weil die Simulation je Seed stark streut (Economy-Schneeball).
+ * Balance-Wächter (gemeinsam für alle Karten, `balanceGuard.ts`): 5 Seeds × 20 Runden, T 30–70 %, Plants auf beiden Spots, niemand sitzt fest.
+ * Historie: vor dem Kartenumbau T 14 : CT 79 (≈ 15 %); Stand und Messung: IMPLEMENTIERUNGSPLAN M6.3.
  */
-describe('de_kuehlhaus: Balance (Bot-Simulation)', () => {
-  it('T gewinnen 30–70 % der Runden, es wird auf beiden Spots gepflanzt, niemand sitzt fest', () => {
-    const stats = [1, 2, 3, 4].flatMap((seed) => {
-      const sim = new HeadlessMatch(map, { perTeam: 5, skill: 0.6, seed });
-      sim.runRounds(20);
-      return sim.stats;
-    });
-    const s = summarize(stats);
-    const tShare = (s.tWins as number) / stats.length;
-    expect(stats.length).toBeGreaterThanOrEqual(60);
-    expect(tShare).toBeGreaterThanOrEqual(0.3);
-    expect(tShare).toBeLessThanOrEqual(0.7);
-    for (const site of ['a', 'b']) expect(stats.filter((r) => r.plantSite === site).length, `Plants ${site}`).toBeGreaterThanOrEqual(10);
-    expect(s.wallViolations).toBe(0);
-    expect(s.fallViolations).toBe(0);
-    expect(s.maxStuck as number).toBeLessThanOrEqual(6);
-  }, 180_000);
-});
+balanceGuard('de_kuehlhaus');

@@ -199,6 +199,17 @@ Balance-Erfahrung (de_kuehlhaus, Bot-Simulation): `plant`-Hinweise am eigenen Ra
 zum Spot ebenso; Deckung mitten im Laufweg der T (Kisten direkt vor einer Tür) schadet eher — Deckung an die Seite oder hinter die Tür stellen. Lange gerade Gänge
 (> 25 m ohne Versatz) und Durchblicke durch Türen/Räume (Türen fluchtend) geben den CT die erste Salve; Türen versetzen.
 
+Was die Bots von einer Karte erwarten (M6.3, gilt für beide Teams):
+- **Halten mit nur einem Eingang im Blick:** Wer still steht und schon auf den Eingang zielt, gewinnt das erste Duell (Vorzielen). CT-Halte-Positionen mit
+  Sicht auf einen *weiteren* Eingang werden stark abgewertet (`BOTMAP.exposedPenalty`) — ein Spot braucht daher je Eingang Deckung, von der aus man nur diesen Eingang sieht.
+- **Retake-Ecke vor jedem Spot-Eingang:** Die CT sammeln sich 4–14 m vor dem Eingang an einer Stelle *ohne* Sicht in den Spot (hinter einer Ecke, `retakeStaging`); fehlt so eine
+  Ecke (lange gerade Gänge), stehen die Sammelnden im Schussfeld der T, die die Bombe bewachen.
+- **Keine langen Sichtachsen aus T-Gebieten auf CT-Plätze oder den CT-Spawn** (> 40 m aus Mitte, Gassen, Obergeschossen): Die T erschießen Anker, Rotierer und Rettende aus der
+  Ferne (Befund de_speicherstadt: Brückengasse/Ladehof → Hof B, Wohnungen Nord → A, Mitte → CT-Rampe → CT-Spawn; die Karte bleibt ≈ 65–70 % T). Messen: Kill-Positionen der
+  Simulation bzw. Knotenpaare mit `collider.clear` (wie in `de_speicherstadt.test.ts`).
+- **Balance-Wächter:** Jede Karte ruft in `src/maps/<id>.test.ts` `balanceGuard('<id>')` auf (`src/maps/balanceGuard.ts`: 5 Seeds × 20 Runden, T 30–70 %, Plants auf beiden
+  Spots, keine Wand-/Fallfehler, Festsitzen ≤ 6 s). Für Aussagen zur Balance ≥ 2 × 24 Seeds rechnen (Streuung ±4–5 Punkte je Block).
+
 Werkzeug: `bun scripts/bot-sim.ts <karten-id> [runden] [je-team] [skill] [seed] --rounds` spielt Bot-gegen-Bot-
 Runden im Zeitraffer (Statistik: Siege, Pflanzrate, Entschärfungen, Eingänge, Festsitzen, Wand-/Fallfehler);
 `--trace=<runde>` zeigt alle 4 s Auftrag und Zustand je Bot. Im Spiel: `__bots()`, `__botPlan()`.
@@ -244,7 +255,8 @@ Bewegungsregeln (Stufen, Rampen, Wände, Kopffreiheit), Herunterspringen als Ein
    (Höhen farbig, Rampenpfeile, Spots, Spawns, Callouts), Knotenzahl und Laufzeiten.
 4. Validator: `bun run test src/maps` (Spawns auf Boden/frei/in Kaufzone, Spots begehbar,
    Erreichbarkeit, keine Fallen, Laufzeiten, Callouts, Vertikalität, Determinismus, Bot-Routen/-Hinweise).
-   Bot-Probe: `bun scripts/bot-sim.ts de_meinekarte 20` (beide Teams gewinnen, es wird gepflanzt, niemand sitzt fest).
+   Bot-Probe: `bun scripts/bot-sim.ts de_meinekarte 20` (beide Teams gewinnen, es wird gepflanzt, niemand sitzt fest); Balance-Wächter
+   `src/maps/de_meinekarte.test.ts` mit `balanceGuard('de_meinekarte')` anlegen.
 5. Sichtprüfung im Spiel: Dev-Server + `scripts/screenshot.mjs`; Debug-Hooks `__teleport(x, z, yaw, y?)`,
    `__area()`, `__map()`, `__bots()` (inkl. Callout je Bot).
 
