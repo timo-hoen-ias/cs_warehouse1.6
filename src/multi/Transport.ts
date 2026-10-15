@@ -13,7 +13,12 @@ export interface NetTransport {
   readonly peers: readonly string[];
   readonly roomName: string | null;
   send(msg: NetMsg): void;
-  onMessage?: (msg: NetMsg, from: string | null) => void;
+  /**
+   * Rohdaten einer empfangenen Nachricht (ungeprüft — der Driver prüft sie mit
+   * logic/netValidate.ts). `from` = vom Server gestempelte Absender-ID (eigenes Relay),
+   * null beim Needle-Server (dort sind alle IDs nur behauptet).
+   */
+  onMessage?: (msg: unknown, from: string | null) => void;
   /** Host-Wechsel oder Peer-Liste geändert. */
   onPeersChanged?: (peers: readonly string[], hostId: string) => void;
   onPeerLeft?: (id: string) => void;
@@ -26,7 +31,7 @@ export class LocalTransport implements NetTransport {
   readonly online = false;
   readonly peers: readonly string[] = [];
   readonly roomName = null;
-  onMessage?: (msg: NetMsg, from: string | null) => void;
+  onMessage?: (msg: unknown, from: string | null) => void;
   onPeersChanged?: (peers: readonly string[], hostId: string) => void;
   onPeerLeft?: (id: string) => void;
   get hostId(): string { return this.id; }
@@ -43,16 +48,21 @@ const KEY = 'csw16';
  */
 export class NeedleTransport implements NetTransport {
   readonly online = true;
-  onMessage?: (msg: NetMsg, from: string | null) => void;
+  onMessage?: (msg: unknown, from: string | null) => void;
   onPeersChanged?: (peers: readonly string[], hostId: string) => void;
   onPeerLeft?: (id: string) => void;
   private _peers: string[] = [];
   private _host = '';
   private readonly unsubs: (() => void)[] = [];
+  /** Server stempelt Absender (`data.from`, eigenes Relay; Ankündigung in connection-start-info). */
+  private stamped = false;
 
   constructor(private readonly context: Context, readonly roomName: string, serverUrl?: string) {
     const c = context.connection;
-    this.unsubs.push(c.beginListen(KEY, (data: NetMsg) => this.onMessage?.(data, null)));
+    this.unsubs.push(c.beginListen(KEY, (data: unknown) => this.onMessage?.(data, this.senderOf(data))));
+    this.unsubs.push(c.beginListen('connection-start-info', (data: unknown) => {
+      if (data && typeof data === 'object' && (data as { stamp?: unknown }).stamp === true) this.stamped = true;
+    }));
     this.unsubs.push(c.beginListen(RoomEvents.JoinedRoom, () => this.refresh()));
     this.unsubs.push(c.beginListen(RoomEvents.UserJoinedRoom, () => this.refresh()));
     this.unsubs.push(c.beginListen(RoomEvents.UserLeftRoom, (evt: { userId: string }) => {
@@ -90,10 +100,15 @@ export class NeedleTransport implements NetTransport {
     const ids = all.includes(me) ? [...all] : [...all, me];
     this._peers = ids.filter((x) => x !== me);
     const host = electHost(ids) ?? me;
-    const changed = host !== this._host;
     this._host = host;
     this.onPeersChanged?.(this._peers, host);
-    void changed;
+  }
+
+  /** Gestempelter Absender (nur wenn der Server stempelt; sonst null = unbekannt). */
+  private senderOf(data: unknown): string | null {
+    if (!this.stamped || !data || typeof data !== 'object') return null;
+    const f = (data as { from?: unknown }).from;
+    return typeof f === 'string' ? f : null;
   }
 
   send(msg: NetMsg): void {

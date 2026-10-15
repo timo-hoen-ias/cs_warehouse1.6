@@ -11,7 +11,7 @@ import { Radar, type RadarSource, type RadarSite } from './Radar';
 import { WEAPONS, type BuyCategory } from '../logic/weapons';
 import { radioMenuFor, radioPick, type RadioMenu } from '../logic/radio';
 import {
-  TEAM_NAME, ammoLow, buyCategoryItems, buyStateText, buyTopLevel, deathInfo, escapeHtml, formatClock, formatMoney, formatMoneyDelta,
+  TEAM_NAME, ammoLow, buyCategoryItems, buyStateText, buyTopLevel, deathInfo, escapeHtml, formatClock, intText, formatMoney, formatMoneyDelta,
   hpLevel, killFeedEntry, phaseLabel, pingText, roundOutcome, weaponStatBars, type BuyContext, type BuyItemView,
 } from '../logic/hudFormat';
 import { canvasPixels, computeUiScale, hudSideInset } from '../logic/uiScale';
@@ -450,7 +450,7 @@ export class Hud {
       ? `<span class="warm">Warte auf Spielstart durch den Host</span>`
       : info.phase === 'warmup'
         ? `<span class="warm">Aufwärmen</span><span>${escapeHtml(info.mapName)}</span>`
-        : `<span>Runde ${info.round}</span><span>${escapeHtml(info.mapName)}</span>`;
+        : `<span>Runde ${intText(info.round)}</span><span>${escapeHtml(info.mapName)}</span>`;
     this.html(this.el.roundline, line);
     this.txt(this.el.bombinfo, info.bombInfo && info.bombInfo !== 'Bombe entschärft' && info.bombInfo !== 'Bombe explodiert' ? info.bombInfo : '');
     // Fortschritt Legen/Entschärfen
@@ -562,7 +562,7 @@ export class Hud {
     if (this.localId) {
       const d = deathInfo(e, m.players, this.localId);
       if (d) {
-        const hp = d.killerHp !== null ? `<div class="hp">${d.killerHp}<small>HP übrig</small></div>` : '';
+        const hp = d.killerHp !== null ? `<div class="hp">${intText(d.killerHp)}<small>HP übrig</small></div>` : '';
         this.html(this.el.death, `${weaponIconSvg(d.weapon)}<div><div class="who ${d.killerTeam === 'T' ? 'ui-team-t' : d.killerTeam === 'CT' ? 'ui-team-ct' : ''}">${escapeHtml(d.title)}</div><div class="det">${escapeHtml(d.detail)}</div></div>${hp}`);
         this.cls(this.el.death, 'on', true);
         this.deathTimer = 6;
@@ -636,18 +636,18 @@ export class Hud {
         + (p.loadout.bomb && team === myTeam ? '<span class="tag c4">C4</span>' : '')
         + (p.loadout.defuseKit ? '<span class="tag kit">Kit</span>' : '');
       const money = team === myTeam ? `<td class="money">${formatMoney(p.money.amount)}</td>` : '<td class="hidden">—</td>';
-      return `<tr class="row${p.id === this.localId ? ' me' : ''}${p.alive ? '' : ' dead'}"><td><span class="nm">${escapeHtml(p.name)}</span>${tags}</td>${money}<td>${p.kills}</td><td>${p.deaths}</td><td>${pingText(p.bot, p.ping)}</td></tr>`;
+      return `<tr class="row${p.id === this.localId ? ' me' : ''}${p.alive ? '' : ' dead'}"><td><span class="nm">${escapeHtml(p.name)}</span>${tags}</td>${money}<td>${intText(p.kills)}</td><td>${intText(p.deaths)}</td><td>${escapeHtml(pingText(p.bot, p.ping))}</td></tr>`;
     }).join('');
     const block = (team: Team): string => {
       const alive = sb[team].filter((p) => p.alive).length;
-      return `<div class="hud-bteam ${team === 'T' ? 't' : 'ct'}"><div class="th"><b>${TEAM_NAME[team]}</b><span>${team === 'T' ? m.round.tRounds : m.round.ctRounds} Runden · ${alive}/${sb[team].length} am Leben</span></div>
+      return `<div class="hud-bteam ${team === 'T' ? 't' : 'ct'}"><div class="th"><b>${TEAM_NAME[team]}</b><span>${intText(team === 'T' ? m.round.tRounds : m.round.ctRounds)} Runden · ${alive}/${sb[team].length} am Leben</span></div>
         <table><thead><tr><th>Name</th><th>Geld</th><th>Kills</th><th>Tode</th><th>Ping</th></tr></thead><tbody>${rows(team) || '<tr><td colspan="5" style="color:var(--c-mute)">Niemand</td></tr>'}</tbody></table></div>`;
     };
     const mapName = this.lastRound?.mapName ?? '';
     const first: Team = myTeam === 'T' ? 'T' : 'CT';
     const second: Team = first === 'T' ? 'CT' : 'T';
-    this.html(this.el.board, `<header><span class="map">${escapeHtml(mapName)}</span><span class="meta">Runde ${m.round.round} · ${escapeHtml(phaseLabel(m.round.phase))}</span>
-      <div class="vs"><span class="t">${m.round.tRounds}</span><i>:</i><span class="ct">${m.round.ctRounds}</span></div></header>
+    this.html(this.el.board, `<header><span class="map">${escapeHtml(mapName)}</span><span class="meta">Runde ${intText(m.round.round)} · ${escapeHtml(phaseLabel(m.round.phase))}</span>
+      <div class="vs"><span class="t">${intText(m.round.tRounds)}</span><i>:</i><span class="ct">${intText(m.round.ctRounds)}</span></div></header>
       <div class="teams ui-scroll">${block(first)}${block(second)}</div>
       <footer><span>Erster mit 16 Rundensiegen gewinnt</span><span>Geld nur für das eigene Team sichtbar</span></footer>`);
   }

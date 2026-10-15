@@ -1,7 +1,8 @@
 // Zwei-Client-Netzwerktest (CDP): startet den lokalen Relay-Server, öffnet zwei
-// headless Browser im selben Raum (Host + Client) und prüft: beide verbunden,
-// Host gewählt, Client spiegelt Spieler/Runde per Snapshot, Client-Schuss trifft
-// Bot auf dem Host, Chat kommt an, Host-Migration nach Trennung.
+// headless Browser im selben Raum (Host + Client) und prüft: Client mit falscher Karte
+// lädt die Karte des Hosts, beide verbunden, Host gewählt, Client spiegelt Spieler/Runde
+// per Snapshot, Client-Schuss trifft Bot auf dem Host, bösartige Nachrichten (XSS,
+// `__proto__`, NaN, gefälschte Stürze/Kicks/Snapshots) richten nichts an, Host-Migration.
 // Aufruf: bun scripts/net-test.mjs   (Dev-Server :3000 muss laufen; BROWSER=/pfad/chromium)
 
 const BROWSER = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
@@ -80,8 +81,16 @@ async function run() {
     a = await browser(CDP_A, 'A');
     b = await browser(CDP_B, 'B');
     await a.navigate(url('Anna', 'T'));
-    await sleep(4000);
-    await b.navigate(url('Bert', 'CT'));
+    const hostMap = (await a.waitFor('globalThis.__map?.()', (v) => !!v?.id, 60000))?.id;
+    await sleep(2000);
+    // B startet absichtlich mit einer anderen Karte: Host lehnt mit Grund 'map' ab, B lädt die Host-Karte neu
+    const wrongMap = hostMap === 'de_kuehlhaus' ? 'de_lagerstaub' : 'de_kuehlhaus';
+    await b.navigate(url('Bert', 'CT') + '&map=' + wrongMap);
+
+    // 0) Karten-Abgleich
+    const bm = await b.waitFor('(() => { const m = globalThis.__map?.(); const n = globalThis.__netId?.(); return m && n ? { id: m.id, peers: n.peers.length, search: location.search } : null; })()', (v) => v.id === hostMap && v.peers >= 1, 120000);
+    if (bm?.id === hostMap) ok(`Falsche Karte (${wrongMap}) → Host-Karte ${hostMap} geladen`);
+    else fail(`Karten-Abgleich fehlgeschlagen: Host=${hostMap} B=${JSON.stringify(bm)}`);
 
     // 1) Beide verbunden, gleicher Host
     const na = await a.waitFor('globalThis.__netId?.()', (v) => v.id && v.peers.length >= 1, 40000);
@@ -144,6 +153,77 @@ async function run() {
     const seen = await host.waitFor(`(() => { const d = globalThis.__playerPose?.(${JSON.stringify(cid)}); return d; })()`, (v) => Math.hypot(v.x - cpos.x, v.z - cpos.z) < 1.5, 8000, 300);
     if (seen && Math.hypot(seen.x - cpos.x, seen.z - cpos.z) < 1.5) ok(`Pose synchron (Client ${cpos.x},${cpos.z} ↔ Host ${seen.x},${seen.z})`);
     else fail(`Pose nicht synchron: Client=${JSON.stringify(cpos)} Host=${JSON.stringify(seen)}`);
+
+    // 5b) Bösartige Nachrichten — nichts darf kaputtgehen
+    {
+      const hid = (await host.evJson('globalThis.__netId?.()'))?.id;
+      const cid2 = (await client.evJson('globalThis.__netId?.()'))?.id;
+      await host.evJson('globalThis.__pauseBots?.(12000)');
+      await host.evJson(`globalThis.__reviveId?.(${JSON.stringify(hid)})`);
+      await host.evJson(`globalThis.__reviveId?.(${JSON.stringify(cid2)})`);
+      await sleep(600);
+      const before = await host.evJson('globalThis.__players?.()');
+      const evil = [
+        { t: 'hello', id: '__proto__', name: '<img src=x id=pwn0 onerror=alert(1)>', team: 'T' },
+        { t: 'hello', id: 'constructor', name: 'x', team: 'T' },
+        { t: 'hello', id: 'bot-99', name: 'Fake', team: 'CT' },
+        { t: 'hello', id: 'ghost-1', name: 'Ghost', team: 'T' },
+        { t: 'team', id: cid2, team: 'toString' },
+        { t: 'throw', id: cid2, kind: 'toString', o: [0, 1, 0], d: [0, 0, 1], s: 1 },
+        { t: 'throw', id: cid2, kind: 'he', o: [0, 1, 0], d: ['x', 0, 1], s: 1 },
+        { t: 'fire', id: cid2, w: 'glock', o: [0, 1e9, 0], d: [[0, 0, 0]], seq: 1 },
+        { t: 'fire', id: 'bot-0', w: 'awp', o: [0, 1.6, 0], d: [[0, 0, 1]], seq: 1 },
+        { t: 'fall', id: hid, v: 40 },
+        { t: 'fall', id: cid2, v: 40 },
+        { t: 'buy', id: cid2, item: '__proto__' },
+        { t: 'pose', id: cid2, x: 'a', y: 0, z: 0, yaw: 0, pitch: 0, w: 'knife', c: false, m: false, e: false },
+      ];
+      // a) übers Netz (Relay stempelt den Absender → fremde IDs fallen schon dort durch)
+      for (const m of evil) await client.evJson(`globalThis.__netSendRaw?.(${JSON.stringify(m)})`);
+      // b) direkt auf dem Host wie vom Needle-Server ohne Absender (nur die Prüfung schützt), inkl. NaN/Infinity
+      for (const m of evil) await host.evJson(`globalThis.__netInject?.(${JSON.stringify(m)}, null)`);
+      await host.evJson(`globalThis.__netInject?.({ t: 'throw', id: ${JSON.stringify(cid2)}, kind: 'he', o: [0, NaN, 0], d: [NaN, 0, 1], s: 1 }, null)`);
+      await host.evJson(`globalThis.__netInject?.({ t: 'fire', id: ${JSON.stringify(cid2)}, w: 'glock', o: [0, 1.6, 0], d: [[Infinity, 0, 1]], seq: 2 }, null)`);
+      await host.evJson(`globalThis.__netInject?.({ t: 'fire', id: ${JSON.stringify(cid2)}, w: 'glock', o: [0, 1.6, 0], d: Array.from({ length: 100000 }, () => [0, 0, 1]), seq: 3 }, null)`);
+      await sleep(1500);
+      const after = await host.evJson('globalThis.__players?.()');
+      const ids = (l) => (l ?? []).map((p) => p.id).sort().join(',');
+      const sane = (after ?? []).every((p) => typeof p.hp === 'number' && Number.isFinite(p.hp) && typeof p.team === 'string' && (p.team === 'T' || p.team === 'CT'));
+      const hostHp = after?.find((p) => p.id === hid)?.hp;
+      const clientHp = after?.find((p) => p.id === cid2)?.hp;
+      const polluted = await host.evJson('[({}).name, ({}).hp, ({}).team, Object.prototype.hasOwnProperty.call(Object.prototype, "id")]');
+      if (ids(after) === ids(before) && sane && hostHp === 100 && clientHp === 100 && (polluted ?? []).every((v) => v === null || v === false)) {
+        ok(`Bösartige Client-Nachrichten wirkungslos (${evil.length}× Netz + direkt, Spieler unverändert, HP endlich, kein Prototyp-Eintrag)`);
+      } else fail(`Bösartige Client-Nachrichten: vorher=${ids(before)} nachher=${ids(after)} sane=${sane} hostHp=${hostHp} clientHp=${clientHp} proto=${JSON.stringify(polluted)}`);
+
+      // c) gefälschte Host-Nachrichten beim Client (h = echter Host, ohne Absender wie beim Needle-Server)
+      const snapsBefore = (await client.evJson('globalThis.__counters?.()'))?.snapsApplied ?? 0;
+      const forged = (seq, extra = {}) => ({
+        seq, time: 0,
+        round: { phase: 'live', timer: 50, round: '<img src=x id=pwn1 onerror=alert(1)>', ctRounds: 0, tRounds: '<img src=x id=pwn2>', bomb: { phase: 'none', progress: 0, fuseLeft: 0, spot: null, hasKit: false }, result: null },
+        players: [{ id: '__proto__', name: '<img src=x id=pwn3>', team: 'T', bot: false, hp: 'NaN', alive: true, money: 1, kills: '<b id=pwn4>', deaths: 0, weapon: 'toString', armor: 0, helmet: false, bomb: false, kit: false, primary: null, secondary: null, nades: [0, 0, 0], ping: 0 }],
+        lossStreak: { T: 0, CT: 0 }, winner: null, matchEndTimer: 0, nades: [], smokes: [], bombPos: null, ...extra,
+      });
+      // Riesen-Sequenz (früher: friert den Client ein) und eine gerade passende Sequenz mit HTML/`__proto__`
+      await client.evJson(`globalThis.__netInject?.({ t: 'snap', h: ${JSON.stringify(hid)}, s: ${JSON.stringify(forged(1e11))} }, null)`);
+      const last = await client.evJson('globalThis.__driver?.snapGate?.last');
+      await client.evJson(`globalThis.__netInject?.({ t: 'snap', h: ${JSON.stringify(hid)}, s: ${JSON.stringify(forged((last ?? 0) + 1))} }, null)`);
+      await client.evJson(`(() => { globalThis.__driver.hud.setScoreboard?.(globalThis.__driver.match, globalThis.__netId().id); return 1; })()`);
+      // Gefälschter Kick (Spieler ist längst im Match) und Ereignis mit HTML-Namen
+      await client.evJson(`globalThis.__netInject?.({ t: 'ev', h: ${JSON.stringify(hid)}, e: { k: 'kick', id: ${JSON.stringify(cid2)}, reason: 'password' } }, null)`);
+      await client.evJson(`globalThis.__netInject?.({ t: 'ev', h: ${JSON.stringify(hid)}, e: { k: 'kill', killer: '__proto__', victim: ${JSON.stringify(cid2)}, weapon: '<img src=x id=pwn5>', hs: true } }, null)`);
+      await client.evJson(`globalThis.__netInject?.({ t: 'ev', h: ${JSON.stringify(hid)}, e: { k: 'join', id: 'x', name: '<img src=x id=pwn6>', team: 'T' } }, null)`);
+      await sleep(2500);
+      const pwn = await client.evJson('document.querySelectorAll("[id^=pwn]").length');
+      const roundTxt = await client.evJson('document.body.innerHTML.includes("onerror")');
+      const snapsAfter = (await client.evJson('globalThis.__counters?.()'))?.snapsApplied ?? 0;
+      const still = await client.evJson('globalThis.__state?.()');
+      const cPlayers = await client.evJson('globalThis.__players?.()');
+      const cPolluted = await client.evJson('[({}).name, ({}).hp, ({}).team]');
+      if (pwn === 0 && roundTxt === false && snapsAfter > snapsBefore + 5 && still?.host === false && (cPlayers ?? []).filter((p) => !p.bot).length >= 2 && (cPolluted ?? []).every((v) => v === null)) {
+        ok(`Gefälschte Snapshots/Kicks beim Client wirkungslos (kein HTML im DOM, Snapshots laufen weiter: +${snapsAfter - snapsBefore}, nicht gekickt)`);
+      } else fail(`Gefälschte Host-Nachrichten: pwn=${pwn} onerror=${roundTxt} snaps ${snapsBefore}→${snapsAfter} state=${JSON.stringify(still)} players=${JSON.stringify(cPlayers)} proto=${JSON.stringify(cPolluted)}`);
+    }
 
     // 6) Host-Migration: Host-Browser schließen → Client wird Host und spielt weiter
     host.close();

@@ -9,8 +9,9 @@
  *                                                  {key:'user-joined-room', data:{userId}} an die anderen
  *   → {key:'leave-room', data:{room}}           ← {key:'left-room', room} / {key:'user-left-room', data:{userId}}
  *   → {key:'ping', data}                        ← {key:'pong', data}
- *   → beliebige {key, data} (oder Array davon)  → Broadcast an alle anderen im Raum
- * Beim Verbinden: {key:'connection-start-info', data:{id}}.
+ *   → beliebige {key, data} (oder Array davon)  → Broadcast an alle anderen im Raum, `data.from` = Absender-ID
+ *   Reservierte Server-Schlüssel (user-left-room, connection-start-info, …) von Clients werden verworfen.
+ * Beim Verbinden: {key:'connection-start-info', data:{id, stamp:true}}.
  */
 type Client = { id: string; room: string | null };
 type Msg = { key: string; data?: unknown; room?: string };
@@ -43,20 +44,61 @@ function log(s: string): void {
   console.log(`[relay] ${new Date().toISOString().slice(11, 19)} ${s}`);
 }
 
+/**
+ * Schlüssel des Raum-Protokolls, die nur der Server senden darf. Kämen sie von einem
+ * Client, könnte er z. B. „user-left-room“ für den Host fälschen (alle wählen einen neuen
+ * Host → zwei Hosts) oder per „connection-start-info“ fremde Verbindungs-IDs setzen.
+ */
+export const RESERVED_KEYS = new Set([
+  'connection-start-info', 'joined-room', 'left-room', 'user-joined-room', 'user-left-room', 'room-state-sent',
+  'all-room-state-deleted', 'pong', 'response-has-owner', 'response-is-owner', 'gained-ownership', 'lost-ownership',
+  'gained-ownership-broadcast', 'lost-ownership-broadcast', 'remove-ownership',
+]);
+
+/**
+ * Eingehende Client-Nachrichten sortieren (pure): Steuerbefehle (join/leave/ping) getrennt,
+ * reservierte Server-Schlüssel verworfen, alles andere zum Weiterleiten — mit
+ * `data.from` = Verbindungs-ID des Absenders (vom Server gesetzt, Client-Werte überschrieben),
+ * damit Empfänger behauptete Spieler-IDs prüfen können.
+ */
+export function sortClientMessages(parsed: unknown, senderId: string): { control: Msg[]; broadcast: Msg[] } {
+  const list = Array.isArray(parsed) ? parsed : [parsed];
+  const control: Msg[] = [];
+  const broadcast: Msg[] = [];
+  for (const m of list.slice(0, 256) as Msg[]) {
+    if (!m || typeof m !== 'object' || typeof m.key !== 'string' || m.key.length > 64) continue;
+    switch (m.key) {
+      case 'join-room':
+      case 'leave-room':
+      case 'ping':
+        control.push(m);
+        break;
+      case 'delete-state':
+      case 'delete-all-state':
+        break;
+      default: {
+        if (RESERVED_KEYS.has(m.key)) break;
+        const d = m.data;
+        const data = d && typeof d === 'object' && !Array.isArray(d) ? { ...(d as Record<string, unknown>), from: senderId } : d;
+        broadcast.push({ key: m.key, data });
+      }
+    }
+  }
+  return { control, broadcast };
+}
+
 export function handleMessage(ws: import('bun').ServerWebSocket<Client>, raw: string): void {
-  let parsed: Msg | Msg[];
+  let parsed: unknown;
   try {
-    parsed = JSON.parse(raw) as Msg | Msg[];
+    parsed = JSON.parse(raw);
   } catch {
     return;
   }
-  const list = Array.isArray(parsed) ? parsed : [parsed];
-  const toBroadcast: Msg[] = [];
-  for (const m of list) {
-    if (!m || typeof m.key !== 'string') continue;
+  const { control, broadcast } = sortClientMessages(parsed, ws.data.id);
+  for (const m of control) {
     switch (m.key) {
       case 'join-room': {
-        const room = String((m.data as { room?: string })?.room ?? '');
+        const room = String((m.data as { room?: string })?.room ?? '').slice(0, 128);
         if (!room) break;
         if (ws.data.room && ws.data.room !== room) leave(ws);
         const set = membersOf(room);
@@ -76,15 +118,10 @@ export function handleMessage(ws: import('bun').ServerWebSocket<Client>, raw: st
       case 'ping':
         ws.send(JSON.stringify({ key: 'pong', data: m.data }));
         break;
-      case 'delete-state':
-      case 'delete-all-state':
-        break;
-      default:
-        toBroadcast.push(m);
     }
   }
-  if (toBroadcast.length && ws.data.room) {
-    const payload = JSON.stringify(toBroadcast.length === 1 ? toBroadcast[0] : toBroadcast);
+  if (broadcast.length && ws.data.room) {
+    const payload = JSON.stringify(broadcast.length === 1 ? broadcast[0] : broadcast);
     for (const other of rooms.get(ws.data.room) ?? []) if (other !== ws) other.send(payload);
   }
 }
@@ -106,7 +143,8 @@ if (import.meta.main) {
     },
     websocket: {
       open(ws) {
-        ws.send(JSON.stringify({ key: 'connection-start-info', data: { id: ws.data.id } }));
+        // `stamp`: dieser Server setzt `data.from` bei weitergeleiteten Nachrichten (Transport prüft damit IDs)
+        ws.send(JSON.stringify({ key: 'connection-start-info', data: { id: ws.data.id, stamp: true } }));
         log(`${ws.data.id} verbunden`);
       },
       message(ws, message) {

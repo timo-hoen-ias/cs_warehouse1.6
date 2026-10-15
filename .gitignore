@@ -31,3 +31,7 @@ smoke.png
 # Arbeitskopien der Hilfs-Agenten
 .claude/worktrees/
 .claude/skills/
+
+# Python-Bytecode (Audio-Skripte)
+__pycache__/
+*.pyc

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { newMoney } from './economy';
 import { buyItem, defaultLoadout, giveWeapon } from './loadout';
-import { DROP_THROW, MAX_DROPS, PICKUP_RADIUS, canPickup, capDrops, dropActive, dropOnDeath, droppedBomb, tryPickup, type DroppedItem } from './drops';
+import { DROP_THROW, MAX_DROPS, PICKUP_RADIUS, canPickup, capDrops, dropActive, dropOnDeath, droppedBomb, switchTeamDropping, tryPickup, type DroppedItem } from './drops';
+import { addPlayer, newMatch } from './match';
 import { WEAPONS } from './weapons';
 
 let n = 100;
@@ -95,5 +96,34 @@ describe('capDrops / droppedBomb', () => {
     expect(capped[1]!.id).toBe(10 + 6);
     expect(capDrops(items.slice(0, 3))).toHaveLength(3);
     expect(droppedBomb([])).toBeNull();
+  });
+});
+
+describe('switchTeamDropping', () => {
+  it('lebender C4-Träger wechselt das Team → C4 und beste Waffe liegen am Boden', () => {
+    const m = newMatch();
+    const p = addPlayer(m, 'a', 'Anna', { team: 'T' });
+    p.alive = true;
+    p.pose = { x: 5, y: 1, z: 7, yaw: 0, pitch: 0 };
+    giveWeapon(p.loadout, 'c4');
+    giveWeapon(p.loadout, 'ak47');
+    const items = switchTeamDropping(m, 'a', 'CT', id);
+    expect(items.map((i) => i.weapon).sort()).toEqual(['ak47', 'c4']);
+    expect(droppedBomb(items)).toMatchObject({ weapon: 'c4' });
+    expect(p.team).toBe('CT');
+    expect(p.alive).toBe(false);
+    expect(p.loadout.bomb).toBe(false);
+  });
+
+  it('tot, unbekannt oder gleiches Team → nichts fällt', () => {
+    const m = newMatch();
+    const p = addPlayer(m, 'a', 'Anna', { team: 'T' });
+    giveWeapon(p.loadout, 'c4');
+    expect(switchTeamDropping(m, 'a', 'T', id)).toEqual([]);
+    expect(switchTeamDropping(m, 'zzz', 'CT', id)).toEqual([]);
+    expect(switchTeamDropping(m, '__proto__', 'CT', id)).toEqual([]);
+    // tot: Inventar war schon beim Tod gefallen
+    expect(switchTeamDropping(m, 'a', 'CT', id)).toEqual([]);
+    expect(p.team).toBe('CT');
   });
 });

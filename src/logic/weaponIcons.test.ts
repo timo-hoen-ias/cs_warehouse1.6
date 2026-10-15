@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ICON_HEIGHT, headshotIconSvg, iconIds, weaponIcon, weaponIconSvg } from './weaponIcons';
+import { ICON_HEIGHT, headshotIconSvg, iconCacheSize, iconIds, weaponIcon, weaponIconSvg } from './weaponIcons';
 import { EQUIPMENT, WEAPONS } from './weapons';
 
 const PATH_OK = /^[MLHVQAZ0-9 .\-]+$/;
@@ -55,5 +55,15 @@ describe('SVG-Markup', () => {
 
   it('Kopfschuss-Symbol', () => {
     expect(headshotIconSvg()).toContain('viewBox="0 0 36 40"');
+  });
+
+  it('unbekannte IDs (Netz) teilen ein generisches Symbol, der Speicher wächst nicht', () => {
+    const generic = weaponIcon('gibtsnicht');
+    const before = iconCacheSize();
+    for (let i = 0; i < 500; i++) expect(weaponIcon(`fake${i}`)).toBe(generic);
+    expect(weaponIcon('__proto__')).toBe(generic);
+    expect(weaponIcon('constructor')).toBe(generic);
+    expect(iconCacheSize()).toBe(before);
+    expect(weaponIconSvg('<img src=x>')).not.toContain('<img');
   });
 });

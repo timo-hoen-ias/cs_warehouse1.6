@@ -235,6 +235,15 @@ export function weaponStatBars(def: WeaponDef): WeaponStatBars {
   };
 }
 
+/**
+ * Zahl fürs innerHTML: immer eine Ganzzahl als Text — auch wenn ein (gefälschter) Wert
+ * ein String mit HTML ist („<img …>“ → „0“). Zweite Verteidigungslinie nach netValidate.
+ */
+export function intText(v: unknown): string {
+  const n = typeof v === 'number' ? v : Number.NaN;
+  return String(Number.isFinite(n) ? Math.trunc(n) : 0);
+}
+
 /** HTML-Escaping für fremde Texte (Namen, Chat). */
 export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c));

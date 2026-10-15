@@ -13,7 +13,7 @@ export const HEARTBEAT_KEY = 'csw16-hb';
 /** Nachrichten-Key: Anfrage eines Browsers („alle Hosts bitte sofort melden“, mit Zeitstempel fürs Ping). */
 export const QUERY_KEY = 'csw16-q';
 /** Spiel-/Protokollversion: Server mit anderer Version sind nicht beitretbar. */
-export const GAME_VERSION = '1.6.4';
+export const GAME_VERSION = '1.6.5';
 export const HEARTBEAT_INTERVAL_MS = 3000;
 /** Eintrag verfällt ohne Heartbeat nach dieser Zeit. */
 export const SERVER_TTL_MS = 10000;
@@ -106,12 +106,27 @@ export function sanitizeHeartbeat(raw: unknown): Heartbeat | null {
 }
 
 /**
+ * Solange ein Eintrag frisch ist (letzter Heartbeat jünger als das), ändern weitere
+ * Heartbeats für denselben Raum Karte und Passwort-Kennzeichen nicht: ein fremder
+ * Client könnte sonst einen fremden Server mit falscher Karte/ohne Schloss anzeigen.
+ * Erst wenn der bisherige Melder verstummt (Host-Wechsel), gilt der neue Stand.
+ */
+export const SERVER_LOCK_MS = HEARTBEAT_INTERVAL_MS * 2;
+
+/**
  * Übernimmt einen (bereinigten) Heartbeat in die Liste (neues Objekt). Latenz nur aus
- * einer an uns adressierten Antwort; sonst bleibt der alte Messwert.
+ * einer an uns adressierten Antwort; sonst bleibt der alte Messwert. Volle Liste: der
+ * am längsten stille Eintrag weicht (Flut neuer Räume verdrängt keine aktiven Server dauerhaft).
  */
 export function mergeServer(list: ServerList, hb: Heartbeat, now: number, selfId: string | null, version = GAME_VERSION): ServerList {
-  const prev = list[hb.room];
-  if (!prev && Object.keys(list).length >= MAX_SERVERS) return list;
+  const prev = Object.hasOwn(list, hb.room) ? list[hb.room] : undefined;
+  let base = list;
+  if (!prev && Object.keys(list).length >= MAX_SERVERS) {
+    let oldest: string | null = null;
+    for (const [room, e] of Object.entries(list)) if (oldest === null || e.lastSeen < list[oldest]!.lastSeen) oldest = room;
+    base = { ...list };
+    if (oldest !== null) delete base[oldest];
+  }
   let latency = prev?.latency ?? null;
   if (hb.echo && selfId && hb.echo.to === selfId) {
     const rtt = now - hb.echo.t;
@@ -119,9 +134,18 @@ export function mergeServer(list: ServerList, hb: Heartbeat, now: number, selfId
   }
   const { echo: _echo, ...rest } = hb;
   void _echo;
+  const locked = !!prev && now - prev.lastSeen <= SERVER_LOCK_MS;
   return {
-    ...list,
-    [hb.room]: { ...rest, firstSeen: prev?.firstSeen ?? now, lastSeen: now, latency, compatible: hb.version === version },
+    ...base,
+    [hb.room]: {
+      ...rest,
+      map: locked ? prev!.map : rest.map,
+      hasPassword: locked ? prev!.hasPassword : rest.hasPassword,
+      firstSeen: prev?.firstSeen ?? now,
+      lastSeen: now,
+      latency,
+      compatible: hb.version === version,
+    },
   };
 }
 

@@ -8,8 +8,11 @@
 //   Optional: SHOT_DIR=/pfad → Screenshots von Serverbrowser und Lobby.
 
 const BROWSER = process.env.BROWSER ?? process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const RELAY_PORT = 9102;
-const ROOM = 'LOBBY7';
+// Parallel laufende Sitzungen: Relay- und CDP-Ports per Umgebung abweichend setzen
+const RELAY_PORT = Number(process.env.RELAY_PORT ?? 9102);
+const CDP_A = Number(process.env.CDP_A ?? 9241);
+const CDP_B = Number(process.env.CDP_B ?? 9242);
+const ROOM = process.env.ROOM ?? 'LOBBY7';
 const BASE = process.env.URL ?? 'http://localhost:3000/';
 const SHOT_DIR = process.env.SHOT_DIR ?? '';
 const { spawn } = require('child_process');
@@ -79,13 +82,15 @@ async function run() {
   let b = null;
   try {
     const server = encodeURIComponent(`ws://localhost:${RELAY_PORT}/socket`);
-    a = await browser(9241, 'A');
-    b = await browser(9242, 'B');
+    a = await browser(CDP_A, 'A');
+    b = await browser(CDP_B, 'B');
     await a.navigate(`${BASE}?auto=1&host=1&lobby=1&room=${ROOM}&sname=Testlager&pw=geheim&max=4&fill=2&name=Anna&team=T&quality=low&server=${server}`);
 
     // 1) Host läuft, Serverlobby hält das Aufwärmen
     const la = await a.waitFor('globalThis.__lobby?.()', (v) => v.host && v.held, 60000);
-    if (la?.held && la.cfg?.name === 'Testlager' && la.cfg?.pw && la.cfg.pw !== 'geheim') ok(`Host mit Serverlobby: ${la.cfg.name}, max ${la.cfg.maxPlayers}, Passwort als Prüfsumme`);
+    // Öffentliche Konfiguration: nur „hat Passwort“, die Prüfsumme bleibt im Host
+    const hostDigest = await a.evJson('globalThis.__driver?.lobbyCfg?.pw');
+    if (la?.held && la.cfg?.name === 'Testlager' && la.cfg?.hasPassword === true && !('pw' in la.cfg) && /^[0-9a-f]{16}$/.test(hostDigest ?? '')) ok(`Host mit Serverlobby: ${la.cfg.name}, max ${la.cfg.maxPlayers}, Passwort nur als Prüfsumme im Host`);
     else fail('Host/Lobby fehlt: ' + JSON.stringify(la));
 
     // 2) Browser B: Hauptmenü → Serverbrowser findet den Server über den Discovery-Raum
@@ -113,7 +118,11 @@ async function run() {
     const joined = await a.waitFor('globalThis.__players?.()', (v) => v.filter((p) => !p.bot).length === 2, 60000);
     const mirror = await b.waitFor('globalThis.__lobby?.()', (v) => v.held && !v.host, 30000);
     if (joined?.filter((p) => !p.bot).length === 2 && mirror) ok(`Beitritt mit Passwort: Host sieht ${joined.filter((p) => !p.bot).map((p) => p.name).join(', ')}, Client in der Serverlobby`);
-    else fail(`Beitritt fehlgeschlagen: ${JSON.stringify(joined)} / ${JSON.stringify(mirror)} / B=${JSON.stringify(await b.evJson('[location.search, globalThis.__netId?.(), globalThis.__driver?.options?.passwordDigest]'))} A=${JSON.stringify(await a.evJson('[globalThis.__netId?.(), globalThis.__driver?.lobbyConfig?.pw, globalThis.__frames?.()]'))}`);
+    else fail(`Beitritt fehlgeschlagen: ${JSON.stringify(joined)} / ${JSON.stringify(mirror)} / B=${JSON.stringify(await b.evJson('[location.search, globalThis.__netId?.(), globalThis.__driver?.options?.passwordDigest]'))} A=${JSON.stringify(await a.evJson('[globalThis.__netId?.(), globalThis.__driver?.lobbyConfig, globalThis.__frames?.()]'))}`);
+    // Die Prüfsumme des Hosts darf beim Client nirgends ankommen (früher im Snapshot → Passwort-Umgehung)
+    const leak = await b.evJson(`JSON.stringify(globalThis.__lobby?.() ?? null).includes(${JSON.stringify(hostDigest ?? 'x')})`);
+    if (mirror && mirror.cfg?.hasPassword === true && leak === false) ok('Client kennt nur „hat Passwort“, nicht die Prüfsumme des Hosts');
+    else fail(`Prüfsumme beim Client sichtbar: ${JSON.stringify(mirror)} leak=${leak}`);
     const lobbyUi = await b.waitFor('document.querySelector("#lobby.on")?.textContent', (v) => /Warte auf den Host/.test(v), 15000);
     if (lobbyUi) ok('Serverlobby beim Client sichtbar (wartet auf Host)');
     else fail('Serverlobby-Overlay beim Client fehlt');

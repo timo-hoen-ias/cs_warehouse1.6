@@ -110,4 +110,16 @@ describe('Bot-System', () => {
     bots.tick({ match: m, smokes: [], bombPos: null, dropped: null, crouching: () => false }, 0.05, act);
     expect(bots.state('bot-0')!.state).toBe('geblendet');
   });
+
+  it('Bewegungs-Tabelle vergisst Spieler, die das Match verlassen haben', () => {
+    const { m, bots } = setup(1);
+    const { act } = recorder();
+    const w = { match: m, smokes: [], bombPos: null, dropped: null, crouching: () => false };
+    for (let i = 0; i < 40; i++) addPlayer(m, `peer-${i}`, `P${i}`, { team: 'T' });
+    bots.tick(w, 0.05, act);
+    expect(bots.trackedMotions).toBe(42);
+    for (let i = 0; i < 40; i++) delete m.players[`peer-${i}`];
+    bots.tick(w, 0.05, act);
+    expect(bots.trackedMotions).toBe(2);
+  });
 });

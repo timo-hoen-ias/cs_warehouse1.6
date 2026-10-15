@@ -2,7 +2,7 @@ import { Behaviour, destroy, registerType, type Context } from '@needle-tools/en
 import * as THREE from 'three';
 import { World } from '../game/World';
 import { loadMapData, mapById } from '../maps';
-import { FlightPath, flightPose, planFlight, tourStops, type V3 } from '../logic/menuFlight';
+import { FlightPath, LoadGate, flightPose, planFlight, tourStops, type V3 } from '../logic/menuFlight';
 import { MenuBackdrop, type MenuBackdropLike } from './MenuBackdrop';
 
 /** Bildrate des Menühintergrunds (die Engine drosselt ihre Schleife darauf). */
@@ -47,7 +47,8 @@ export class FlightBackdrop implements MenuBackdropLike {
   private rigObj: THREE.Object3D | null = null;
   private rig: FlightRig | null = null;
   private mapId: string;
-  private token = 0;
+  /** Laufende Ladevorgänge (Kartenwechsel/Spielstart verwirft ältere). */
+  private readonly gate = new LoadGate();
   private timer = 0;
   private paused = false;
   private disposed = false;
@@ -91,7 +92,7 @@ export class FlightBackdrop implements MenuBackdropLike {
     if (this.disposed) return;
     this.disposed = true;
     window.clearTimeout(this.timer);
-    this.token++;
+    this.gate.invalidate();
     this.releaseWorld();
     this.art.dispose();
   }
@@ -102,7 +103,7 @@ export class FlightBackdrop implements MenuBackdropLike {
    */
   releaseWorld(): void {
     window.clearTimeout(this.timer);
-    this.token++; // laufende Ladevorgänge verwerfen
+    this.gate.invalidate(); // laufende Ladevorgänge verwerfen
     if (this.rigObj) {
       destroy(this.rigObj, true);
       this.rigObj = null;
@@ -128,11 +129,12 @@ export class FlightBackdrop implements MenuBackdropLike {
 
   private async load(): Promise<void> {
     if (this.disposed) return;
-    const my = ++this.token;
-    const stale = (): boolean => my !== this.token || this.disposed;
+    // alte Welt erst entfernen, wenn eine neue gebaut wird (Key-Art blendet dazwischen wieder ein).
+    // Vor dem Token: hide3d() → releaseWorld() verwirft laufende Vorgänge, sonst wäre dieser sofort veraltet.
+    if (this.rig) this.hide3d();
+    const my = this.gate.begin();
+    const stale = (): boolean => !this.gate.current(my) || this.disposed;
     try {
-      // alte Welt erst entfernen, wenn eine neue gebaut wird (Key-Art blendet dazwischen wieder ein)
-      if (this.rig) this.hide3d();
       await nextFrame();
       if (stale()) return;
       const data = loadMapData(this.mapId);

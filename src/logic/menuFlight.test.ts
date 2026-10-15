@@ -3,7 +3,7 @@ import { MAPS, mapById } from '../maps';
 import { compileMap } from './mapcompile';
 import { findPath } from './nav';
 import {
-  angleDiff, FLIGHT_EYE, FLIGHT_SPEED, FlightPath, flightPose, joinLegs, planFlight, polylineLength, resample, smoothPolyline, tourStops, yawOf, type V3,
+  LoadGate, angleDiff, FLIGHT_EYE, FLIGHT_SPEED, FlightPath, flightPose, joinLegs, planFlight, polylineLength, resample, smoothPolyline, tourStops, yawOf, type V3,
 } from './menuFlight';
 
 const P = (x: number, y: number, z: number): V3 => ({ x, y, z });
@@ -151,5 +151,24 @@ describe('Rundreise auf echten Karten', () => {
   it('tourStops ohne Spawns/Bereiche liefert nur die Bombenspots', () => {
     const stops = tourStops({ nav: { areas: [] }, spawns: [], sites: [{ plant: [0, 0, 0] }, { plant: [50, 0, 0] }] });
     expect(stops).toHaveLength(2);
+  });
+});
+
+describe('LoadGate (Kartenwechsel im Menü)', () => {
+  it('Aufräumen vor begin(): der neue Ladevorgang bleibt gültig', () => {
+    const g = new LoadGate();
+    const first = g.begin();
+    // Kartenwechsel: alte Welt entfernen (invalidiert) und erst danach neu beginnen
+    g.invalidate();
+    const second = g.begin();
+    expect(g.current(first)).toBe(false);
+    expect(g.current(second)).toBe(true);
+  });
+
+  it('der frühere Fehler: begin() vor dem Aufräumen → sofort veraltet', () => {
+    const g = new LoadGate();
+    const t = g.begin();
+    g.invalidate(); // hide3d() → releaseWorld() nach dem Token
+    expect(g.current(t)).toBe(false);
   });
 });

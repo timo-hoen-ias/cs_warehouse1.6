@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  GAME_VERSION, MAX_SERVERS, SERVER_TTL_MS, cleanText, expireServers, filterServers, joinBlockReason, latencyInfo, mergeServer,
+  GAME_VERSION, MAX_SERVERS, SERVER_LOCK_MS, SERVER_TTL_MS, cleanText, expireServers, filterServers, joinBlockReason, latencyInfo, mergeServer,
   normalizeRoomCode, playersText, sanitizeHeartbeat, serverStatusText, sortServers, validRoomCode, type Heartbeat, type ServerList,
 } from './serverList';
 
@@ -110,10 +110,27 @@ describe('mergeServer / expireServers', () => {
     expect(joinBlockReason(l.ABCDE!)).toBe('Andere Version (0.9)');
   });
 
-  it('begrenzt die Anzahl der Einträge', () => {
+  it('begrenzt die Anzahl der Einträge: der am längsten stille weicht, neue Server bleiben sichtbar', () => {
     let l: ServerList = {};
-    for (let i = 0; i < MAX_SERVERS + 5; i++) l = mergeServer(l, hb({ room: `R${String(i).padStart(4, '0')}` }), 1, null);
+    for (let i = 0; i < MAX_SERVERS + 5; i++) l = mergeServer(l, hb({ room: `R${String(i).padStart(4, '0')}` }), i, null);
     expect(Object.keys(l)).toHaveLength(MAX_SERVERS);
+    expect(l.R0000).toBeUndefined();
+    expect(l.R0004).toBeUndefined();
+    expect(l[`R${String(MAX_SERVERS + 4).padStart(4, '0')}`]).toBeDefined();
+    // Ein aktiver Server (frischer Heartbeat) überlebt die Flut
+    l = mergeServer(l, hb({ room: 'R0005' }), 10000, null);
+    for (let i = 0; i < 50; i++) l = mergeServer(l, hb({ room: `F${String(i).padStart(4, '0')}` }), 10001 + i, null);
+    expect(l.R0005).toBeDefined();
+    expect(Object.keys(l)).toHaveLength(MAX_SERVERS);
+  });
+
+  it('frischer Eintrag: fremde Heartbeats ändern Karte und Schloss nicht; nach Verstummen schon', () => {
+    let l = mergeServer({}, hb({ map: 'de_lager', hasPassword: true }), 1000, null);
+    l = mergeServer(l, hb({ map: 'de_umschlag', hasPassword: false, players: 3 }), 2000, null);
+    expect(l.ABCDE).toMatchObject({ map: 'de_lager', hasPassword: true, players: 3 });
+    // Alter Melder seit > SERVER_LOCK_MS still (z. B. Host-Wechsel) → neuer Stand gilt
+    l = mergeServer(l, hb({ map: 'de_umschlag', hasPassword: false }), 2000 + SERVER_LOCK_MS + 1, null);
+    expect(l.ABCDE).toMatchObject({ map: 'de_umschlag', hasPassword: false });
   });
 
   it('lässt Einträge nach der TTL verfallen', () => {

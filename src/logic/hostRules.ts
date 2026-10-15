@@ -1,4 +1,48 @@
 import { bombCarrier, type MatchState } from './match';
+import { ROUND, type RoundState } from './round';
+import { PLAYER } from './move';
+import type { GunState } from './fire';
+import type { WeaponDef } from './weapons';
+
+/** Grenzen der Host-Prüfung fremder Schüsse/Würfe (Posen kommen mit 20 Hz + Latenz → Spielraum). */
+export const ORIGIN_CHECK = {
+  /** Waagrechter Abstand Ursprung ↔ letzte bekannte Pose (m). */
+  horizontal: 2.5,
+  /** Senkrechter Abstand Ursprung ↔ Augenhöhe der Pose (m; Ducken/Springen). */
+  vertical: 1.5,
+} as const;
+
+/** Kaufzeit: Aufwärmen, Kaufphase und die ersten 15 s der laufenden Runde. */
+export function canBuyNow(round: Pick<RoundState, 'phase' | 'timer'>): boolean {
+  return round.phase === 'warmup' || round.phase === 'freeze' || (round.phase === 'live' && round.timer > ROUND.roundTime - 15);
+}
+
+/** Liegt ein gemeldeter Schuss-/Wurf-Ursprung plausibel am Auge des Spielers? NaN → nein. */
+export function originNearEye(origin: P3, pose: P3): boolean {
+  const h = Math.hypot(origin.x - pose.x, origin.z - pose.z);
+  const v = Math.abs(origin.y - (pose.y + PLAYER.eye));
+  return h <= ORIGIN_CHECK.horizontal && v <= ORIGIN_CHECK.vertical;
+}
+
+/**
+ * Munition eines fremden Schusses auf dem Host mitzählen (für Munitionskauf und Host-Wechsel):
+ * false = kein Schuss mehr möglich (Magazin und Reserve leer) → Schuss verwerfen.
+ * Leeres Magazin mit Reserve = der Client hat nachgeladen.
+ */
+export function consumeShot(gun: GunState | undefined, def: Pick<WeaponDef, 'mode' | 'magSize'>): boolean {
+  if (!gun || def.mode !== 'hit') return true;
+  if (gun.mag > 0) {
+    gun.mag -= 1;
+    return true;
+  }
+  if (gun.reserve > 0) {
+    const take = Math.min(def.magSize, gun.reserve);
+    gun.reserve -= take;
+    gun.mag = take - 1;
+    return true;
+  }
+  return false;
+}
 
 /**
  * Host-Regeln (pure), die Spiel-Host (MatchDriver) und Headless-Simulation (botSim)

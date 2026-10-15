@@ -3,6 +3,7 @@ import type { GunState } from './fire';
 import { makeGun } from './fire';
 import type { Loadout } from './loadout';
 import { WEAPONS } from './weapons';
+import { switchTeam, type MatchState } from './match';
 
 /**
  * Am Boden liegende Waffen und die C4 (pure). CS-Regeln: Beim Tod fällt die beste
@@ -117,4 +118,17 @@ export function capDrops(items: DroppedItem[], max: number = MAX_DROPS): Dropped
 /** Position der liegenden C4 (für Bots/Radar), sonst null. */
 export function droppedBomb(items: readonly DroppedItem[]): DroppedItem | null {
   return items.find((d) => d.weapon === 'c4') ?? null;
+}
+
+/**
+ * Teamwechsel eines Spielers (Host): ein lebender Spieler lässt vorher wie beim Tod seine
+ * beste Waffe und die C4 fallen — sonst verschwände die Bombe mit dem alten Inventar.
+ * Liefert die liegenden Gegenstände (leer, wenn tot, unbekannt oder schon im Team).
+ */
+export function switchTeamDropping(m: MatchState, id: string, team: Team, newId: () => number = nextDropId): DroppedItem[] {
+  const p = Object.hasOwn(m.players, id) ? m.players[id] : undefined;
+  if (!p || p.team === team) return [];
+  const out = p.alive ? dropOnDeath(p.loadout, { x: p.pose.x, y: p.pose.y, z: p.pose.z }, newId) : [];
+  switchTeam(m, id, team);
+  return out;
 }

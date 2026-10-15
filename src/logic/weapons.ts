@@ -111,7 +111,8 @@ export const TYPE_VISUAL: Record<WeaponType, Omit<WeaponVisual, 'model'> & { aim
 };
 
 function normalize(raw: Record<string, RawWeapon>): Record<string, WeaponDef> {
-  const out: Record<string, WeaponDef> = {};
+  // Ohne Prototyp: Netz-Eingaben wie `__proto__`/`toString` liefern keine „Waffe“
+  const out: Record<string, WeaponDef> = Object.create(null);
   for (const [id, w] of Object.entries(raw)) {
     const base = TYPE_VISUAL[w.type];
     const model = w.visual?.model ?? id;

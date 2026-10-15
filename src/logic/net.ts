@@ -7,7 +7,7 @@ import { defaultLoadout } from './loadout';
 import { makeGun } from './fire';
 import { WEAPONS } from './weapons';
 import type { DroppedItem } from './drops';
-import type { LobbyConfig } from './lobby';
+import type { PublicLobby } from './lobby';
 
 /**
  * Netzwerk-Protokoll (pure Typen + Helfer). Transport: Needle `context.connection`
@@ -19,8 +19,11 @@ import type { LobbyConfig } from './lobby';
  * Granaten und Bots rechnet der Host und verteilt Snapshots + Ereignisse.
  */
 export type PoseMsg = { t: 'pose'; id: string; x: number; y: number; z: number; yaw: number; pitch: number; w: string; c: boolean; m: boolean; e: boolean };
-/** `pw` = Passwort-Prüfsumme (lobby.ts), `v` = Spielversion (serverList.ts) — beide optional für ältere Clients. */
-export type HelloMsg = { t: 'hello'; id: string; name: string; team: Team | 'auto'; pw?: string | null; v?: string };
+/**
+ * `v` = Spielversion (serverList.ts), `map` = geladene Karte, `pr` = Antwort auf die Passwort-Anfrage
+ * des Hosts (lobby.ts `authProof`; fehlt bei der ersten Meldung, null = kein Passwort).
+ */
+export type HelloMsg = { t: 'hello'; id: string; name: string; team: Team | 'auto'; v?: string; map?: string; pr?: string | null };
 export type FireMsg = { t: 'fire'; id: string; w: string; o: [number, number, number]; d: [number, number, number][]; seq: number };
 export type ThrowMsg = { t: 'throw'; id: string; kind: GrenadeKind; o: [number, number, number]; d: [number, number, number]; s: number };
 export type BuyMsg = { t: 'buy'; id: string; item: string };
@@ -34,7 +37,8 @@ export type FallMsg = { t: 'fall'; id: string; v: number };
 /** `h` = Absender-Host-ID: Clients verwerfen Snapshots/Ereignisse von Nicht-Hosts. */
 export type SnapMsg = { t: 'snap'; s: Snapshot; h?: string };
 export type EventMsg = { t: 'ev'; e: GameEvent; h?: string };
-export type PosesMsg = { t: 'poses'; p: PoseMsg[] };
+/** Host → alle: Posen der Bots und des Hosts (`h` = Absender-Host-ID). */
+export type PosesMsg = { t: 'poses'; p: PoseMsg[]; h?: string };
 /** Host → alle: Ping-Runde `n` (logic/ping.ts). Ältere Clients ignorieren die Nachricht. */
 export type PingMsg = { t: 'ping'; n: number; h?: string };
 /** Client → Host: sofortige Antwort auf Ping-Runde `n`. */
@@ -58,8 +62,10 @@ export type GameEvent =
   | { k: 'pickup'; id: number; by: string; weapon: string }
   | { k: 'join'; id: string; name: string; team: Team }
   | { k: 'leave'; id: string; name: string }
-  /** Host lehnt einen Beitritt ab (Passwort, voll, Version); der Client verlässt den Raum. */
-  | { k: 'kick'; id: string; reason: string };
+  /** Host lehnt einen Beitritt ab (Passwort, voll, Version, Karte); `map` = Karte des Hosts (Grund 'map'). */
+  | { k: 'kick'; id: string; reason: string; map?: string }
+  /** Passwort-Anfrage des Hosts an einen Beitretenden (Antwort: hello mit `pr`). */
+  | { k: 'auth'; id: string; nonce: string };
 
 /** Kompakter Spieler-Snapshot. */
 export type PlayerSnap = {
@@ -98,8 +104,8 @@ export type Snapshot = {
   bombPos: [number, number, number] | null;
   /** Liegende Waffen/C4 (ohne Munitionsstand). */
   drops?: { id: number; weapon: string; p: [number, number, number] }[];
-  /** Server-Konfiguration (Name, Limit, Passwort-Prüfsumme, Lobby) — übersteht Host-Migration. */
-  lobby?: LobbyConfig | null;
+  /** Öffentliche Server-Konfiguration (Name, Limit, „hat Passwort“, Lobby, Karte, Bots) — übersteht Host-Migration. */
+  lobby?: PublicLobby | null;
 };
 
 /**
@@ -135,7 +141,7 @@ export function packPlayer(p: MatchPlayer): PlayerSnap {
   };
 }
 
-export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapshot['nades']; smokes: Smoke[]; bombPos: Snapshot['bombPos']; drops?: Snapshot['drops']; lobby?: LobbyConfig | null }): Snapshot {
+export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapshot['nades']; smokes: Smoke[]; bombPos: Snapshot['bombPos']; drops?: Snapshot['drops']; lobby?: PublicLobby | null }): Snapshot {
   return {
     seq,
     time: m.time,
@@ -165,7 +171,8 @@ export function applySnapshot(m: MatchState, s: Snapshot): void {
   const seen = new Set<string>();
   for (const ps of s.players) {
     seen.add(ps.id);
-    let p = m.players[ps.id];
+    // Nur eigene Einträge (nie Prototyp-Schlüssel wie `__proto__`/`constructor`)
+    let p = Object.hasOwn(m.players, ps.id) ? m.players[ps.id] : undefined;
     if (!p) {
       p = {
         id: ps.id,
@@ -206,7 +213,7 @@ export function applySnapshot(m: MatchState, s: Snapshot): void {
       if (lo[slot] !== id) {
         if (lo[slot]) delete lo.guns[lo[slot]!];
         lo[slot] = id;
-        if (id && !lo.guns[id] && WEAPONS[id]) lo.guns[id] = makeGun(WEAPONS[id]!);
+        if (id && !Object.hasOwn(lo.guns, id) && Object.hasOwn(WEAPONS, id)) lo.guns[id] = makeGun(WEAPONS[id]!);
       }
     }
   }

@@ -11,10 +11,10 @@ import { MatchAudio, toV3, type AudioMover } from '../audio/MatchAudio';
 import { Soldier } from '../entities/Soldier';
 import {
   addPlayer, aliveCounts, applyExplosion, applyFall, applyHit, balanceBots, beginRound, finishRound, newMatch, removePlayer,
-  restartMatch, rewardAction, switchTeam, type MatchPlayer, type MatchState, type Pose,
+  restartMatch, rewardAction, type MatchPlayer, type MatchState, type Pose,
 } from '../logic/match';
-import { ROUND, tickRound, type RoundPhase } from '../logic/round';
-import { acceptFallReport, fallDamage } from '../logic/fall';
+import { ROUND, tickRound } from '../logic/round';
+import { acceptFallReport, fallDamage, hostFallDamage, observedFallSpeed, type HeightSample } from '../logic/fall';
 import type { Team } from '../logic/economy';
 import { WEAPONS, shotInterval, type WeaponDef } from '../logic/weapons';
 import { buyAmmo, buyItem, consumeGrenade, bestWeapon, giveWeapon } from '../logic/loadout';
@@ -24,14 +24,15 @@ import { humanPartBoxes, type Vec3 } from '../logic/hitbox';
 import { BOT_NAMES } from '../logic/botDecide';
 import { analyzeMap } from '../logic/botMap';
 import { BotSystem, type BotActions, type BotEvent } from '../logic/botSystem';
-import { DEFUSE_DY, DEFUSE_RADIUS, bombInput } from '../logic/hostRules';
+import { DEFUSE_DY, DEFUSE_RADIUS, bombInput, canBuyNow, consumeShot, originNearEye } from '../logic/hostRules';
 import { PLAYER } from '../logic/move';
 import { GRENADE, flashStrength, heDamageAt, stepGrenade, throwGrenade, type GrenadeState, type Smoke } from '../logic/grenade';
 import { applySnapshot, lerpPose, packSnapshot, poseMsg, sanitizeName, type GameEvent, type NetMsg, type PoseMsg, type Snapshot } from '../logic/net';
 import { mulberry32 } from '../logic/rng';
-import { capDrops, dropActive, dropOnDeath, droppedBomb, nextDropId, tryPickup, type DroppedItem } from '../logic/drops';
+import { capDrops, dropActive, dropOnDeath, droppedBomb, nextDropId, switchTeamDropping, tryPickup, type DroppedItem } from '../logic/drops';
 import { DroppedView } from '../weapons/DroppedView';
-import { admitPlayer, holdWarmup, lobbyActive, sanitizeLobbyConfig, type LobbyConfig } from '../logic/lobby';
+import { admitPlayer, authProof, holdWarmup, lobbyActive, lobbyFromPublic, makeNonce, publicLobby, type LobbyConfig, type PublicLobby } from '../logic/lobby';
+import { SnapSeqGate, isHumanId, parseNetMsg, poseInBounds, senderAllowed } from '../logic/netValidate';
 import { GAME_VERSION } from '../logic/serverList';
 import { applyPings, PingTracker } from '../logic/ping';
 import { HintFader, objectiveHint } from '../logic/hudHint';
@@ -47,7 +48,7 @@ export type DriverOptions = {
   botSkill: number;
   /** Online-Host: Server-Konfiguration (Name, Limit, Passwort, Serverlobby). */
   lobby?: LobbyConfig | null;
-  /** Client: Passwort-Prüfsumme für den Beitritt. */
+  /** Client: Passwort-Prüfsumme für den Beitritt (wird nie gesendet, nur Antworten daraus). */
   passwordDigest?: string | null;
 };
 
@@ -82,7 +83,10 @@ export class MatchDriver extends Behaviour {
   private snapSeq = 0;
   private snapTimer = 0;
   private poseTimer = 0;
-  private lastSnapSeq = -1;
+  /** Snapshot-Reihenfolge (Client): plausibles Fenster, Neusynchronisation nach Fälschungen. */
+  private readonly snapGate = new SnapSeqGate();
+  /** Letztes gesendetes Hallo (Client wiederholt es, bis er im Match ist). */
+  private lastHelloAt = -Infinity;
   /** Taktische Bots (Host): Karten-Analyse, Team-Trainer, Gehirn/Körper je Bot (src/logic/botSystem.ts). */
   private botSys: BotSystem | null = null;
   private get bots(): BotSystem {
@@ -96,7 +100,6 @@ export class MatchDriver extends Behaviour {
   private readonly soldiers = new Map<string, Soldier>();
   private readonly remotePoses = new Map<string, RemotePose>();
   private lastRound = 0;
-  private lastPhase: RoundPhase = 'warmup';
   private nades: { id: number; g: GrenadeState }[] = [];
   private nadeSeq = 1;
   private smokes: Smoke[] = [];
@@ -123,11 +126,22 @@ export class MatchDriver extends Behaviour {
   /** Spielbezogenes Audio (Schritte, Bombe, Treffer) — Logik in src/audio/MatchAudio.ts. */
   private readonly audio = new MatchAudio(() => this.sfx, () => this.world?.zones);
   private lastNow = 0;
-  /** Server-Konfiguration (Host: aus den Optionen, Client: aus dem Snapshot). */
+  /** Server-Konfiguration mit Passwort-Prüfsumme (nur Host). */
   private lobbyCfg: LobbyConfig | null = null;
+  /** Öffentliche Server-Konfiguration aus dem Snapshot (Client; Grundlage bei Host-Migration). */
+  private lobbyPub: PublicLobby | null = null;
+  /** Host: offene Passwort-Anfragen (Nonce je beitretender ID). */
+  private readonly authNonces = new Map<string, string>();
+  /** Host: Höhenverlauf fremder Menschen (Sturzmeldungen prüfen). */
+  private readonly heightTrail = new Map<string, HeightSample[]>();
   private kicked = false;
+  /** Lokaler Spieler war schon im Match (danach gelten keine Kicks/Passwort-Anfragen mehr). */
+  private everJoined = false;
   /** Der Host hat den Beitritt abgelehnt (Grund-Code aus lobby.ts). */
   onKicked?: (reason: string) => void;
+  /** Der Server spielt eine andere Karte (geprüfte, registrierte ID wählt main.ts). */
+  onWrongMap?: (mapId: string) => void;
+  private wrongMapSent = false;
   /** Debug-Zähler (Smoke/Netztest). */
   readonly counters = { firesSent: 0, firesHandled: 0, hitsApplied: 0, snapsApplied: 0, posesIn: 0 };
 
@@ -145,7 +159,7 @@ export class MatchDriver extends Behaviour {
   }
 
   start(): void {
-    this.net.onMessage = (msg) => this.onNet(msg);
+    this.net.onMessage = (raw, from) => this.onNet(raw, from);
     this.net.onPeersChanged = () => this.onPeers();
     this.net.onPeerLeft = (id) => this.onPeerLeft(id);
     this.shooter.onFire = (w, o, d) => this.localFire(w, o, d);
@@ -188,7 +202,7 @@ export class MatchDriver extends Behaviour {
     if (this.net.hostId !== this.lastHostId) {
       // Neuer Host zählt seine Snapshots neu → alte Sequenz vergessen
       this.lastHostId = this.net.hostId;
-      this.lastSnapSeq = -1;
+      this.snapGate.reset();
     }
     if (this.isHost && !this.wasHost) this.becomeHost();
     else if (!this.isHost && this.wasHost) this.wasHost = false;
@@ -196,19 +210,36 @@ export class MatchDriver extends Behaviour {
     this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName?.replace(/^csw16-/, '')} · ${this.net.peers.length + 1} Spieler · ${this.isHost ? 'Host' : 'Client'}` : 'Offline gegen Bots');
   }
 
-  private sendHello(): void {
-    this.net.send({ t: 'hello', id: this.localId, name: this.options.localName, team: this.options.team, pw: this.options.passwordDigest ?? null, v: GAME_VERSION });
+  /** Beitritt melden; `nonce` = Passwort-Anfrage des Hosts (Antwort aus der Prüfsumme, nie die Prüfsumme selbst). */
+  private sendHello(nonce?: string): void {
+    const msg: Extract<NetMsg, { t: 'hello' }> = { t: 'hello', id: this.localId, name: this.options.localName, team: this.options.team, v: GAME_VERSION, map: this.world.data.id };
+    if (nonce !== undefined) {
+      const d = this.options.passwordDigest;
+      msg.pr = d ? authProof(d, nonce, this.localId) : null;
+    }
+    this.net.send(msg);
     this.helloSent = true;
+    this.lastHelloAt = performance.now();
   }
 
   private becomeHost(): void {
     this.wasHost = true;
     this.pings = new PingTracker();
-    // Eigene Konfiguration (Ersteller) oder die vom alten Host per Snapshot übernommene
+    this.authNonces.clear();
+    // Eigene Konfiguration (Ersteller) oder die öffentliche vom alten Host + eigene Prüfsumme
+    // (die alte Prüfsumme wird nie verteilt; wer beigetreten ist, kennt das Passwort)
     if (!this.lobbyCfg && this.options.lobby) this.lobbyCfg = { ...this.options.lobby };
+    else if (!this.lobbyCfg && this.lobbyPub) this.lobbyCfg = lobbyFromPublic(this.lobbyPub, this.options.passwordDigest);
+    // Bot-Anzahl und -Stärke wie beim bisherigen Host
+    if (this.lobbyCfg?.fillTo !== undefined) this.options.fillTo = this.lobbyCfg.fillTo;
+    if (this.lobbyCfg?.botSkill !== undefined) this.options.botSkill = this.lobbyCfg.botSkill;
+    if (this.lobbyCfg && !this.lobbyCfg.map) this.lobbyCfg.map = this.world.data.id;
+    if (this.botSys) this.botSys.skill = this.options.botSkill;
     // Host-Migration: Spiegel wird autoritativ.
     // Snapshot-Zähler über dem bisherigen Host fortsetzen, Rundenzähler übernehmen (kein Doppelstart)
-    this.snapSeq = Math.max(this.snapSeq, this.lastSnapSeq + 1);
+    this.snapSeq = Math.max(this.snapSeq, this.snapGate.last + 1);
+    // Bot-Posen kamen bisher per Netz; ab jetzt rechnet das eigene Bot-System (sonst falsche Hitboxen)
+    for (const id of [...this.remotePoses.keys()]) if (this.match.players[id]?.bot || id.startsWith('bot-')) this.remotePoses.delete(id);
     this.lastRound = this.match.round.round;
     // Menschen, die nicht mehr im Raum sind (z. B. der alte Host), entfernen
     const present = new Set([this.localId, ...this.net.peers]);
@@ -240,6 +271,11 @@ export class MatchDriver extends Behaviour {
     }
     this.remotePoses.delete(id);
     this.pings.forget(id);
+    this.authNonces.delete(id);
+    this.heightTrail.delete(id);
+    this.lastFire.delete(id);
+    this.lastFall.delete(id);
+    this.pickupBlock.delete(id);
     if (this.isHost && this.match.players[id]) {
       const name = this.match.players[id]!.name;
       removePlayer(this.match, id);
@@ -248,7 +284,14 @@ export class MatchDriver extends Behaviour {
     }
   }
 
-  private onNet(msg: NetMsg): void {
+  /**
+   * Empfangene Nachricht: erst strikt prüfen (logic/netValidate.ts — Typen, Bereiche,
+   * Aufzählungen, IDs), dann den Absender (Host-Kennung, Relay-Stempel), erst dann handeln.
+   */
+  private onNet(raw: unknown, from: string | null = null): void {
+    const msg = parseNetMsg(raw);
+    if (!msg) return;
+    if (!senderAllowed(msg, from, this.net.hostId)) return;
     switch (msg.t) {
       case 'pose':
         this.applyRemotePose(msg);
@@ -257,13 +300,13 @@ export class MatchDriver extends Behaviour {
         if (!this.isHost) for (const p of msg.p) this.applyRemotePose(p);
         break;
       case 'snap':
-        if (!this.isHost && (!msg.h || msg.h === this.net.hostId)) this.applySnap(msg.s);
+        if (!this.isHost) this.applySnap(msg.s);
         break;
       case 'ev':
-        if (!this.isHost && (!msg.h || msg.h === this.net.hostId)) this.onEvent(msg.e);
+        if (!this.isHost) this.onEvent(msg.e);
         break;
       case 'hello':
-        if (this.isHost) this.hostHello(msg.id, msg.name, msg.team, msg.pw, msg.v);
+        if (this.isHost) this.hostHello(msg);
         break;
       case 'fire':
         if (this.isHost) this.hostFire(msg.id, msg.w, { x: msg.o[0], y: msg.o[1], z: msg.o[2] }, msg.d.map((d) => ({ x: d[0], y: d[1], z: d[2] })));
@@ -280,12 +323,15 @@ export class MatchDriver extends Behaviour {
       case 'team':
         if (this.isHost) this.hostTeam(msg.id, msg.team);
         break;
-      case 'chat':
+      case 'chat': {
         // Teamchat/Funk nur für das eigene Team
         if (msg.teamOnly && msg.team !== this.local?.team) break;
         if (msg.text.startsWith('[Funk]')) this.sfx?.play('beep');
-        this.pushChat((msg.teamOnly ? '(Team) ' : '') + msg.name, msg.text, msg.team);
+        // Bekannte Spieler mit ihrem Match-Namen anzeigen (behauptete Namen sind fälschbar)
+        const who = this.match.players[msg.id]?.name ?? msg.name;
+        this.pushChat((msg.teamOnly ? '(Team) ' : '') + who, msg.text, msg.team);
         break;
+      }
       case 'reload':
         break;
       case 'dropreq':
@@ -296,16 +342,30 @@ export class MatchDriver extends Behaviour {
         break;
       case 'ping':
         // Client: sofort zurückmelden (Host misst die Rundlaufzeit mit seiner Uhr)
-        if (!this.isHost && (!msg.h || msg.h === this.net.hostId)) this.net.send({ t: 'pong', id: this.localId, n: msg.n });
+        if (!this.isHost) this.net.send({ t: 'pong', id: this.localId, n: msg.n });
         break;
       case 'pong':
-        if (this.isHost) this.pings.pong(msg.id, msg.n, performance.now());
+        if (this.isHost && this.match.players[msg.id]) this.pings.pong(msg.id, msg.n, performance.now());
         break;
     }
   }
 
+  /** Debug/Netztest: beliebige (auch bösartige) Rohdaten wie empfangen verarbeiten bzw. senden. */
+  debugInject(raw: unknown, from: string | null = null): void {
+    this.onNet(raw, from);
+  }
+
+  debugSendRaw(raw: unknown): void {
+    this.net.send(raw as NetMsg);
+  }
+
   private applyRemotePose(p: PoseMsg): void {
     if (p.id === this.localId) return;
+    const mp = this.match.players[p.id];
+    // Nur Spieler im Match (begrenzt die Tabelle); der Host rechnet Bots selbst und ignoriert fremde Bot-Posen
+    if (!mp || (this.isHost && (mp.bot || p.id.startsWith('bot-')))) return;
+    // Posen weit außerhalb der Karte verwerfen (kaputte/gefälschte Werte)
+    if (!poseInBounds(p, this.world.data.bounds)) return;
     this.counters.posesIn += 1;
     const pose: Pose = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch };
     const r = this.remotePoses.get(p.id);
@@ -323,10 +383,14 @@ export class MatchDriver extends Behaviour {
     }
     // Match-Pose nachführen: Host für Menschen (autoritativ für Treffer), Client für alle
     // (Spiegel; Bots kommen per 'poses' vom Host, lokal zielen/Radar brauchen aktuelle Werte).
-    const mp = this.match.players[p.id];
-    if (mp && (!this.isHost || !mp.bot)) {
-      mp.pose = pose;
-      mp.weapon = p.w;
+    mp.pose = pose;
+    mp.weapon = p.w;
+    // Host: Höhenverlauf für die Prüfung von Sturzmeldungen (kurzes Fenster, begrenzt)
+    if (this.isHost) {
+      let trail = this.heightTrail.get(p.id);
+      if (!trail) this.heightTrail.set(p.id, (trail = []));
+      trail.push({ t: this.match.time, y: p.y });
+      while (trail.length > 80 || (trail.length && this.match.time - trail[0]!.t > 3)) trail.shift();
     }
   }
 
@@ -337,16 +401,30 @@ export class MatchDriver extends Behaviour {
 
   // ---------------------------------------------------------------- Host: Spieler
 
-  private hostHello(id: string, name: string, team: Team | 'auto', pw?: string | null, version?: string): void {
+  private hostHello(msg: Extract<NetMsg, { t: 'hello' }>): void {
+    const id = msg.id;
     if (this.match.players[id]) return;
-    // Beitritt prüfen (Passwort, Spielerlimit, Version) — fremde Eingaben nie ungeprüft übernehmen
+    // Nur echte Verbindungen im Raum (keine erfundenen IDs, die Plätze belegen) und keine Bot-IDs
+    if (!isHumanId(id) || (this.net.online && !this.net.peers.includes(id))) return;
+    // Beitritt prüfen (Version, Karte, Spielerlimit, Passwort per Challenge-Response)
     const humans = Object.values(this.match.players).filter((p) => !p.bot).length;
-    const admit = admitPlayer(this.lobbyCfg, humans, typeof pw === 'string' ? pw : null, typeof version === 'string' ? version : undefined, GAME_VERSION);
+    const admit = admitPlayer(this.lobbyCfg, {
+      humans, version: msg.v, hostVersion: GAME_VERSION, map: msg.map, hostMap: this.world.data.id,
+      nonce: this.authNonces.get(id) ?? null, proof: msg.pr, id,
+    });
     if (!admit.ok) {
-      this.emit({ k: 'kick', id, reason: admit.reason });
+      if (admit.reason === 'challenge') {
+        let nonce = this.authNonces.get(id);
+        if (!nonce) this.authNonces.set(id, (nonce = makeNonce()));
+        this.emit({ k: 'auth', id, nonce });
+        return;
+      }
+      this.authNonces.delete(id);
+      this.emit(admit.reason === 'map' ? { k: 'kick', id, reason: admit.reason, map: this.world.data.id } : { k: 'kick', id, reason: admit.reason });
       return;
     }
-    const p = addPlayer(this.match, id, sanitizeName(name), { team });
+    this.authNonces.delete(id);
+    const p = addPlayer(this.match, id, sanitizeName(msg.name), { team: msg.team });
     this.fillBots();
     balanceBots(this.match);
     this.emit({ k: 'join', id, name: p.name, team: p.team });
@@ -357,11 +435,16 @@ export class MatchDriver extends Behaviour {
 
   private hostTeam(id: string, team: Team): void {
     const p = this.match.players[id];
-    if (!p || p.team === team) return;
-    switchTeam(this.match, id, team);
+    if (!p || p.team === team || (team !== 'T' && team !== 'CT')) return;
+    // Lebend gewechselt: Waffe und C4 fallen wie beim Tod (sonst verschwände die Bombe)
+    const at = { x: p.pose.x, y: p.pose.y, z: p.pose.z };
+    const wasAlive = p.alive;
+    for (const item of switchTeamDropping(this.match, id, team)) this.addDrop(item, null);
+    if (wasAlive) this.botEvent({ k: 'kill', victim: id, killer: null, pos: at });
     balanceBots(this.match);
     this.emit({ k: 'join', id, name: p.name, team });
     if (this.match.round.phase !== 'live' && this.match.round.phase !== 'bomb') this.spawnOne(p);
+    this.broadcastSnapshot();
   }
 
   requestTeam(team: Team): void {
@@ -424,7 +507,8 @@ export class MatchDriver extends Behaviour {
     const out: ShotTarget[] = [];
     for (const p of Object.values(this.match.players)) {
       if (!p.alive || p.id === ignore) continue;
-      const crouch = this.remotePoses.get(p.id)?.c ?? (p.id === this.localId ? this.player.crouching() : p.bot && this.botSys ? this.botSys.crouching(p.id) : false);
+      // Reihenfolge: eigener Spieler, Bots (eigenes Bot-System), dann Netz-Posen der Menschen
+      const crouch = p.id === this.localId ? this.player.crouching() : p.bot && this.botSys?.has(p.id) ? this.botSys.crouching(p.id) : this.remotePoses.get(p.id)?.c ?? false;
       out.push({ id: p.id, parts: humanPartBoxes({ x: p.pose.x, y: p.pose.y, z: p.pose.z }, crouch ? 0.75 : 1) });
     }
     return out;
@@ -440,14 +524,21 @@ export class MatchDriver extends Behaviour {
     else this.net.send({ t: 'fall', id: this.localId, v: speed });
   }
 
-  /** Host: gemeldete Landung prüfen (Plausibilität, Takt), Sturzschaden anwenden, Ereignis senden. */
+  /**
+   * Host: gemeldete Landung prüfen, Sturzschaden anwenden, Ereignis senden. Fremde Meldungen
+   * müssen zum gesehenen Höhenverlauf passen und sind unter „tödlich“ gedeckelt (logic/fall.ts).
+   */
   private hostFall(id: string, speed: number): void {
     const victim = this.match.players[id];
     if (!victim || !victim.alive || victim.bot) return;
     const since = this.match.time - (this.lastFall.get(id) ?? -Infinity);
-    const dmg = acceptFallReport(speed, since);
+    const dmg = id === this.localId
+      ? acceptFallReport(speed, since)
+      : hostFallDamage(speed, since, observedFallSpeed(this.heightTrail.get(id) ?? [], this.match.time, PLAYER.gravity), this.match.round.phase);
     if (dmg === null) return;
     this.lastFall.set(id, this.match.time);
+    // Derselbe Fall zählt nur einmal
+    this.heightTrail.delete(id);
     const r = applyFall(this.match, id, dmg);
     if (!r) return;
     const at: [number, number, number] = [victim.pose.x, victim.pose.y + 0.9, victim.pose.z];
@@ -461,26 +552,20 @@ export class MatchDriver extends Behaviour {
     this.counters.firesHandled += 1;
     if (!shooter || !shooter.alive || !def || !dirs.length) return;
     if (this.match.round.phase === 'freeze') return;
-    // Fremde Schüsse prüfen: Waffe im Inventar, Kadenz, Anzahl Strahlen, Ursprung nahe der Pose
     if (shooterId !== this.localId && !shooter.bot) {
+      // Fremde Schüsse prüfen: schießende Waffe (nur Hitscan/Messer), im Inventar, Kadenz,
+      // Ursprung am Auge der Pose (auch Höhe), Strahlen je Waffe, Munition (netValidate prüft Zahlen/Richtungen)
       const lo = shooter.loadout;
+      if (def.mode !== 'hit' && def.mode !== 'melee') return;
       const base = weaponId === 'knife_stab' ? 'knife' : weaponId;
       if (base !== 'knife' && lo.primary !== base && lo.secondary !== base) return;
+      if (!originNearEye(origin, shooter.pose)) return;
       const last = this.lastFire.get(shooterId) ?? -1;
       if (last >= 0 && this.match.time - last < shotInterval(def) * 0.6) return;
+      if (dirs.length > Math.max(1, def.pellets)) dirs = dirs.slice(0, Math.max(1, def.pellets));
+      // Munition auf dem Host mitzählen (für Munitionskauf und Host-Wechsel); leer → kein Schuss
+      if (!consumeShot(lo.guns[weaponId], def)) return;
       this.lastFire.set(shooterId, this.match.time);
-      if (Math.hypot(origin.x - shooter.pose.x, origin.z - shooter.pose.z) > 2.5) return;
-      if (dirs.length > Math.max(1, def.pellets)) dirs = dirs.slice(0, def.pellets);
-      // Munition auf dem Host mitzählen (für Munitionskauf und Host-Wechsel)
-      const gun = lo.guns[weaponId];
-      if (gun && def.mode === 'hit') {
-        if (gun.mag > 0) gun.mag -= 1;
-        else if (gun.reserve > 0) {
-          const take = Math.min(def.magSize, gun.reserve);
-          gun.reserve -= take;
-          gun.mag = take - 1;
-        }
-      }
     }
     const targets = this.targetsFor(shooterId);
     this.botEvent({ k: 'shot', id: shooterId, pos: { x: shooter.pose.x, y: shooter.pose.y, z: shooter.pose.z }, weapon: weaponId });
@@ -499,7 +584,6 @@ export class MatchDriver extends Behaviour {
         this.emit({ k: 'hit', victim: hit.id, attacker: shooterId, dmg: r.dmg, part: hit.part, from: [origin.x, origin.y, origin.z], at: [hit.point.x, hit.point.y, hit.point.z] });
         this.botEvent({ k: 'hit', victim: hit.id, attacker: shooterId, from: origin });
         if (r.killed) this.onHostKill(victim, shooterId, def.id, hit.part === 'head');
-        if (def.pellets === 1 && hit.part === 'head' && def.type !== 'shotgun') { /* ein Kopftreffer reicht */ }
       }
     }
     this.net.send({ t: 'ev', h: this.localId, e: { k: 'shot', id: shooterId, w: weaponId, o: [origin.x, origin.y, origin.z], ends, walls } });
@@ -566,8 +650,13 @@ export class MatchDriver extends Behaviour {
 
   private hostThrow(id: string, kind: 'he' | 'flash' | 'smoke', origin: Vec3, dir: Vec3, strength: number): void {
     const p = this.match.players[id];
-    if (!p || !p.alive) return;
-    if (p.loadout.grenades[kind] <= 0) return;
+    if (!p || !p.alive || this.match.round.phase === 'freeze') return;
+    if (kind !== 'he' && kind !== 'flash' && kind !== 'smoke') return;
+    if (!(p.loadout.grenades[kind] > 0)) return;
+    // Fremde Würfe: Ursprung am Auge, endliche Richtung (netValidate normiert), Stärke 0..1
+    if (id !== this.localId && !p.bot && !originNearEye(origin, p.pose)) return;
+    if (![origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, strength].every(Number.isFinite)) return;
+    strength = Math.max(0, Math.min(1, strength));
     consumeGrenade(p.loadout, kind);
     const g = throwGrenade(kind, origin, dir, id, strength);
     const nid = this.nadeSeq++;
@@ -578,14 +667,9 @@ export class MatchDriver extends Behaviour {
   private hostBuy(id: string, item: string): void {
     const p = this.match.players[id];
     if (!p) return;
-    const phase = this.match.round.phase;
-    const canBuy = phase === 'warmup' || phase === 'freeze' || (phase === 'live' && this.match.round.timer > ROUND.roundTime - 15);
-    if (!canBuy || !p.alive) {
-      this.emit({ k: 'buy', id, item, ok: false, reason: 'Kaufzeit vorbei' });
-      return;
-    }
-    if (!this.world.inBuyZone(p.team, p.pose)) {
-      this.emit({ k: 'buy', id, item, ok: false, reason: 'Nicht in der Kaufzone (Spawn)' });
+    const deny = this.buyDenied(p);
+    if (deny) {
+      this.emit({ k: 'buy', id, item, ok: false, reason: deny });
       return;
     }
     const r = buyItem(p.loadout, p.money, item, p.team);
@@ -596,11 +680,24 @@ export class MatchDriver extends Behaviour {
     this.emit({ k: 'buy', id, item, ok: r.ok, reason: r.ok ? undefined : buyReason(r.reason) });
   }
 
+  /** Gemeinsame Kauf-Prüfung (Waffen, Ausrüstung, Munition): Kaufzeit, lebend, Kaufzone. */
+  private buyDenied(p: MatchPlayer): string | null {
+    if (!canBuyNow(this.match.round) || !p.alive) return 'Kaufzeit vorbei';
+    if (!this.world.inBuyZone(p.team, p.pose)) return 'Nicht in der Kaufzone (Spawn)';
+    return null;
+  }
+
   private hostAmmo(id: string, slot: 1 | 2): void {
     const p = this.match.players[id];
-    if (!p) return;
+    if (!p || (slot !== 1 && slot !== 2)) return;
+    const item = slot === 1 ? 'ammo1' : 'ammo2';
+    const deny = this.buyDenied(p);
+    if (deny) {
+      this.emit({ k: 'buy', id, item, ok: false, reason: deny });
+      return;
+    }
     const r = buyAmmo(p.loadout, p.money, slot);
-    this.emit({ k: 'buy', id, item: slot === 1 ? 'ammo1' : 'ammo2', ok: r.ok, reason: r.ok ? undefined : buyReason(r.reason) });
+    this.emit({ k: 'buy', id, item, ok: r.ok, reason: r.ok ? undefined : buyReason(r.reason) });
   }
 
   // ---------------------------------------------------------------- Lokale Aktionen
@@ -805,22 +902,40 @@ export class MatchDriver extends Behaviour {
         this.hud.notice(`${e.name} hat das Spiel verlassen`);
         break;
       case 'kick':
-        if (e.id === this.localId && !this.isHost && !this.kicked) {
+        // Nur als Antwort auf das eigene Hallo, solange man noch nicht im Match ist (gefälschte Kicks
+        // später wirken nicht); Karten-Kick: richtige Karte laden statt ins Menü
+        if (e.id === this.localId && !this.isHost && !this.kicked && this.helloSent && !this.everJoined && !this.local) {
+          if (e.reason === 'map' && e.map) {
+            if (e.map !== this.world.data.id) this.requestMap(e.map);
+            break;
+          }
           this.kicked = true;
           this.onKicked?.(e.reason);
         }
         break;
+      case 'auth':
+        // Passwort-Anfrage des Hosts: Antwort aus Prüfsumme + Nonce + eigener ID
+        if (e.id === this.localId && !this.isHost && !this.kicked && !this.everJoined && !this.local) this.sendHello(e.nonce);
+        break;
     }
   }
 
+  /** Andere Karte als der Server: einmal melden (main.ts lädt neu), danach nicht wiederholen. */
+  private requestMap(mapId: string): void {
+    if (this.wrongMapSent) return;
+    this.wrongMapSent = true;
+    this.onWrongMap?.(mapId);
+  }
+
   private applySnap(s: Snapshot): void {
-    if (s.seq <= this.lastSnapSeq && s.seq > 0) return;
-    this.lastSnapSeq = s.seq;
+    if (!this.snapGate.accept(s.seq, performance.now() / 1000)) return;
     this.counters.snapsApplied += 1;
-    const prevPhase = this.match.round.phase;
-    const prevRound = this.match.round.round;
     applySnapshot(this.match, s);
-    if (s.lobby !== undefined) this.lobbyCfg = sanitizeLobbyConfig(s.lobby);
+    if (s.lobby !== undefined) {
+      this.lobbyPub = s.lobby;
+      // Nur vor dem Beitritt (ältere Hosts ohne Karten-Kick); danach würde ein gefälschter Snapshot neu laden lassen
+      if (!this.everJoined && s.lobby?.map && s.lobby.map !== this.world.data.id) this.requestMap(s.lobby.map);
+    }
     this.smokes = s.smokes.map((x) => ({ pos: { x: x.p[0], y: x.p[1], z: x.p[2] }, radius: x.r, timeLeft: x.t }));
     this.bombPos = s.bombPos ? { x: s.bombPos[0], y: s.bombPos[1], z: s.bombPos[2] } : null;
     this.grenades.syncPositions(s.nades);
@@ -830,6 +945,7 @@ export class MatchDriver extends Behaviour {
     }
     const me = this.local;
     if (me) {
+      this.everJoined = true;
       this.player.hp = me.hp;
       if (!me.alive && !this.player.isDead()) {
         this.player.setDead(true);
@@ -837,8 +953,6 @@ export class MatchDriver extends Behaviour {
       }
       this.player.frozen = this.match.round.phase === 'freeze';
     }
-    void prevPhase;
-    void prevRound;
   }
 
   // ---------------------------------------------------------------- Frame
@@ -854,7 +968,8 @@ export class MatchDriver extends Behaviour {
     const total = Math.min(Math.max(real, 0), 0.6);
     const steps = Math.max(1, Math.ceil(total / 0.1));
     const dt = total / steps;
-    if (this.net.online && !this.helloSent && !this.isHost && this.net.id) this.sendHello();
+    // Hallo senden und wiederholen, bis der Host uns aufnimmt (Peer-Liste des Hosts kann kurz hinterherhinken)
+    if (this.net.online && !this.isHost && this.net.id && !this.kicked && (!this.helloSent || (!this.local && now - this.lastHelloAt > 2000))) this.sendHello();
     for (let i = 0; i < steps; i++) {
       if (this.isHost) this.hostTick(dt);
       else this.clientTick(dt);
@@ -891,7 +1006,6 @@ export class MatchDriver extends Behaviour {
     if (me) {
       me.pose = this.localPose();
       me.weapon = this.shooter.weaponId;
-      if (me.alive && this.player.isDead()) { /* Snapshot-Spiegel korrigiert */ }
     }
     this.player.frozen = m.round.phase === 'freeze';
 
@@ -903,7 +1017,7 @@ export class MatchDriver extends Behaviour {
         smokes: this.smokes,
         bombPos: this.bombPos,
         dropped: d ? { x: d.x, y: d.y, z: d.z } : null,
-        crouching: (id) => this.remotePoses.get(id)?.c ?? (id === this.localId ? this.player.crouching() : false),
+        crouching: (id) => (id === this.localId ? this.player.crouching() : this.botSys?.has(id) ? this.botSys.crouching(id) : this.remotePoses.get(id)?.c ?? false),
       }, dt, this.botActions);
     }
     this.hostPickups();
@@ -977,7 +1091,6 @@ export class MatchDriver extends Behaviour {
         this.spawnAllNow();
       }
     }
-    this.lastPhase = m.round.phase;
 
     // Granaten simulieren
     this.tickGrenades(dt);
@@ -1004,7 +1117,7 @@ export class MatchDriver extends Behaviour {
           const pose = this.bots.pose(id);
           if (p && pose) list.push(poseMsg(id, pose, p.weapon, this.bots.crouching(id), this.bots.moving(id), this.bots.eHeld(id)));
         }
-        this.net.send({ t: 'poses', p: list });
+        this.net.send({ t: 'poses', p: list, h: this.localId });
       }
       const pingN = this.pings.due(performance.now());
       if (pingN !== null) this.net.send({ t: 'ping', n: pingN, h: this.localId });
@@ -1024,7 +1137,8 @@ export class MatchDriver extends Behaviour {
       drops: this.drops.map((d) => ({ id: d.id, weapon: d.weapon, p: [d.x, d.y, d.z] as [number, number, number] })),
       smokes: this.smokes,
       bombPos: this.bombPos ? [this.bombPos.x, this.bombPos.y, this.bombPos.z] : null,
-      lobby: this.lobbyCfg,
+      // Nur der öffentliche Teil: die Passwort-Prüfsumme verlässt den Host nie
+      lobby: this.lobbyCfg ? publicLobby(this.lobbyCfg) : null,
     });
     this.net.send({ t: 'snap', s: snap, h: this.localId });
   }
@@ -1227,6 +1341,8 @@ export class MatchDriver extends Behaviour {
         this.soldiers.delete(id);
       }
     }
+    // Posen von Spielern, die nicht mehr im Match sind, vergessen (Tabelle bleibt begrenzt)
+    for (const id of this.remotePoses.keys()) if (!m.players[id]) this.remotePoses.delete(id);
   }
 
   private updateHud(): void {
@@ -1245,7 +1361,7 @@ export class MatchDriver extends Behaviour {
       alive: aliveCounts(m),
       winner: m.winner,
       bombProgress: this.localBombProgress(),
-      lobby: lobbyActive(m.round, this.lobbyCfg),
+      lobby: this.lobbyHeld,
     });
     this.hud.setMatch(m, this.localId, this.net.online ? this.net.hostId : '');
     if (me) {
@@ -1258,7 +1374,7 @@ export class MatchDriver extends Behaviour {
         hasKit: me.loadout.defuseKit,
         nades: me.loadout.grenades,
         alive: me.alive,
-        canBuy: (phase === 'warmup' || phase === 'freeze' || (phase === 'live' && m.round.timer > ROUND.roundTime - 15)) && this.world.inBuyZone(me.team, this.localPose()),
+        canBuy: canBuyNow(m.round) && this.world.inBuyZone(me.team, this.localPose()),
       });
     }
     this.updateRadar(me?.team ?? 'T');
@@ -1328,14 +1444,15 @@ export class MatchDriver extends Behaviour {
     return null;
   }
 
-  /** Server-Konfiguration (null = offline/ohne Lobby). */
-  get lobbyConfig(): LobbyConfig | null {
-    return this.lobbyCfg;
+  /** Öffentliche Server-Konfiguration (Host: eigene, Client: aus dem Snapshot; null = offline/ohne Lobby). */
+  get lobbyConfig(): PublicLobby | null {
+    if (this.isHost) return this.lobbyCfg ? publicLobby(this.lobbyCfg) : null;
+    return this.lobbyPub;
   }
 
   /** Serverlobby aktiv (Aufwärmen gehalten, bis der Host startet)? */
   get lobbyHeld(): boolean {
-    return lobbyActive(this.match.round, this.lobbyCfg);
+    return lobbyActive(this.match.round, this.isHost ? this.lobbyCfg : this.lobbyPub);
   }
 
   /** Host: Serverlobby beenden — nach kurzem Countdown beginnt Runde 1. */
