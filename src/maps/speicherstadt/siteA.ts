@@ -7,6 +7,7 @@ export function dressSiteA(b: B): void {
   // Serverschränke der IT: zwei Reihen gegenüber, USV, Klimagerät; Container und Plane daneben
   prop(b, 'serverRow', 46, Y, -63, { rot: 0, n: 4 });
   prop(b, 'serverRow', 46, Y, -57, { rot: 2, n: 4 });
+  b.light({ kind: 'lamp', pos: [46, Y + 3.4, -60], color: 0xcfe4ff, intensity: 1.3, range: 10 });
   prop(b, 'ups', 43.3, Y, -60);
   prop(b, 'cooler', 49, Y, -60);
   b.decal({ kind: 'letter', pos: [46, Y + 0.02, -60], size: [5.6, 5.6], text: 'A', color: 0xffffff });

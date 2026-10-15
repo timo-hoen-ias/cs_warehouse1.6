@@ -15,7 +15,8 @@ export function dressSiteB(b: B): void {
   b.decal({ kind: 'letter', pos: [-65.6, 0.02, -32.6], size: [5.6, 5.6], text: 'B', color: 0xffffff });
   b.sign('SERVERSCHRANK B', [-65.6, 3.2, -36.4], 'pz', 4.4, 1.0, { color: 0xff5a4a, sub: 'IT-PROVISORIUM · BITTE TROCKEN LAGERN' });
   for (const dx of [-1.9, 1.9]) b.box([-65.6 + dx - 0.03, 0, -36.5], [-65.6 + dx + 0.03, 3.1, -36.4], 'metal', { collide: 'none', tint: 0x4a3a2a, noNav: true, occlude: false });
-  b.box([-71.1, 0, -37.2], [-60.1, 0.02, -28.4], 'black', { collide: 'none', noNav: true, occlude: false, tint: 0x2a2a2a });
+  b.box([-71.1, 0, -37.2], [-60.1, 0.02, -28.4], 'rubber', { collide: 'none', noNav: true, occlude: false, tint: 0x6a6a6a });
+  b.light({ kind: 'lamp', pos: [-65.6, 3.4, -32.6], color: 0xcfe4ff, intensity: 1.3, range: 10 });
   // Plane über Kisten (Wetterschutz), mit Seilen
   prop(b, 'crate', -46.2, 0, -50.6, { h: 1.2 });
   prop(b, 'crate', -47.6, 0, -50.6, { h: 1.2 });
