@@ -22,6 +22,11 @@ import { dressRoofs } from './kuehlhaus/roofs';
  * (`bottom`) und sind im U-Plan leer (`_`).
  *
  * Höhen: Keller −5, Erdgeschoss 0, Himmel/Dachweg +4.5.
+ *
+ * Balance (Bot-Simulation, siehe IMPLEMENTIERUNGSPLAN M4): Zwei Lobby-Zugänge zu A — Hütte (Quietschtür am Westende, Hüttentür am
+ * Ostende, versetzt → kein Durchblick) und Frachtflur (Staplerweg mit Knick, Mund in der Hallenmitte); der Geheimgang knickt am
+ * Rampenfuß und hat Brandschutzwände mit versetzten Durchgängen, in B münden zwei Tunnelmünder; Container und Palettenblöcke geben
+ * den Angreifern Deckung vor den Hallentüren.
  */
 export function buildKuehlhaus(): MapData {
   const b = new MapBuilder({
@@ -51,8 +56,12 @@ export function buildKuehlhaus(): MapData {
     .rect('E', 4, 26, 16, 30) // Haupteingang
     .rect('L', -16, 4, 24, 26) // Lobby
     .rect('u', 2, -10, 14, 2) // Hütte
-    .rect('d', 6, 2, 10, 4) // Quietschtür (Lobby → Hütte)
-    .rect('d', 6, -14, 10, -10) // Hüttentür (→ Halle A)
+    .rect('d', 2, 2, 6, 4) // Quietschtür (Lobby → Hütte), liegt am Westende der Hütte
+    .rect('d', 10, -14, 14, -10) // Hüttentür (→ Halle A), 8 m versetzt zur Quietschtür: keine Sichtlinie durch die Hütte
+    // Frachtflur: zweiter Zugang Lobby → Halle A (Gabelstapler-Weg), versetzt geführt (kein Durchblick von der Halle in die Lobby)
+    .rect('F', 18, -8, 22, 4)
+    .rect('F', 22, -8, 28, -4)
+    .rect('F', 24, -14, 28, -8)
     .rect('A', -12, -58, 44, -14) // Halle A
     .rect('v', 38, -28, 42, -18) // Lüftungsschacht (Treppe hinab)
     // Rampenraum: Landung oben, Schacht mit Rampe, Mund zum Keller
@@ -104,6 +113,7 @@ export function buildKuehlhaus(): MapData {
     L: { floor: 0, mat: 'epoxy', tint: 0xa8bcc8, roof: 8, roofMat: 'panel', room: 'hall' },
     u: { floor: 0, mat: 'tile', tint: 0xb8c8d0, roof: 3.8, roofMat: 'panel', room: 'room' },
     d: { floor: 0, mat: 'epoxy', tint: 0xa8bcc8, roof: 3.4, roofMat: 'panel', room: 'room' },
+    F: { floor: 0, mat: 'epoxy', tint: 0xa8bcc8, roof: 3.8, roofMat: 'panel', room: 'room' },
     A: { floor: 0, mat: 'epoxy', tint: 0x9fb4c2, roof: 15, roofMat: 'panel', room: 'cold' },
     v: { floor: -5, bottom: -8, mat: 'concreteDark', tint: 0xa8b4bc, roof: 15, roofMat: 'panel', room: 'cold' },
     R: { floor: 0, mat: 'concrete', tint: 0xa8b4bc, roof: 4.1, roofTop: 4.5, roofMat: 'concrete', roofWalk: true, room: 'tunnel' },
@@ -127,6 +137,7 @@ export function buildKuehlhaus(): MapData {
     L: { mat: 'panel', tint: 0xdde8f0, plinth: { h: 1.2, mat: 'wallPaint', tint: 0x2f78c0 }, pilasters: { every: 8, w: 0.45, mat: 'steel', tint: 0x8a9298 } },
     E: { mat: 'panel', tint: 0xdde8f0, plinth: { h: 1.2, mat: 'concrete', tint: 0x8a9298 }, band: { y: 1.2, h: 0.3, mat: 'hazard' } },
     u: { mat: 'wallPaint', tint: 0xe4ecef, plinth: { h: 1.0, mat: 'wallTile', tint: 0xb8c8d0 } },
+    F: { mat: 'wallPaint', tint: 0xdfe8ec, plinth: { h: 1.0, mat: 'wallTile', tint: 0xb8c8d0 }, band: { y: 1.0, h: 0.2, mat: 'hazard' } },
     d: { mat: 'wallPaint', tint: 0xe4ecef, plinth: { h: 1.0, mat: 'wallTile', tint: 0xb8c8d0 } },
     w: { mat: 'wallPaint', tint: 0xdfe8ec, plinth: { h: 1.0, mat: 'wallTile', tint: 0xb8c8d0 }, band: { y: 1.0, h: 0.2, mat: 'hazard' } },
     R: { mat: 'concrete', tint: 0xa8b2ba, band: { y: 1.2, h: 0.25, mat: 'hazard' } },
@@ -152,10 +163,11 @@ export function buildKuehlhaus(): MapData {
     .rect('c', -26, -20, -20, -6) // Gang unten Rampe
     .rect('c', -20, -20, -12, -14)
     .rect('_', 48, 30, 58, 48) // Geheimgang-Rampe (G-Plan)
-    .rect('c', 50, 6, 56, 30) // Geheimgang
-    .rect('c', 44, 0, 56, 6)
-    .rect('c', 46, -38, 52, 0)
-    .rect('c', 44, -38, 46, -32);
+    .rect('c', 50, 6, 56, 30) // Geheimgang: Rampentunnel (6 m breit)
+    .rect('c', 46, 0, 56, 6) // Knick nach Westen: kein Durchblick vom Rampenfuß in den Nordtunnel
+    .rect('c', 46, -50, 50, 0) // Nordtunnel (4 m breit, Slalom aus Ware)
+    .rect('c', 44, -38, 46, -32) // Mund 1 nach B (Kaltgang)
+    .rect('c', 44, -50, 46, -44); // Mund 2 nach B (hinter den Serverreihen)
   const ulegend: Record<string, CellKind> = {
     '#': { building: { h: -0.3, mat: 'concrete', tint: 0xa8b2ba } },
     _: {},
@@ -191,7 +203,8 @@ export function buildKuehlhaus(): MapData {
   b.area('Mitte', -2, 10, 14, 20);
   b.area('Westgang', -16, -20, -12, 4, -1, 4);
   b.area('Hütte', 2, -10, 14, 2);
-  b.area('Quietschtür', 6, 2, 10, 4);
+  b.area('Frachtflur', 18, -14, 28, 4, -1, 4);
+  b.area('Quietschtür', 2, 2, 6, 4);
   b.area('Halle A', -12, -58, 44, -14, -1, 4);
   b.area('Himmel', -12, -48, -6, -16, 3.5, 9);
   b.area('Hölle', -12, -48, 2, -14, -1, 3.5);
@@ -207,12 +220,16 @@ export function buildKuehlhaus(): MapData {
   b.area('Westdach', -28, -46, -14, -6, 4, 9);
   b.area('Spot B', -12, -58, 44, -14, -6, -1);
   b.area('Datenraum', 14, -56, 42, -30, -6, -1);
-  b.area('Geheimgang', 44, -40, 58, 30, -6, -1);
+  b.area('Geheimgang', 44, -52, 58, 30, -6, -1);
   b.area('Geheimgang-Rampe', 48, 30, 58, 48, -6, 1);
 
   // ------------------------------------------------------------------ Spots, Spawns, Kaufzonen
   b.site('A', 'Serverschrank A', [14, -0.4, -56], [42, 7, -30], [30, 0, -44]);
   b.site('B', 'Serverschrank B', [14, -5.4, -56], [42, -1.2, -30], [30, -5, -44]);
+  // Bot-Hinweise: T pflanzen am eigenen Rand des Spots (nahe den Zugängen, kurz hinter Palettenstapeln) statt tief in der Spot-Mitte —
+  // so sind die Planter weniger lang im Feuer der CT-Türen im Norden (Balance, siehe IMPLEMENTIERUNGSPLAN M4)
+  b.botHint({ kind: 'plant', pos: [35.2, 0, -34.5], site: 'A' });
+  b.botHint({ kind: 'plant', pos: [39.5, -5, -41], site: 'B' });
   b.spawnGrid('T', 40, 0, 73, 8, 2, 3, 0);
   b.spawnGrid('CT', 16, 0, -80.5, 8, 2, 3, Math.PI);
   b.buy('T', 22, 60, 58, 86);

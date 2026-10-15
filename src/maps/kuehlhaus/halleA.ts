@@ -49,7 +49,7 @@ export function dressHalleA(b: B): void {
   line(b, 'rack', 1.4, 0, -57.4, 1.4, 0, -57.4, 1, { rot: 0, len: 5.4, h: 8, cold: true });
   line(b, 'rack', 18, 0, -57.4, 23.4, 0, -57.4, 2, { rot: 0, len: 5.4, h: 8, cold: true });
   line(b, 'rack', 38.4, 0, -57.4, 38.4, 0, -57.4, 1, { rot: 0, len: 5.4, h: 8, cold: true });
-  line(b, 'rack', 14, 0, -14.6, 30, 0, -14.6, 4, { rot: 2, len: 5.4, h: 8, cold: true });
+  for (const x of [19.5, 31, 36.4]) prop(b, 'rack', x, 0, -14.6, { rot: 2, len: 5.4, h: 8, cold: true });
   for (const x of [11, 30]) prop(b, 'stripCurtain', x, 0, -57.6, { len: x === 30 ? 4 : 6, h: 3.3 });
   prop(b, 'stripCurtain', -8, 0, -57.6, { len: 4, h: 3.3 });
   b.decor('pipeZ', [-11.2, 11.5, -36], 0, [1.4, 1.4, 42], 0xd8dde2);
@@ -75,11 +75,18 @@ export function dressHalleA(b: B): void {
   prop(b, 'rollCage', 14, 0, -52, { h: 1.2, cold: true });
   prop(b, 'rollCage', 14.9, 0, -52, { h: 0.9, cold: true });
   prop(b, 'crateStack', 17.5, 0, -41);
-  prop(b, 'handTruck', 11, 0, -20, { rot: 1 });
+  prop(b, 'handTruck', 7.5, 0, -17.5, { rot: 1 });
   prop(b, 'cartons', 3, 0, -34, { cold: true });
   prop(b, 'cartons', 27, 0, -20, { cold: true });
   prop(b, 'pallet', 1, 0, -20, {});
-  edge(b, 5.6, -14.4, 10.4, -14, 0);
+  prop(b, 'container', 12, 0, -21, { rot: 1, tint: 0x2b5f9e });
+  prop(b, 'container', 27, 0, -23, { rot: 0, tint: 0xb7791f });
+  prop(b, 'container', 34, 0, -20, { rot: 1, tint: 0x8a8f96 }); // nimmt dem Lüftungsrand (Halteplatz der CT) die Sicht auf den Südstreifen
+  // Deckung direkt vor den Türen: Angreifer können aus dem Durchgang „peeken“
+  prop(b, 'gitterbox', 22.6, 0, -16.6, { n: 2, rot: 0 });
+  prop(b, 'palletStack', 29.8, 0, -16.8, { n: 7 });
+  prop(b, 'gitterbox', 15.6, 0, -16.6, { n: 2, rot: 0 });
+  edge(b, 9.6, -14.4, 14.4, -14, 0);
   b.decal({ kind: 'line', pos: [8, 0.02, -30], size: [0.15, 32], color: 0xe8c020 });
   b.decal({ kind: 'line', pos: [28, 0.02, -30], size: [0.15, 32], color: 0xe8c020 });
   b.decal({ kind: 'arrow', pos: [8, 0.02, -24], size: [2, 3], rot: 0, color: 0xe8e8e8 });
