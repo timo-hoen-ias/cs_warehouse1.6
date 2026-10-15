@@ -22,7 +22,7 @@ import { LV, railedStairs } from './umschlag/common';
  * „vorübergehend“ auf die Rampe A bzw. in die Paketsortierung gestellt hat.
  *
  * Höhen: Unterführung −3.6, Boden 0, Rampe A +2.0, Obergeschoss (Wohnungen, Fenster, Steg) +4.4,
- * Palast/Balkon +5.6. Aufbau: drei Grundrisse übereinander — Erdgeschoss (`G`, dünne Platte),
+ * Palast/Balkon +5.5. Aufbau: drei Grundrisse übereinander — Erdgeschoss (`G`, dünne Platte),
  * Untergeschoss (`U`) und Obergeschoss (`O`, Räume auf massiven Sockeln). Detailbau in `./umschlag/*`.
  */
 export function buildUmschlag(): MapData {
@@ -99,7 +99,7 @@ export function buildUmschlag(): MapData {
     '#': { building: { h: 12, mat: 'corrugated', tint: 0xb4bcc2 } },
     a: { building: { h: 4, mat: 'concrete', tint: 0xb8b2a4 } },
     R: { building: { h: 4, mat: 'concrete', tint: 0xb8b2a4 } },
-    d: { building: { h: 5.2, mat: 'concrete', tint: 0xb8b2a4 } },
+    d: { building: { h: 5.1, mat: 'concrete', tint: 0xb8b2a4 } },
     K: { building: { h: 4, mat: 'concrete', tint: 0xb8b2a4 } },
     q: { building: { h: 7, mat: 'plaster', tint: 0xe6dcc4 } },
     D: { building: { h: 12, mat: 'corrugated', tint: 0xb4bcc2 }, window: { sill: LV.up, lintel: LV.up + 3.2 } },
@@ -179,7 +179,7 @@ export function buildUmschlag(): MapData {
     facades: { u: { mat: 'concrete', tint: 0x9a968e, plinth: { h: 1.0, mat: 'concreteDark' }, band: { y: 1.3, h: 0.14, mat: 'metal', tint: 0xd8b020 } } },
   });
 
-  // ------------------------------------------------------------------ Obergeschoss (+4.4) und Palast (+5.6)
+  // ------------------------------------------------------------------ Obergeschoss (+4.4) und Palast (+5.5)
   const O = new CellPlan(-92, -92, 92, 92, 2, '.');
   O
     // Wohnungen (Sozialtrakt): Gang, Umkleiden, Pausenraum
@@ -231,7 +231,7 @@ export function buildUmschlag(): MapData {
   b.stairs(-70, 26, -64, 38, 0, LV.up, 'nz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Wohnungs-Treppe
   railedStairs(b, -70, -28, -64, -16, 0, LV.up, 'pz', {}); // Wohnungen → B
   railedStairs(b, -14, 2, -10, 14, 0, LV.up, 'nz', {}); // Steg-Treppe
-  railedStairs(b, -38, -38, -30, -26, 0, LV.up, 'pz', {}); // Kurz → B
+  railedStairs(b, -37.5, -38, -29.5, -26, 0, LV.up, 'pz', {}); // Kurz → B (um 0.5 m versetzt: Geländer liegt zwischen den Nav-Knoten)
   b.stairs(-14, 16, -4, 22, LV.under, 0, 'px', 'concrete', { tint: 0xa8a49c }); // Unterführung
   b.ramp(-52, -16, -46, -2, LV.under, 0, 'nz', 'concreteDark', { tag: 'ramp' }); // Unterführungs-Rampe
   b.ramp(34, 30, 46, 48, 0, LV.apron, 'nz', 'asphalt', { tag: 'ramp', tint: 0xc9c2b4 }); // T-Rampe (Lkw-Rampe)

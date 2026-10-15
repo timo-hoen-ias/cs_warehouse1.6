@@ -88,7 +88,7 @@ function aufgaenge(b: B): void {
   stripe(b, 40, 30, 40, 47, 0, 0xe8e8e8, 0.2);
   b.decal({ kind: 'arrow', pos: [40, 0.03, 40], size: [3, 4], rot: 0, color: 0xe8e8e8 });
 
-  // Palast-Aufgang (Treppe +5.6 m): Schilder und Licht
+  // Palast-Aufgang (Treppe +5.5 m): Schilder und Licht
   b.sign('PALAST ↑', [76 + F, 4.6, 41], 'px', 3.4, 0.9, { color: 0xffd040, sub: 'DISPOSITION · BÜROS' });
   b.sign('PALAST ↑', [84 - F, 4.6, 41], 'nx', 3.4, 0.9, { color: 0xffd040, sub: 'DISPOSITION · BÜROS' });
   for (const z of [36, 44]) { b.wallLamp(76 + F, 6.8, z, 'px', { intensity: 1.0, range: 12, color: 0xffd9a0 }); b.wallLamp(84 - F, 6.8, z, 'nx', { intensity: 1.0, range: 12, color: 0xffd9a0 }); }

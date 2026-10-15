@@ -7,7 +7,7 @@ Akustik; die Darstellung (`src/level/LevelView.ts`) baut Geometrie mit gebackene
 **keinen Bake-Schritt**: alle Clients rechnen aus demselben Code dasselbe Ergebnis (der Host
 wählt nur die Karten-ID).
 
-Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`), `src/maps/de_gueterbahnhof.ts` (Bahn-Requisiten) und `src/maps/de_umschlag.ts` (drei Ebenen übereinander: Unterführung −3.6 m, Erdgeschoss, Obergeschoss +4.4/+5.6 m; Ausstattung in `src/maps/umschlag/*.ts`).
+Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`), `src/maps/de_gueterbahnhof.ts` (Bahn-Requisiten) und `src/maps/de_umschlag.ts` (drei Ebenen übereinander: Unterführung −3.6 m, Erdgeschoss, Obergeschoss +4.4/+5.5 m; Ausstattung in `src/maps/umschlag/*.ts`).
 
 ## Koordinaten und Maße
 
@@ -229,5 +229,8 @@ Bewegungsregeln (Stufen, Rampen, Wände, Kopffreiheit), Herunterspringen als Ein
   Frustum-Culling je Kachel); verdeckte Teilflächen entfallen.
 - Licht wird beim Laden gebacken (Voxel-Schatten für Sonne/Lampen, Himmelsverdeckung, AO):
   „hoch“ ≈ 1.25-m-Unterteilung, „niedrig“ ≈ 2.5 m. Materialien sind unbeleuchtet → sehr günstig.
+- **Bodenhöhen im Freien auf das 0.5-m-Voxelraster legen:** Das Backen nutzt 0.5-m-Voxel; liegt die Oberkante einer Platte knapp über einer
+  Voxelgrenze (z. B. 5.6 m → Voxel 5.5–6.0 ist „belegt“), verschattet sich die Fläche selbst gegen die Sonne und wird dunkel. Gut: Vielfache von
+  0.5 m (2.0, 5.5) oder Höhen mit Rest ≥ 0.4 (4.4, 4.9); schlecht: Rest 0.05–0.35 (5.6, 3.2) bei Außenflächen.
 - Richtwert Lagerstaub: ~1600 Brushes, ~140 k Vertices (hoch) / ~65 k (niedrig), ~11 k Navigationsknoten,
   Kompilieren + Backen ≈ 1–3 s im Browser.

@@ -76,7 +76,9 @@ function steg(b: B): void {
   prop(b, 'rollCage', -8.9, 0, -25.6, { h: 1.2 });
   prop(b, 'rollCage', -8, 0, -25.6, { h: 0.9 });
   // B-Seite: Kante und Lampe der Plattform
-  hazardEdge(b, -38, -26.3, -30, -26, Y);
+  hazardEdge(b, -37.5, -26.3, -29.5, -26, Y);
+  b.rail(-38, -25.95, -37.5, -25.95, Y); // Plattformkante neben der Treppe (Streifen 0.5 m)
+  b.rail(-29.5, -25.95, -28, -25.95, Y);
   b.tubeLamp(-32, Y + 3.0, -23, true, { intensity: 0.9, range: 9 });
 }
 

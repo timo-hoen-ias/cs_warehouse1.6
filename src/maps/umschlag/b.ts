@@ -69,7 +69,7 @@ function halle(b: B): void {
   b.sign('UNTERFÜHRUNG ↓', [-49, 3.4, -16 - 0.12], 'nz', 5, 0.9, { color: 0xffd040, sub: 'SERVICEGANG · ↓ MITTE' });
   hazardEdge(b, -52, -16.4, -46, -16, 0);
   hazardEdge(b, -70, -28.3, -64, -28, 0);
-  hazardEdge(b, -38, -38.3, -30, -38, 0);
+  hazardEdge(b, -37.5, -38.3, -29.5, -38, 0);
 }
 
 function spotB(b: B): void {

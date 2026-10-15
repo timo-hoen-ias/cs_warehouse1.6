@@ -77,7 +77,7 @@ describe('de_umschlag: Mirage-Topologie', () => {
     expect(col.clear({ x: -33, y: 4.4 + PLAYER.eye, z: -24.5 }, { x: map.zones.b.x, y: 1.0, z: map.zones.b.z })).toBe(true);
   });
 
-  it('Palast: oberer Gang vom Palast-Aufgang über den Balkon (+5.6 m) auf Rampe A', () => {
+  it('Palast: oberer Gang vom Palast-Aufgang über den Balkon (+5.5 m) auf Rampe A', () => {
     expect(area('Palast').center.y).toBeGreaterThanOrEqual(5.5);
     expect(area('Balkon').center.y).toBeGreaterThanOrEqual(5.5);
     expect(map.zones.a.y).toBeCloseTo(2, 5);

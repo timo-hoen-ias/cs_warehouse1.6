@@ -4,7 +4,7 @@ import { F, LV, dockRow, hazardEdge, line, parcelPile, pillars, stripe, tape, tu
 /**
  * A-Seite: Rampe A (Außenrampe +2 m, Docks der Halle im Westen, Vordach „Sandwich“), Serverschrank A mit
  * Feuerkiste und Dreierkiste, Pförtnerhaus, Treppe und Dschungel (Pausenhof) mit Verbindung zur Halle,
- * Pförtner-Gasse und CT-Gasse im Norden, Palast (Disposition +5.6 m) mit Balkon über der Rampe.
+ * Pförtner-Gasse und CT-Gasse im Norden, Palast (Disposition +5.5 m) mit Balkon über der Rampe.
  */
 export function dressA(b: B): void {
   rampe(b);
@@ -132,7 +132,7 @@ function spotA(b: B): void {
   line(b, 'cones', 32, A, 29, 44, 29, 4, {});
 }
 
-// ---------------------------------------------------------------- Palast: Disposition (+5.6) mit Balkon
+// ---------------------------------------------------------------- Palast: Disposition (+5.5) mit Balkon
 function palast(b: B): void {
   const P = LV.palace;
   const A = LV.apron;
