@@ -3,8 +3,9 @@ import { loadMapData } from './index';
 import { compileMap } from '../logic/mapcompile';
 import { astar, nearestNode, routeLength } from '../logic/nav';
 import { MAX_WALK_SLOPE, rampSlope } from '../logic/collision';
-import { brushItem } from '../logic/mapcompile';
+import { brushItem, siteAt } from '../logic/mapcompile';
 import { PLAYER } from '../logic/move';
+import { HeadlessMatch, summarize } from '../logic/botSim';
 
 /**
  * Kartenspezifische Topologie von de_kuehlhaus (de_nuke als Kühlhaus): B liegt direkt UNTER A,
@@ -172,8 +173,43 @@ describe('de_kuehlhaus: Balance (Zugänge, Sichtlinien)', () => {
     expect(open(-41)).toBe(false);
   });
 
+  it('Pflanzhinweise der T liegen im jeweiligen Spot und sind für die T nicht weiter weg als der Pflanzpunkt der Spot-Mitte', () => {
+    const plants = (data.botHints ?? []).filter((h) => h.kind === 'plant');
+    expect(plants.map((h) => h.site).sort()).toEqual(['A', 'B']);
+    for (const h of plants) {
+      if (h.kind !== 'plant') continue;
+      const p = { x: h.pos[0], y: h.pos[1], z: h.pos[2] };
+      expect(siteAt(map.sites, p)).toBe(h.site.toLowerCase());
+      const centre = map.sites.find((s) => s.id === h.site)!.plant;
+      expect(routeLength(g, map.zones.t, p)).toBeLessThanOrEqual(routeLength(g, map.zones.t, { x: centre[0], y: centre[1], z: centre[2] }) + 0.5);
+    }
+  });
+
   it('Deckung vor den Türen der Halle: Container versperrt die Linie Hüttentür → Spot-Nordwand', () => {
     expect(col.clear({ x: 12, y: EYE, z: -15 }, { x: 12, y: EYE, z: -40 })).toBe(false);
     expect(col.clear({ x: 26, y: EYE, z: -15 }, { x: 26, y: EYE, z: -40 })).toBe(false);
   });
+});
+
+/**
+ * Balance-Wächter: die Bot-Simulation (5 gegen 5, Skill 0.6, 4 Seeds × 20 Runden) zeigte vor dem Umbau T 14 : CT 79 (≈ 15 %).
+ * Jetzt liegen die T bei ≈ 50 %. Die Schwellen sind weit, weil die Simulation je Seed stark streut (Economy-Schneeball).
+ */
+describe('de_kuehlhaus: Balance (Bot-Simulation)', () => {
+  it('T gewinnen 30–70 % der Runden, es wird auf beiden Spots gepflanzt, niemand sitzt fest', () => {
+    const stats = [1, 2, 3, 4].flatMap((seed) => {
+      const sim = new HeadlessMatch(map, { perTeam: 5, skill: 0.6, seed });
+      sim.runRounds(20);
+      return sim.stats;
+    });
+    const s = summarize(stats);
+    const tShare = (s.tWins as number) / stats.length;
+    expect(stats.length).toBeGreaterThanOrEqual(60);
+    expect(tShare).toBeGreaterThanOrEqual(0.3);
+    expect(tShare).toBeLessThanOrEqual(0.7);
+    for (const site of ['a', 'b']) expect(stats.filter((r) => r.plantSite === site).length, `Plants ${site}`).toBeGreaterThanOrEqual(10);
+    expect(s.wallViolations).toBe(0);
+    expect(s.fallViolations).toBe(0);
+    expect(s.maxStuck as number).toBeLessThanOrEqual(6);
+  }, 180_000);
 });

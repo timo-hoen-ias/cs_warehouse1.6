@@ -22,6 +22,11 @@ import { dressRoofs } from './kuehlhaus/roofs';
  * (`bottom`) und sind im U-Plan leer (`_`).
  *
  * Höhen: Keller −5, Erdgeschoss 0, Himmel/Dachweg +4.5.
+ *
+ * Balance (Bot-Simulation, siehe IMPLEMENTIERUNGSPLAN M4): Zwei Lobby-Zugänge zu A — Hütte (Quietschtür am Westende, Hüttentür am
+ * Ostende, versetzt → kein Durchblick) und Frachtflur (Staplerweg mit Knick, Mund in der Hallenmitte); der Geheimgang knickt am
+ * Rampenfuß und hat Brandschutzwände mit versetzten Durchgängen, in B münden zwei Tunnelmünder; Container und Palettenblöcke geben
+ * den Angreifern Deckung vor den Hallentüren.
  */
 export function buildKuehlhaus(): MapData {
   const b = new MapBuilder({
@@ -221,6 +226,10 @@ export function buildKuehlhaus(): MapData {
   // ------------------------------------------------------------------ Spots, Spawns, Kaufzonen
   b.site('A', 'Serverschrank A', [14, -0.4, -56], [42, 7, -30], [30, 0, -44]);
   b.site('B', 'Serverschrank B', [14, -5.4, -56], [42, -1.2, -30], [30, -5, -44]);
+  // Bot-Hinweise: T pflanzen am eigenen Rand des Spots (nahe den Zugängen, kurz hinter Palettenstapeln) statt tief in der Spot-Mitte —
+  // so sind die Planter weniger lang im Feuer der CT-Türen im Norden (Balance, siehe IMPLEMENTIERUNGSPLAN M4)
+  b.botHint({ kind: 'plant', pos: [35.2, 0, -34.5], site: 'A' });
+  b.botHint({ kind: 'plant', pos: [39.5, -5, -41], site: 'B' });
   b.spawnGrid('T', 40, 0, 73, 8, 2, 3, 0);
   b.spawnGrid('CT', 16, 0, -80.5, 8, 2, 3, Math.PI);
   b.buy('T', 22, 60, 58, 86);

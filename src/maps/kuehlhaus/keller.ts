@@ -42,7 +42,7 @@ export function dressKeller(b: B): void {
   b.decal({ kind: 'grid', pos: [30, FLOOR + 0.02, -44], size: [28, 24] });
   b.decal({ kind: 'stripes', pos: [30, FLOOR + 0.02, -56.6], size: [28, 1] });
   tape(b, 20, -45.8, 20, -42.2, FLOOR);
-  b.sign('SERVERSCHRANK B', [43.85, -2.2, -44], 'nx', 5, 1.0, { color: 0xffb13a, sub: 'RECHENZENTRUM · KÜHLUNG AN' });
+  b.sign('SERVERSCHRANK B', [43.85, -2.2, -41], 'nx', 5, 1.0, { color: 0xffb13a, sub: 'RECHENZENTRUM · KÜHLUNG AN' });
   b.sign('DATENRAUM', [13.85, -2.2, -44], 'px', 3.4, 0.9, { color: 0x7fc0ff, sub: 'KALTGANG · 18 °C' });
   for (const [x, z] of [[24.5, -50.7], [34.5, -50.7], [24.5, -38.1], [34.5, -38.1], [29.5, -44]] as const) b.light({ kind: 'lamp', pos: [x, FLOOR + 2.3, z], color: 0x40a8ff, intensity: 0.45, range: 6 });
   b.ambient('buzz', [30, -3.5, -44], 14, 0.6);
@@ -70,7 +70,7 @@ export function dressKeller(b: B): void {
   b.sign('TIEFKÜHLLAGER', [-11.85, -2.3, -40], 'px', 4.6, 1.0, { color: 0x9fd0ff, sub: '−30 °C · JACKE ANZIEHEN' });
   b.sign('KELLERTREPPE', [-4, -2.3, -57.9], 'pz', 3.6, 0.8, { color: 0x7fc0ff, sub: '↑ KONTROLLRAUM · CT' });
   b.sign('LÜFTUNG', [36.1, -2.3, -26], 'nx', 3, 0.8, { color: 0xffd040, sub: '↑ A ↔ B' });
-  b.sign('GEHEIMGANG', [43.85, -2.2, -35], 'nx', 3.2, 0.8, { color: 0xff7a5a, sub: 'SERVICEZUGANG' });
+  b.sign('GEHEIMGANG', [43.85, -2.2, -30.2], 'nx', 3.2, 0.8, { color: 0xff7a5a, sub: 'SERVICEZUGANG' });
   b.sign('RAMPE', [-11.85, -2.2, -17], 'px', 2.6, 0.8, { color: 0x7fc0ff, sub: '↑ LOBBY' });
 
   // ---- Licht: kaltweiße Röhren im Raster, an den Wänden Wandlampen
