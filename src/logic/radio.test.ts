@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RADIO_MENUS, radioMenuFor, radioPick } from './radio';
+import { BOT_RADIO, BOT_RADIO_COOLDOWN, RADIO_MENUS, radioAllowed, radioMenuFor, radioPick } from './radio';
 
 describe('Funkbefehle', () => {
   it('drei Menüs (Z/X/C) mit je 1–9 eindeutigen Einträgen', () => {
@@ -18,5 +18,25 @@ describe('Funkbefehle', () => {
     expect(radioPick(z, 99)).toBeNull();
     expect(radioPick(z, 1.5)).toBeNull();
     expect(radioMenuFor('KeyQ')).toBeNull();
+  });
+});
+
+describe('Bot-Funk', () => {
+  it('Bot-Sprüche stammen aus dem Funkmenü (außer Bombe gelegt / Ich entschärfe)', () => {
+    const all = new Set(RADIO_MENUS.flatMap((m) => m.items));
+    for (const [key, text] of Object.entries(BOT_RADIO)) {
+      if (key === 'bombPlanted' || key === 'defusing') continue;
+      expect(all.has(text), text).toBe(true);
+    }
+    for (const key of Object.keys(BOT_RADIO)) expect(BOT_RADIO_COOLDOWN[key as keyof typeof BOT_RADIO]).toBeGreaterThan(0);
+  });
+
+  it('kein Spam: Mindestabstand im Team und Abklingzeit je Spruch', () => {
+    const log = new Map<string, number>();
+    expect(radioAllowed(log, 'enemySpotted', 10)).toBe(true);
+    expect(radioAllowed(log, 'needBackup', 11)).toBe(false); // < 4 s nach dem letzten
+    expect(radioAllowed(log, 'needBackup', 14.5)).toBe(true);
+    expect(radioAllowed(log, 'enemySpotted', 19)).toBe(false); // Abklingzeit 10 s
+    expect(radioAllowed(log, 'enemySpotted', 20.5)).toBe(true);
   });
 });

@@ -423,6 +423,46 @@ const DRAW: Record<MaterialId, Draw> = {
       c.fill();
     }
   },
+  // Efeu / Bewuchs: dunkles Grün mit Blatt-Tupfern (Farbton über tint)
+  foliage: (c, s, r) => {
+    c.fillStyle = '#3d5a2c';
+    c.fillRect(0, 0, s, s);
+    for (let i = 0; i < 900; i++) {
+      const g = 70 + Math.floor(r() * 110);
+      c.fillStyle = `rgb(${Math.floor(g * 0.55)},${g},${Math.floor(g * 0.32)})`;
+      const x = r() * s, y = r() * s, w = 3 + r() * 6;
+      c.beginPath();
+      c.ellipse(x, y, w, w * 0.55, r() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (let i = 0; i < 40; i++) {
+      c.strokeStyle = 'rgba(40,30,20,0.35)';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      const x = r() * s;
+      c.moveTo(x, 0);
+      c.lineTo(x + (r() - 0.5) * 30, s);
+      c.stroke();
+    }
+  },
+  // Rostiger Wagenanstrich: Blech mit Laufspuren und abblätternder Farbe
+  rust: (c, s, r) => {
+    c.fillStyle = '#8a5a44';
+    c.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x += 32) {
+      c.fillStyle = 'rgba(0,0,0,0.18)';
+      c.fillRect(x, 0, 3, s);
+      c.fillStyle = 'rgba(255,255,255,0.07)';
+      c.fillRect(x + 14, 0, 2, s);
+    }
+    blotches(c, s, r, 14, 'rgba(120,60,20,0.35)', 36);
+    blotches(c, s, r, 8, 'rgba(30,20,16,0.28)', 30);
+    for (let i = 0; i < 26; i++) {
+      c.fillStyle = `rgba(90,40,16,${0.12 + r() * 0.22})`;
+      c.fillRect(r() * s, r() * s * 0.6, 2 + r() * 4, 30 + r() * 120);
+    }
+    noise(c, s, r, 1800, 0.14, 30, 190, 2);
+  },
   black: (c, s, r) => {
     c.fillStyle = '#242424';
     c.fillRect(0, 0, s, s);

@@ -1,4 +1,5 @@
 import type { MapData } from '../logic/mapkit';
+import { buildGueterbahnhof } from './de_gueterbahnhof';
 import { buildLagerstaub } from './de_lagerstaub';
 import { buildKuehlhaus } from './de_kuehlhaus';
 import { buildSpeicherstadt } from './de_speicherstadt';
@@ -21,6 +22,12 @@ export const MAPS: MapEntry[] = [
     name: 'Kühlhaus',
     description: 'Tiefkühl-Logistikzentrum (de_nuke): Silos und Haupteingang, Halle A mit Himmel und Hölle, B direkt darunter im Keller – Rampenraum, Lüftung und Geheimgang verbinden die Ebenen.',
     build: buildKuehlhaus,
+  },
+  {
+    id: 'de_gueterbahnhof',
+    name: 'Güterbahnhof',
+    description: 'Bahn-Logistikzentrum nach dem Vorbild de_train: Gleisfeld A unter der Kranbahn, Efeu, Z-Verbindung, Serverinsel B zwischen den Gleisen.',
+    build: buildGueterbahnhof,
   },
   {
     id: 'de_speicherstadt',

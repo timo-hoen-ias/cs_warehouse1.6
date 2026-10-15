@@ -500,6 +500,16 @@ export function buildLagerstaub(): MapData {
   b.buy('T', -16, 34, 38, 62);
   b.buy('CT', -8, -90, 32, -66);
 
+  // Bot-Hinweise (optional; Bots finden Positionen auch selbst — Hinweise werten nur auf)
+  b.botHint({ kind: 'sniper', pos: [58.5, 2, -54.5], team: 'CT', site: 'A' }); // A-Plattform, Blick nach Kurz A
+  b.botHint({ kind: 'sniper', pos: [64.5, 2, -79.5], team: 'CT', site: 'A' }); // hinten auf A, Blick die Rampe hinunter
+  b.botHint({ kind: 'sniper', pos: [-52.5, 2.89, -74.5], team: 'CT', site: 'B' }); // B-Empore über B-Gang und Tunnel
+  b.botHint({ kind: 'hold', pos: [-69.5, 0, -49.5], team: 'CT', site: 'B' }); // Ecke an der Tunnelmündung
+  b.botHint({ kind: 'plant', pos: [50.5, 2, -69.5], site: 'A' }); // hinter dem Serverschrank, aus Kurz A verdeckt
+  b.botHint({ kind: 'plant', pos: [-62, 0, -58], site: 'B' });
+  b.botHint({ kind: 'smoke', from: [22.5, 2, -51.5], target: [42, 2, -66], team: 'T', site: 'A' }); // Kurz A: Kreuz zur CT-Seite
+  b.botHint({ kind: 'smoke', from: [-31.5, 0, -52.5], target: [-52, 0, -56], team: 'T', site: 'B' }); // B-Gang: Tür zum Spot zuziehen
+
   // ------------------------------------------------------------------ Akustik: Ambient-Quellen
   b.ambient('hallHum', [60, 6, -24], 36, 0.6);
   b.ambient('forklift', [66, 1, -40], 10, 0.35);
