@@ -7,7 +7,7 @@ import type { AcousticZone, AmbientEmitter, Surface } from '../logic/acoustics';
 import { COL, type Collider } from '../logic/collision';
 import { compileMap, inBuyZoneBox, siteAt, type CompiledMap, type P3 } from '../logic/mapcompile';
 import { areaAt, findPath, forNodesNear, nearestNode, type NavArea, type NavGraph, type NavPath, type PathOpts, type XYZ } from '../logic/nav';
-import { renderOverview, type Raster } from '../logic/overview';
+import { radarBand, radarNeedsBands, renderOverview, type Raster } from '../logic/overview';
 import { PLAYER } from '../logic/move';
 import { buildLevelView, type LevelBuild } from '../level/LevelView';
 
@@ -30,8 +30,9 @@ export class World {
   readonly sites: Site[];
   /** Akustik-Vertrag für die Audio-Schicht. */
   readonly acoustics: { zones: AcousticZone[]; emitters: AmbientEmitter[] };
-  /** Radarbild (Draufsicht) für das HUD. */
-  readonly radar: Raster;
+  /** Karte mit übereinanderliegenden Ebenen → Radarbild je Höhenband, sonst ein Bild. */
+  readonly radarBands: boolean;
+  private readonly radarCache = new Map<number | 'flat', Raster>();
 
   constructor(data: MapData, quality: 'high' | 'low' = 'high') {
     this.data = data;
@@ -44,7 +45,31 @@ export class World {
     this.acoustics = this.map.acoustics;
     this.view = buildLevelView(data, quality);
     this.group = this.view.group;
-    this.radar = renderOverview(data, { pxPerM: 3, radar: true });
+    this.radarBands = radarNeedsBands(data);
+  }
+
+  /** Radar-Höhenband für eine Fußhöhe (undefined = Karte ohne gestapelte Ebenen, ein Bild für alles). */
+  radarBandOf(y: number): number | undefined {
+    return this.radarBands ? radarBand(y) : undefined;
+  }
+
+  /** Alle Höhenbänder, auf denen Navigationsknoten (= begehbare Böden) liegen; leer ohne gestapelte Ebenen. */
+  radarBandList(): number[] {
+    if (!this.radarBands) return [];
+    const set = new Set<number>();
+    for (let i = 0; i < this.nav.count; i++) set.add(radarBand(this.nav.y[i]!));
+    return [...set].sort((a, b) => a - b);
+  }
+
+  /** Radarbild (Draufsicht, Radar-Stil) für ein Höhenband; je Band einmal gerendert und gemerkt. */
+  radarRaster(band: number | undefined): Raster {
+    const key = band ?? 'flat';
+    let r = this.radarCache.get(key);
+    if (!r) {
+      r = renderOverview(this.data, { pxPerM: 4, radar: true, bandY: band });
+      this.radarCache.set(key, r);
+    }
+    return r;
   }
 
   /** Spawn-Pose für Team/Index (zyklisch), Blick aus der Kartendefinition. */

@@ -35,8 +35,12 @@ export type FallMsg = { t: 'fall'; id: string; v: number };
 export type SnapMsg = { t: 'snap'; s: Snapshot; h?: string };
 export type EventMsg = { t: 'ev'; e: GameEvent; h?: string };
 export type PosesMsg = { t: 'poses'; p: PoseMsg[] };
+/** Host → alle: Ping-Runde `n` (logic/ping.ts). Ältere Clients ignorieren die Nachricht. */
+export type PingMsg = { t: 'ping'; n: number; h?: string };
+/** Client → Host: sofortige Antwort auf Ping-Runde `n`. */
+export type PongMsg = { t: 'pong'; id: string; n: number };
 
-export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg | TeamMsg | ChatMsg | ReloadMsg | DropMsg | FallMsg | SnapMsg | EventMsg | PosesMsg;
+export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg | TeamMsg | ChatMsg | ReloadMsg | DropMsg | FallMsg | SnapMsg | EventMsg | PosesMsg | PingMsg | PongMsg;
 
 /** Ereignisse vom Host (einmalig, nicht im Snapshot). */
 export type GameEvent =

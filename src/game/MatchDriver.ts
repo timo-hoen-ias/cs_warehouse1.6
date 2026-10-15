@@ -33,6 +33,11 @@ import { capDrops, dropActive, dropOnDeath, droppedBomb, nextDropId, tryPickup, 
 import { DroppedView } from '../weapons/DroppedView';
 import { admitPlayer, holdWarmup, lobbyActive, sanitizeLobbyConfig, type LobbyConfig } from '../logic/lobby';
 import { GAME_VERSION } from '../logic/serverList';
+import { applyPings, PingTracker } from '../logic/ping';
+import { HintFader, objectiveHint } from '../logic/hudHint';
+import type { RadarPlayer } from '../logic/radar';
+import { SpotTracker, type SpotViewer } from '../logic/radarSpot';
+import { canSeePlayer, SENSE } from '../logic/botPerception';
 
 export type DriverOptions = {
   localName: string;
@@ -50,6 +55,8 @@ type RemotePose = { prev: Pose; next: Pose; t: number; w: string; c: boolean; m:
 
 const SNAP_HZ = 10;
 const POSE_HZ = 20;
+/** Sichtweite der Radar-Sichtung (m): Gegner, die ein Mitspieler so nah sieht, erscheinen auf dem Radar. */
+const RADAR_SIGHT = 70;
 
 /**
  * Spiel-Treiber (Needle-Behaviour). Läuft auf jedem Client; der gewählte Host
@@ -98,6 +105,11 @@ export class MatchDriver extends Behaviour {
   private defuserId: string | null = null;
   private fireSeq = 0;
   private rnd = mulberry32(42);
+  /** Host: Ping-Messung der Menschen im Raum (logic/ping.ts). */
+  private pings = new PingTracker();
+  private readonly hintFader = new HintFader();
+  /** Vom Team gesichtete Gegner fürs Radar. */
+  private readonly spots = new SpotTracker();
   private localDeadSince = -1;
   private chatLines: { who: string; text: string; team: Team | null }[] = [];
   private pendingHandled = false;
@@ -191,6 +203,7 @@ export class MatchDriver extends Behaviour {
 
   private becomeHost(): void {
     this.wasHost = true;
+    this.pings = new PingTracker();
     // Eigene Konfiguration (Ersteller) oder die vom alten Host per Snapshot übernommene
     if (!this.lobbyCfg && this.options.lobby) this.lobbyCfg = { ...this.options.lobby };
     // Host-Migration: Spiegel wird autoritativ.
@@ -226,6 +239,7 @@ export class MatchDriver extends Behaviour {
       this.soldiers.delete(id);
     }
     this.remotePoses.delete(id);
+    this.pings.forget(id);
     if (this.isHost && this.match.players[id]) {
       const name = this.match.players[id]!.name;
       removePlayer(this.match, id);
@@ -279,6 +293,13 @@ export class MatchDriver extends Behaviour {
         break;
       case 'fall':
         if (this.isHost) this.hostFall(msg.id, msg.v);
+        break;
+      case 'ping':
+        // Client: sofort zurückmelden (Host misst die Rundlaufzeit mit seiner Uhr)
+        if (!this.isHost && (!msg.h || msg.h === this.net.hostId)) this.net.send({ t: 'pong', id: this.localId, n: msg.n });
+        break;
+      case 'pong':
+        if (this.isHost) this.pings.pong(msg.id, msg.n, performance.now());
         break;
     }
   }
@@ -740,6 +761,7 @@ export class MatchDriver extends Behaviour {
           this.sfx?.play('roundStart');
           this.grenades.clearAll();
           this.dropView.clear();
+          this.spots.clear();
           if (!this.isHost) this.drops = [];
           this.smokes = [];
           this.bombPos = null;
@@ -984,6 +1006,8 @@ export class MatchDriver extends Behaviour {
         }
         this.net.send({ t: 'poses', p: list });
       }
+      const pingN = this.pings.due(performance.now());
+      if (pingN !== null) this.net.send({ t: 'ping', n: pingN, h: this.localId });
       this.snapTimer += dt;
       if (this.snapTimer >= 1 / SNAP_HZ) {
         this.snapTimer = 0;
@@ -994,6 +1018,7 @@ export class MatchDriver extends Behaviour {
 
   private broadcastSnapshot(): void {
     if (!this.net.online) return;
+    applyPings(Object.values(this.match.players), this.localId, this.pings, performance.now());
     const snap = packSnapshot(this.match, ++this.snapSeq, {
       nades: this.nades.map((n) => ({ id: n.id, kind: n.g.kind, p: [n.g.pos.x, n.g.pos.y, n.g.pos.z] })),
       drops: this.drops.map((d) => ({ id: d.id, weapon: d.weapon, p: [d.x, d.y, d.z] as [number, number, number] })),
@@ -1236,26 +1261,59 @@ export class MatchDriver extends Behaviour {
         canBuy: (phase === 'warmup' || phase === 'freeze' || (phase === 'live' && m.round.timer > ROUND.roundTime - 15)) && this.world.inBuyZone(me.team, this.localPose()),
       });
     }
-    this.hud.setRadar(
-      this.localPose(),
-      Object.values(m.players).filter((p) => p.id !== this.localId).map((p) => {
-        const bot = this.botPose(p.id);
-        const pose = bot ? bot : this.remotePoses.get(p.id) ? lerpPose(this.remotePoses.get(p.id)!.prev, this.remotePoses.get(p.id)!.next, this.remotePoses.get(p.id)!.t) : p.pose;
-        return { x: pose.x, z: pose.z, yaw: pose.yaw, team: p.team, alive: p.alive, id: p.id };
-      }),
-      me?.team ?? 'T',
-      // Gelegte Bombe sehen alle; eine liegende C4 nur die Terroristen (wie im CS-Radar)
-      this.bombPos ?? (me?.team === 'T' ? (() => { const d = droppedBomb(this.drops); return d ? { x: d.x, y: d.y, z: d.z } : null; })() : null),
-    );
+    this.updateRadar(me?.team ?? 'T');
     if (this.hud.scoreboardVisible) this.hud.setScoreboard(m, this.localId);
-    // Interaktions-Hinweis: im Spot mit Bombe
-    if (me?.alive && me.team === 'T' && me.loadout.bomb && phase === 'live') {
-      const s = this.world.siteAt(this.localPose());
-      const site = s ? this.world.sites.find((q) => q.id === (s === 'a' ? 'A' : 'B')) : null;
-      this.hud.setHint(site ? `E halten: Bombe legen (${site.name})` : 'Bombenspot A/B aufsuchen (Radar)');
-    } else if (me?.alive && me.team === 'CT' && phase === 'bomb' && this.bombPos && Math.hypot(this.player.motionX() - this.bombPos.x, this.player.motionZ() - this.bombPos.z) <= DEFUSE_RADIUS && Math.abs(this.player.feetY() - this.bombPos.y) < DEFUSE_DY) {
-      this.hud.setHint(`E halten: Bombe entschärfen${me.loadout.defuseKit ? ' (Kit)' : ''}`);
-    } else this.hud.setHint(null);
+    // Ziel-/Interaktions-Hinweis (Bildmitte): kontextabhängig, Ziel-Texte blenden nach wenigen Sekunden aus
+    const siteName = (id: 'A' | 'B'): string => this.world.sites.find((q) => q.id === id)?.name ?? `Bombenspot ${id}`;
+    const dropped = droppedBomb(this.drops);
+    const hint = objectiveHint({
+      phase,
+      team: me?.team ?? 'T',
+      alive: !!me?.alive,
+      hasBomb: !!me?.loadout.bomb,
+      bombDropped: !!dropped,
+      bombPhase: m.round.bomb.phase,
+      bombSpot: m.round.bomb.spot,
+      inSite: this.world.siteAt(this.localPose()),
+      canDefuse: !!this.bombPos && Math.hypot(this.player.motionX() - this.bombPos.x, this.player.motionZ() - this.bombPos.z) <= DEFUSE_RADIUS && Math.abs(this.player.feetY() - this.bombPos.y) < DEFUSE_DY,
+      hasKit: !!me?.loadout.defuseKit,
+      siteNames: { a: siteName('A'), b: siteName('B') },
+    });
+    const shown = this.hintFader.update(hint, performance.now());
+    this.hud.setHint(shown?.text ?? null, shown?.alpha ?? 1);
+  }
+
+  /** Aktuelle (interpolierte) Pose eines anderen Spielers: Bot (Host), entfernter Mensch (Interpolation) oder Spiegel. */
+  private livePose(p: MatchPlayer): Pose {
+    const bot = this.botPose(p.id);
+    if (bot) return bot;
+    const r = this.remotePoses.get(p.id);
+    return r ? lerpPose(r.prev, r.next, r.t) : p.pose;
+  }
+
+  /** Radar füttern: Mitspieler, vom Team gesichtete Gegner (Sichtlinie wie bei Bots), bekannte Bombe. */
+  private updateRadar(team: Team): void {
+    const me = this.local;
+    const lp = this.localPose();
+    const others: RadarPlayer[] = [];
+    for (const p of Object.values(this.match.players)) {
+      if (p.id === this.localId) continue;
+      const pose = this.livePose(p);
+      others.push({ id: p.id, x: pose.x, y: pose.y, z: pose.z, yaw: pose.yaw, team: p.team, alive: p.alive });
+    }
+    const now = performance.now();
+    // Gegner, die ich oder ein lebender Mitspieler sehe → bleiben kurz auf dem Radar
+    const viewers: (RadarPlayer & SpotViewer)[] = others.filter((o) => o.alive && o.team === team);
+    if (me?.alive) viewers.push({ id: this.localId, x: lp.x, y: lp.y, z: lp.z, yaw: lp.yaw, team, alive: true });
+    const foes = others.filter((o) => o.alive && o.team !== team);
+    const crouching = (id: string): boolean => (this.botPose(id) ? this.bots.crouching(id) : this.remotePoses.get(id)?.c ?? false);
+    this.spots.update(now / 1000, viewers, foes, (v, t) => canSeePlayer(
+      this.world.collider, this.smokes, { x: v.x, y: v.y + SENSE.eye, z: v.z }, v.yaw, { x: t.x, y: t.y, z: t.z }, crouching(t.id), RADAR_SIGHT,
+    ));
+    // Gelegte Bombe sehen alle; eine liegende C4 nur die Terroristen (wie im CS-Radar)
+    const dropped = team === 'T' ? droppedBomb(this.drops) : null;
+    const bomb = this.bombPos ? { ...this.bombPos, kind: 'planted' as const } : dropped ? { x: dropped.x, y: dropped.y, z: dropped.z, kind: 'dropped' as const } : null;
+    this.hud.setRadar({ ...lp, id: this.localId }, others, team, (id) => this.spots.isSpotted(id, now / 1000), bomb);
   }
 
   /** Fortschritt fürs HUD, wenn der lokale Spieler gerade legt/entschärft. */

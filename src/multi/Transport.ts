@@ -99,8 +99,8 @@ export class NeedleTransport implements NetTransport {
   send(msg: NetMsg): void {
     const c = this.context.connection;
     if (!c.isInRoom) return;
-    // Posen/Snapshots sofort (ungepuffert) senden, Rest über den Frame-Puffer
-    const urgent = msg.t === 'pose' || msg.t === 'poses' || msg.t === 'snap';
+    // Posen/Snapshots/Ping sofort (ungepuffert) senden, Rest über den Frame-Puffer
+    const urgent = msg.t === 'pose' || msg.t === 'poses' || msg.t === 'snap' || msg.t === 'ping' || msg.t === 'pong';
     c.send(KEY, msg, urgent ? SendQueue.Immediate : SendQueue.Queued);
   }
 

@@ -105,9 +105,11 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
 
   const hud = new Hud();
   hud.mount();
-  hud.setRadarMap(world.radar);
+  hud.setRadarMap(
+    { bandOf: (y) => world.radarBandOf(y), raster: (band) => world.radarRaster(band), bands: () => world.radarBandList() },
+    world.sites.map((s) => ({ id: s.id, x: s.plant[0], y: s.plant[1], z: s.plant[2] })),
+  );
   hud.setRadarLabel(world.mapName);
-  hud.setZones(world.zones);
 
   const playerRoot = new THREE.Object3D();
   scene.add(playerRoot);
@@ -143,6 +145,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
     sfx.setVolumes(st);
     hud.setCrosshair(st.crosshairColor, st.crosshairStyle, st.crosshairSize, st.crosshairGap, st.crosshairThickness, st.crosshairDynamic);
     hud.setScale(st.hudScale);
+    hud.setRadarOptions(st.radarRotate, st.radarZoom);
     hud.showFps(st.showFps);
   };
   settingsMenu.onChange = applySettings;
@@ -289,6 +292,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
     g.__state = () => driver.debugState();
     g.__players = () => Object.values(driver.match.players).map((p) => ({ id: p.id, name: p.name, team: p.team, bot: p.bot, hp: p.hp, alive: p.alive }));
     g.__playerPose = (id: string) => { const p = driver.match.players[id]; return p ? { x: +p.pose.x.toFixed(2), z: +p.pose.z.toFixed(2) } : null; };
+    g.__pings = () => Object.values(driver.match.players).map((p) => ({ id: p.id, bot: p.bot, ping: p.ping }));
     g.__netId = () => ({ id: net.id, host: net.hostId, peers: [...net.peers], online: net.online });
     g.__bots = () => driver.debugBotPos();
     g.__botPlan = () => driver.debugBotPlan();

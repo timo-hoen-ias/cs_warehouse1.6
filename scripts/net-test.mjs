@@ -102,6 +102,16 @@ async function run() {
     if (sc && sc.host === false && sc.players >= 2) ok(`Client-Spiegel: Phase ${sc.phase}, ${sc.players} Spieler`);
     else fail('Client-Spiegel fehlt: ' + JSON.stringify(sc));
 
+    // 2b) Ping: Host misst den Client per Ping/Pong; Client sieht seinen Wert im Snapshot, Host und Bots = 0
+    const cid0 = (await client.evJson('globalThis.__netId?.()'))?.id;
+    const hid0 = (await host.evJson('globalThis.__netId?.()'))?.id;
+    const pingOf = (list, id) => list?.find((p) => p.id === id)?.ping;
+    const pH = await host.waitFor('globalThis.__pings?.()', (v) => pingOf(v, cid0) >= 0, 20000, 500);
+    const pC = await client.waitFor('globalThis.__pings?.()', (v) => pingOf(v, cid0) >= 0, 20000, 500);
+    const botsZero = (pC ?? []).filter((p) => p.bot).every((p) => p.ping === 0);
+    if (pingOf(pH, cid0) >= 0 && pingOf(pC, cid0) >= 0 && pingOf(pC, hid0) === 0 && botsZero) ok(`Ping: Client ${pingOf(pH, cid0)} ms (Host-Messung) / ${pingOf(pC, cid0)} ms (Snapshot), Host 0, Bots 0`);
+    else fail(`Ping fehlt: Host=${JSON.stringify(pH)} Client=${JSON.stringify(pC)}`);
+
     // 3) Runde live auf beiden
     // Bots können eine Runde schnell beenden → „live erreicht“ heißt: live oder bereits eine spätere Runde.
     const reached = (v) => v.phase === 'live' || v.phase === 'bomb' || v.round >= 2;
