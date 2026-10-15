@@ -197,6 +197,13 @@ export function applyExplosion(m: MatchState, victimId: PlayerId, attackerId: Pl
   return applyRawDamage(m, v, a.dmg, attackerId, 'hegrenade', false);
 }
 
+/** Sturzschaden: Rüstung schützt nicht (wie in CS), kein Angreifer; Waffe `fall` im Kill-Feed. */
+export function applyFall(m: MatchState, victimId: PlayerId, dmg: number): HitResult | null {
+  const v = m.players[victimId];
+  if (!v || !v.alive || !(dmg > 0)) return null;
+  return applyRawDamage(m, v, Math.min(dmg, 100), null, 'fall', false);
+}
+
 function applyRawDamage(m: MatchState, v: MatchPlayer, dmg: number, attackerId: PlayerId | null, weapon: string, headshot: boolean): HitResult {
   v.hp = Math.max(0, v.hp - dmg);
   const killed = v.hp <= 0;

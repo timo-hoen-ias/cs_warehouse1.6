@@ -289,7 +289,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
     g.__netId = () => ({ id: net.id, host: net.hostId, peers: [...net.peers], online: net.online });
     g.__bots = () => driver.debugBotPos();
     g.__soldierMuzzle = (id: string) => driver.debugSoldierMuzzle(id);
-    g.__pos = () => ({ x: +player.motionX().toFixed(2), y: +player.feetY().toFixed(2), z: +player.motionZ().toFixed(2), yaw: +player.yawNow().toFixed(2), hp: player.hp, dead: player.isDead(), area: world.areaAt({ x: player.motionX(), y: player.feetY(), z: player.motionZ() })?.name ?? null });
+    g.__pos = () => ({ x: +player.motionX().toFixed(2), y: +player.feetY().toFixed(2), z: +player.motionZ().toFixed(2), yaw: +player.yawNow().toFixed(2), speed: +player.speedXZ().toFixed(2), air: player.airborne(), run: +player.runSpeed.toFixed(2), hp: player.hp, dead: player.isDead(), area: world.areaAt({ x: player.motionX(), y: player.feetY(), z: player.motionZ() })?.name ?? null });
     g.__killTeam = (team: 'T' | 'CT') => { driver.debugKillTeam(team); return driver.debugState(); };
     g.__buy = (item: string) => { driver.requestBuy(item); return driver.local?.loadout; };
     g.__switch = (slot: number) => { shooter.selectSlot(slot); return { weapon: shooter.weaponId }; };
@@ -363,6 +363,30 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
         setTimeout(() => document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })), 60);
       }, 700);
       return { ok: true, target: e.id, hp: e.hp, dist: +Math.hypot(e.pose.x - at.x, e.pose.z - at.z).toFixed(2), weapon: shooter.weaponId };
+    };
+    /** Bewegungstest: Blick in die freieste Richtung (Anlauf ≥ 12 m); liefert die freie Strecke. */
+    g.__openRun = () => {
+      const x = player.motionX(), z = player.motionZ(), eye = player.feetY() + PLAYER.eye;
+      let best = { yaw: 0, t: 0 };
+      for (let k = 0; k < 32; k++) {
+        const yaw = (k / 32) * Math.PI * 2;
+        const hit = world.collider.raycast({ x, y: eye - 0.7, z }, yawPitchToDir(yaw, 0), 40);
+        const t = hit ? hit.t : 40;
+        if (t > best.t) best = { yaw, t };
+      }
+      player.setLook(best.yaw, 0);
+      return { yaw: +best.yaw.toFixed(2), free: +best.t.toFixed(1) };
+    };
+    /** Sturztest: auf freier Fläche (Decke ≥ h + 2 m darüber) aus h Metern Höhe fallen lassen. */
+    g.__dropTest = (h: number) => {
+      const spots = [...world.spawns.T, ...world.spawns.CT].map((s) => s.pos).concat([[world.zones.a.x, world.zones.a.y, world.zones.a.z], [world.zones.b.x, world.zones.b.y, world.zones.b.z]]);
+      for (const [x, y, z] of spots) {
+        if (world.collider.ceilingAbove(x!, z!, y!, PLAYER.radius) < y! + h + 2) continue;
+        driver.debugRevive();
+        player.spawn(x!, z!, 0, y! + h);
+        return { x, y: y! + h, z, ground: y };
+      }
+      return { error: 'kein freier Platz' };
     };
     g.__counters = () => driver.debugCounters();
     g.__map = () => ({ id: world.data.id, brushes: world.data.brushes.length, nav: world.nav.count, areas: world.nav.areas.map((a) => a.name), view: world.view.stats });

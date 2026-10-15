@@ -1,7 +1,8 @@
 import { Behaviour, registerType } from '@needle-tools/engine';
 import * as THREE from 'three';
-import { PLAYER, asCollider, stepPlayer, type MoveWorld, type PlayerMotion } from '../logic/move';
-import { wishSpeed } from '../logic/move';
+import { PLAYER, asCollider, newBody, speedXZ, stepBody, wishDir, type Body, type MoveWorld } from '../logic/move';
+import { landPunch } from '../logic/fall';
+import type { MoveSpreadState } from '../logic/fire';
 import { advanceBob, bobOffset, bobScale } from '../logic/bob';
 import { humanPartBoxes, type PartBox } from '../logic/hitbox';
 
@@ -20,6 +21,10 @@ function tick(key: string): void {
 /**
  * Ego-Player (Host/Client-lokal): PointerLock + Maus-Blick + WASD/Springen mit
  * AABB-Kollision (reine Logik in src/logic/move.ts). Bewegt die Hauptkamera.
+ *
+ * Bewegung wie CS 1.6: Standard = Laufen mit dem Tempo der gehaltenen Waffe (`runSpeed`,
+ * vom Shooter gesetzt), Shift = leise Gehen (52 %), Strg = Ducken (34 %), Leertaste = Sprung
+ * (neu drücken für den nächsten), Reibung/Beschleunigung/Luftsteuerung in `stepBody`.
  *
  * Blicksteuerung:
  *  1) PointerLock auf dem `<needle-engine>`-Host-Element (Light DOM) — das
@@ -46,7 +51,12 @@ export class FpsPlayer extends Behaviour {
   inputEnabled = true;
   private deadFlag = false;
 
-  private motion: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+  /** Lauftempo (m/s) mit der gehaltenen Waffe — setzt der Shooter (Waffe, Zielfernrohr). */
+  runSpeed: number = PLAYER.runSpeed;
+  /** Landung mit Aufprallgeschwindigkeit (m/s) — Treiber meldet Sturzschaden an den Host. */
+  onLand?: (speed: number) => void;
+
+  private motion: Body = newBody(0, 0, 0);
   private yaw = 0;
   private pitch = 0;
   /** Aktueller Recoil-Offset (rad), additiv zur Kamera (schwingt zurück). */
@@ -60,6 +70,11 @@ export class FpsPlayer extends Behaviour {
   private bobPhase = 0;
   private prevX = 0;
   private prevZ = 0;
+  private prevFeet = 0;
+  /** Weiche Kamera-Korrektur nach Absätzen/Aufspringen (m, negativ = Kamera hinkt unten nach). */
+  private stepOffset = 0;
+  /** Eintauchen der Kamera nach einer Landung (m) und zugehöriges Nicken (rad). */
+  private landDip = 0;
   /** Zuschauer-Pose (fremder Spieler) — überschreibt die Kamera, solange gesetzt. */
   private specPose: { x: number; y: number; z: number; yaw: number; pitch: number } | null = null;
   spectate(pose: { x: number; y: number; z: number; yaw: number; pitch: number } | null): void {
@@ -83,7 +98,7 @@ export class FpsPlayer extends Behaviour {
   }
   /** Kamera aus Look + Recoil-Offset schreiben. */
   private writeLook(cam: THREE.Object3D): void {
-    const p = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch + this.recoilPitch + this.shakeY));
+    const p = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch + this.recoilPitch + this.shakeY - this.landDip * 0.3));
     cam.rotation.set(p, this.yaw + this.recoilYaw + this.shakeX, this.deathT * 0.9);
   }
   private keys: Record<string, boolean> = {};
@@ -133,7 +148,7 @@ export class FpsPlayer extends Behaviour {
 
   /** Setzt Position (Fußhöhe y) + Blick einmalig (Spawn). */
   spawn(x: number, z: number, yaw = 0, y = 0): void {
-    this.motion = { x, y: y + PLAYER.eye, z, vy: 0, grounded: true };
+    this.motion = newBody(x, y, z);
     this.yaw = yaw;
     this.pitch = 0;
     this.recoilPitch = 0;
@@ -143,6 +158,9 @@ export class FpsPlayer extends Behaviour {
     this.bobPhase = 0;
     this.prevX = x;
     this.prevZ = z;
+    this.prevFeet = y;
+    this.stepOffset = 0;
+    this.landDip = 0;
     this.spawned = true;
     const cam = this.context.mainCamera;
     if (cam) {
@@ -177,42 +195,53 @@ export class FpsPlayer extends Behaviour {
     this.crouchKey = crouched;
     const height = crouched ? CROUCH_HEIGHT : PLAYER.height;
 
-    if (this.spawned && !this.frozen && !this.deadFlag && this.inputEnabled) {
-      const wish = wishSpeed(
-        {
-          w: !!this.keys['KeyW'] || !!this.keys['ArrowUp'],
-          s: !!this.keys['KeyS'] || !!this.keys['ArrowDown'],
-          a: !!this.keys['KeyA'] || !!this.keys['ArrowLeft'],
-          d: !!this.keys['KeyD'] || !!this.keys['ArrowRight'],
-          sprint: crouched ? false : !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight'],
-        },
-        this.yaw,
-        crouched ? PLAYER.crouchSpeed : PLAYER.walkSpeed,
-        PLAYER.sprintSpeed,
-      );
-      const jump = !crouched && !!this.keys['Space'];
-      this.motion = stepPlayer(this.motion, wish.x, wish.z, jump, dt, this.collider, { height });
-    } else {
-      this.motion = stepPlayer(this.motion, 0, 0, false, dt, this.collider, { height });
+    // Eingabe → Bewegungsschritt (GoldSrc-Modell: Reibung, Beschleunigung, Luftsteuerung)
+    const active = this.spawned && !this.frozen && !this.deadFlag && this.inputEnabled;
+    const dir = active
+      ? wishDir({
+        w: !!this.keys['KeyW'] || !!this.keys['ArrowUp'],
+        s: !!this.keys['KeyS'] || !!this.keys['ArrowDown'],
+        a: !!this.keys['KeyA'] || !!this.keys['ArrowLeft'],
+        d: !!this.keys['KeyD'] || !!this.keys['ArrowRight'],
+      }, this.yaw)
+      : { x: 0, z: 0 };
+    const res = stepBody(this.motion, {
+      wishX: dir.x,
+      wishZ: dir.z,
+      run: this.runSpeed,
+      walk: this.isWalking(),
+      crouch: crouched,
+      jump: active && !!this.keys['Space'],
+    }, dt, this.collider, { height });
+    this.motion = res.body;
+    if (res.landSpeed > 0) {
+      this.landDip = Math.min(0.16, this.landDip + 0.1 * landPunch(res.landSpeed));
+      this.onLand?.(res.landSpeed);
     }
 
     // Sicht-Höhe weich Richtung Duck-/Stand-Ziel interpolieren
     const targetEye = crouched ? PLAYER.crouchEye : PLAYER.eye;
     this.stanceY += (targetEye - this.stanceY) * Math.min(1, 1 - Math.exp(-10 * dt));
 
-    // Headbob: nur am Boden und bei Bewegung; folgt dem Lauf-Tempo.
+    // Absätze/Aufspringen (> 12 cm in einem Frame): Kamera gleitet nach, statt zu springen
+    const feet = this.motion.y - PLAYER.eye;
+    const rise = feet - this.prevFeet;
+    if (rise > 0.12 && this.motion.grounded) this.stepOffset = Math.max(-0.6, this.stepOffset - rise);
+    this.prevFeet = feet;
+    this.stepOffset *= Math.exp(-12 * dt);
+    this.landDip *= Math.exp(-9 * dt);
+
+    // Headbob (dezent, nur Auf/Ab + minimal seitlich, kein Roll): am Boden und bei Bewegung
     let bobX = 0;
     let bobY = 0;
-    let bobRoll = 0;
+    const speed = speedXZ(this.motion);
     if (this.motion.grounded) {
-      const speed = Math.hypot(this.motion.x - this.prevX, this.motion.z - this.prevZ) / Math.max(dt, 1e-4);
       this.bobPhase = advanceBob(this.bobPhase, speed, dt);
-      const scale = bobScale(speed, crouched ? PLAYER.crouchSpeed : PLAYER.walkSpeed, crouched);
+      const scale = bobScale(speed, PLAYER.runSpeed * 0.75, crouched);
       if (scale > 0 && this.bobbing) {
         const b = bobOffset(this.bobPhase, scale);
         bobX = b.x;
         bobY = b.y;
-        bobRoll = b.roll;
       }
     } else {
       this.bobPhase = 0;
@@ -234,7 +263,7 @@ export class FpsPlayer extends Behaviour {
     this.deathT += ((this.deadFlag ? 1 : 0) - this.deathT) * Math.min(1, dt * 5);
 
     // Ducken senkt die Kamera (Physik-Boden bleibt bei PLAYER.eye, sichtbar tiefer).
-    const eyeDrop = PLAYER.eye - this.stanceY + this.deathT * 1.15;
+    const eyeDrop = PLAYER.eye - this.stanceY + this.deathT * 1.15 + this.landDip;
 
     if (this.specPose) {
       const sp = this.specPose;
@@ -243,8 +272,7 @@ export class FpsPlayer extends Behaviour {
       return;
     }
     this.writeLook(cam);
-    cam.rotation.z += bobRoll;
-    cam.position.set(this.motion.x + bobX, this.motion.y + bobY - eyeDrop, this.motion.z);
+    cam.position.set(this.motion.x + bobX, this.motion.y + bobY + this.stepOffset - eyeDrop, this.motion.z);
   }
 
   /** Aktuelle XZ-Position + Blick (Debug/Netzwerk-Snapshots). */
@@ -255,10 +283,29 @@ export class FpsPlayer extends Behaviour {
   yawNow(): number { return this.yaw; }
   isLocked(): boolean { return this.locked; }
 
-  /** true, wenn eine Bewegungstaste gehalten wird (für Bewegungsspread). */
+  /** true, solange der Spieler sich merklich bewegt (tatsächliches Tempo, nicht die Tasten). */
   moving(): boolean {
-    return !!(this.keys['KeyW'] || this.keys['KeyS'] || this.keys['KeyA'] || this.keys['KeyD']
-      || this.keys['ArrowUp'] || this.keys['ArrowDown'] || this.keys['ArrowLeft'] || this.keys['ArrowRight']);
+    return speedXZ(this.motion) > 0.4;
+  }
+
+  /** Horizontaltempo (m/s) — Grundlage für Streuung, Schrittgeräusche und Bob. */
+  speedXZ(): number {
+    return speedXZ(this.motion);
+  }
+
+  /** In der Luft (Sprung/Fall). */
+  airborne(): boolean {
+    return !this.motion.grounded;
+  }
+
+  /** Bewegung für die Treffer-Streuung (`fireSpread`). */
+  spreadState(): MoveSpreadState {
+    return { speed: speedXZ(this.motion), air: !this.motion.grounded };
+  }
+
+  /** Shift gehalten und nicht geduckt: leise gehen (52 %). */
+  private isWalking(): boolean {
+    return !this.crouchKey && !!(this.keys['ShiftLeft'] || this.keys['ShiftRight']);
   }
 
   /** true, solange geduckt wird (für die Streuungs-/Sway-Logik im Shooter). */
@@ -266,9 +313,14 @@ export class FpsPlayer extends Behaviour {
     return this.crouchKey;
   }
 
-  /** true, solange gesprintet wird (Shift + Bewegung, nicht geduckt) — senkt die Viewmodel-Waffe. */
+  /** true beim leisen Gehen (Shift + Bewegung, nicht geduckt) — Schritte sind lautlos. */
+  walking(): boolean {
+    return this.isWalking() && this.moving();
+  }
+
+  /** CS kennt kein Sprinten: Standard ist Laufen. (Die gesenkte Sprint-Haltung des Viewmodels entfällt.) */
   sprinting(): boolean {
-    return !this.crouchKey && !!(this.keys['ShiftLeft'] || this.keys['ShiftRight']) && this.moving();
+    return false;
   }
 
   /** Spieler-HP (für HUD; Schaden kommt in M2 durch Gegner). */

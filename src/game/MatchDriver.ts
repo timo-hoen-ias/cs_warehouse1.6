@@ -10,10 +10,11 @@ import type { Sfx } from '../audio/Sfx';
 import { MatchAudio, toV3, type AudioMover } from '../audio/MatchAudio';
 import { Soldier } from '../entities/Soldier';
 import {
-  addPlayer, aliveCounts, applyExplosion, applyHit, balanceBots, beginRound, bombCarrier, finishRound, newMatch, removePlayer,
+  addPlayer, aliveCounts, applyExplosion, applyFall, applyHit, balanceBots, beginRound, bombCarrier, finishRound, newMatch, removePlayer,
   restartMatch, rewardAction, switchTeam, type MatchPlayer, type MatchState, type Pose,
 } from '../logic/match';
 import { ROUND, tickRound, type RoundPhase } from '../logic/round';
+import { acceptFallReport, fallDamage } from '../logic/fall';
 import type { Team } from '../logic/economy';
 import { WEAPONS, shotInterval, type WeaponDef } from '../logic/weapons';
 import { buyAmmo, buyItem, botBuy, consumeGrenade, bestWeapon, giveWeapon } from '../logic/loadout';
@@ -149,6 +150,7 @@ export class MatchDriver extends Behaviour {
     this.net.onPeersChanged = () => this.onPeers();
     this.net.onPeerLeft = (id) => this.onPeerLeft(id);
     this.shooter.onFire = (w, o, d) => this.localFire(w, o, d);
+    this.player.onLand = (v) => this.localLanded(v);
     this.shooter.onThrow = (kind, o, d, s) => this.localThrow(kind, o, d, s);
     this.shooter.onReload = () => this.audio.localReload(this.shooter.weaponId, this.local?.loadout.guns[this.shooter.weaponId]);
     this.hud.onBuy = (item) => this.requestBuy(item);
@@ -287,6 +289,9 @@ export class MatchDriver extends Behaviour {
         break;
       case 'dropreq':
         if (this.isHost) this.hostDrop(msg.id, msg.w);
+        break;
+      case 'fall':
+        if (this.isHost) this.hostFall(msg.id, msg.v);
         break;
     }
   }
@@ -442,6 +447,29 @@ export class MatchDriver extends Behaviour {
   }
 
   private readonly lastFire = new Map<string, number>();
+  private readonly lastFall = new Map<string, number>();
+
+  /** Lokale Landung: bei Sturzschaden den Host informieren (der Host rechnet den Schaden selbst). */
+  private localLanded(speed: number): void {
+    if (fallDamage(speed) <= 0 || this.player.isDead()) return;
+    if (this.isHost) this.hostFall(this.localId, speed);
+    else this.net.send({ t: 'fall', id: this.localId, v: speed });
+  }
+
+  /** Host: gemeldete Landung prüfen (Plausibilität, Takt), Sturzschaden anwenden, Ereignis senden. */
+  private hostFall(id: string, speed: number): void {
+    const victim = this.match.players[id];
+    if (!victim || !victim.alive || victim.bot) return;
+    const since = this.match.time - (this.lastFall.get(id) ?? -Infinity);
+    const dmg = acceptFallReport(speed, since);
+    if (dmg === null) return;
+    this.lastFall.set(id, this.match.time);
+    const r = applyFall(this.match, id, dmg);
+    if (!r) return;
+    const at: [number, number, number] = [victim.pose.x, victim.pose.y + 0.9, victim.pose.z];
+    this.emit({ k: 'hit', victim: id, attacker: null, dmg: r.dmg, part: 'body', from: at, at, fall: true });
+    if (r.killed) this.onHostKill(victim, null, 'fall', false);
+  }
 
   private hostFire(shooterId: string, weaponId: string, origin: Vec3, dirs: Vec3[]): void {
     const shooter = this.match.players[shooterId];
@@ -645,8 +673,11 @@ export class MatchDriver extends Behaviour {
         this.audio.hit(e, this.localId, this.shooter.weaponId);
         if (e.victim === this.localId) {
           this.player.hp = Math.max(0, this.player.hp - e.dmg);
-          const ang = Math.atan2(e.from[0] - this.player.motionX(), e.from[2] - this.player.motionZ());
-          this.hud.damageFrom(ang - this.player.yawNow());
+          if (e.fall) this.player.shake(0.02);
+          else {
+            const ang = Math.atan2(e.from[0] - this.player.motionX(), e.from[2] - this.player.motionZ());
+            this.hud.damageFrom(ang - this.player.yawNow());
+          }
         }
         if (e.attacker === this.localId) {
           this.hud.hitmarker(false);
@@ -1281,7 +1312,7 @@ export class MatchDriver extends Behaviour {
     const movers: AudioMover[] = [];
     if (!this.player.isDead()) {
       // Eigenes Tempo aus der Eingabe (die Bewegung pro Frame ist gedeckelt und taugt bei wenig FPS nicht zur Schätzung)
-      const speed = !this.player.moving() ? 0 : this.player.crouching() ? PLAYER.crouchSpeed : this.player.sprinting() ? PLAYER.sprintSpeed : PLAYER.walkSpeed;
+      const speed = this.player.speedXZ(); // echtes Tempo: Schleichen (Shift) bleibt unter der Hörschwelle
       movers.push({ id: this.localId, x: this.player.motionX(), y: this.player.feetY(), z: this.player.motionZ(), crouch: this.player.crouching(), local: true, speed });
     }
     for (const p of Object.values(this.match.players)) {

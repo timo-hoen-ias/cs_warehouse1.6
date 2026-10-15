@@ -29,17 +29,19 @@ export type TeamMsg = { t: 'team'; id: string; team: Team };
 export type ChatMsg = { t: 'chat'; id: string; name: string; text: string; team: Team | null; teamOnly?: boolean };
 export type ReloadMsg = { t: 'reload'; id: string; w: string };
 export type DropMsg = { t: 'dropreq'; id: string; w: string };
+/** Client meldet eine harte Landung (Aufprallgeschwindigkeit m/s); der Host prüft und rechnet den Sturzschaden. */
+export type FallMsg = { t: 'fall'; id: string; v: number };
 /** `h` = Absender-Host-ID: Clients verwerfen Snapshots/Ereignisse von Nicht-Hosts. */
 export type SnapMsg = { t: 'snap'; s: Snapshot; h?: string };
 export type EventMsg = { t: 'ev'; e: GameEvent; h?: string };
 export type PosesMsg = { t: 'poses'; p: PoseMsg[] };
 
-export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg | TeamMsg | ChatMsg | ReloadMsg | DropMsg | SnapMsg | EventMsg | PosesMsg;
+export type NetMsg = PoseMsg | HelloMsg | FireMsg | ThrowMsg | BuyMsg | AmmoMsg | TeamMsg | ChatMsg | ReloadMsg | DropMsg | FallMsg | SnapMsg | EventMsg | PosesMsg;
 
 /** Ereignisse vom Host (einmalig, nicht im Snapshot). */
 export type GameEvent =
   | { k: 'kill'; killer: string | null; victim: string; weapon: string; hs: boolean }
-  | { k: 'hit'; victim: string; attacker: string | null; dmg: number; part: 'head' | 'body'; from: [number, number, number]; at: [number, number, number] }
+  | { k: 'hit'; victim: string; attacker: string | null; dmg: number; part: 'head' | 'body'; from: [number, number, number]; at: [number, number, number]; /** Sturzschaden (kein Angreifer, keine Trefferrichtung). */ fall?: boolean }
   | { k: 'spawn'; id: string; x: number; y?: number; z: number; yaw: number; fresh?: boolean }
   | { k: 'shot'; id: string; w: string; o: [number, number, number]; ends: [number, number, number][]; walls: [number, number, number][] }
   | { k: 'nade'; id: number; kind: GrenadeKind; owner: string; o: [number, number, number]; v: [number, number, number] }
