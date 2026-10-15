@@ -19,7 +19,8 @@ export type MaterialId =
   | 'concrete' | 'concreteDark' | 'asphalt' | 'paving' | 'plaster' | 'brick' | 'wallPaint' | 'wallTile'
   | 'corrugated' | 'corrugatedDark' | 'metal' | 'steel' | 'grating' | 'wood' | 'crate' | 'pallet' | 'wrap'
   | 'carton' | 'hazard' | 'tile' | 'roof' | 'container' | 'rubber' | 'cage' | 'server' | 'door' | 'gate'
-  | 'epoxy' | 'gravel' | 'black' | 'white' | 'emissive' | 'sky' | 'window' | 'skylight' | 'vent';
+  | 'epoxy' | 'gravel' | 'black' | 'white' | 'emissive' | 'sky' | 'window' | 'skylight' | 'vent'
+  | 'panel' | 'frost';
 
 /** Standard-Oberfläche (Schrittklang) und Texturmaßstab je Material. */
 export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
@@ -59,6 +60,8 @@ export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
   window: { surface: 'metal', uv: 2 },
   skylight: { surface: 'metal', uv: 2 },
   vent: { surface: 'metal', uv: 1 },
+  panel: { surface: 'metal', uv: 2.4 },
+  frost: { surface: 'tile', uv: 2 },
 };
 
 /** Kollision eines Brushes: alles, nur Bewegung (Clip/Geländer), nur Strahlen, oder nichts (Deko). */
@@ -94,7 +97,8 @@ export type Brush = {
 export type DecorKind =
   | 'barrel' | 'drum' | 'pipeX' | 'pipeZ' | 'pipeY' | 'wheel' | 'lampHall' | 'lampWall' | 'lampTube' | 'lampPost'
   | 'forklift' | 'serverRack' | 'serverLeds' | 'ibc' | 'fencePost' | 'conveyorRoller' | 'cone' | 'extinguisher'
-  | 'cableTrayX' | 'cableTrayZ' | 'fanUnit' | 'rail';
+  | 'cableTrayX' | 'cableTrayZ' | 'fanUnit' | 'rail'
+  | 'tank' | 'tankDome' | 'stripCurtain' | 'compressor' | 'condenser';
 
 export type Decor = {
   kind: DecorKind;
@@ -120,7 +124,7 @@ export type MapLight = {
 
 /** Bodenmarkierungen und Schilder (nur Darstellung). */
 export type Decal = {
-  kind: 'line' | 'stripes' | 'letter' | 'arrow' | 'stain' | 'grid' | 'text';
+  kind: 'line' | 'stripes' | 'letter' | 'arrow' | 'stain' | 'grid' | 'text' | 'frost';
   /** Mitte, knapp über dem Boden. */
   pos: Vec3;
   size: [number, number];

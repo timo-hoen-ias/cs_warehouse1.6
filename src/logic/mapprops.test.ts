@@ -10,6 +10,7 @@ const ALL: PropKind[] = [
   'pallet', 'palletStack', 'palletGoods', 'crate', 'crateStack', 'gitterbox', 'container', 'container40', 'trailer', 'truck', 'forklift',
   'barrel', 'barrelGroup', 'drum', 'rack', 'shelf', 'serverRack', 'serverRow', 'ups', 'cooler', 'conveyor', 'cartons', 'ibc', 'desk',
   'bumper', 'lampPost', 'fence', 'handTruck', 'cableTray', 'locker', 'generator', 'rollerDoor', 'acUnit', 'electricBox', 'cones', 'doorSteel',
+  'silo', 'chiller', 'compressor', 'stripCurtain', 'rollCage',
 ];
 
 describe('Requisiten', () => {
@@ -61,5 +62,61 @@ describe('Requisiten', () => {
     const f = mk();
     prop(f, 'fence', 0, 0, 0, { len: 6 });
     expect(f.data.brushes[0]!.collide).toBe('move');
+  });
+  it('Silo: Achteck-Kern aus drei Quadern, Zylinder + Kuppel als Deko, Leiter ohne Kollision', () => {
+    const b = mk();
+    prop(b, 'silo', 10, 0, 20, { len: 6, h: 14 });
+    const solid = b.data.brushes.filter((x) => (x.collide ?? 'all') === 'all');
+    expect(solid).toHaveLength(3);
+    expect(solid.every((x) => x.visible === false && x.occlude === true && x.noNav === true)).toBe(true);
+    const items = solid.map((x, i) => brushItem(x, i)!);
+    const hit = (px: number, pz: number): boolean => items.some((it) => px > it.minX && px < it.maxX && pz > it.minZ && pz < it.maxZ);
+    expect(hit(10 + 2.6, 20)).toBe(true); // nahe der Rundung in den Himmelsrichtungen
+    expect(hit(10, 20 + 2.6)).toBe(true);
+    expect(hit(10 + 2.4, 20 + 2.4)).toBe(false); // Ecken des Umrisskastens sind frei
+    expect(hit(10 + 3.4, 20)).toBe(false);
+    const tank = b.data.decor.find((d) => d.kind === 'tank')!;
+    expect(tank.scale).toEqual([3, 14, 3]);
+    const dome = b.data.decor.find((d) => d.kind === 'tankDome')!;
+    expect(dome.pos[1]).toBe(14);
+    expect(b.data.brushes.filter((x) => x.collide === 'none').length).toBeGreaterThan(20);
+  });
+
+  it('Kälte-Requisiten: Verflüssiger, Verdichter, Streifenvorhang, Rollcontainer', () => {
+    const b = mk();
+    prop(b, 'chiller', 0, 0, 0);
+    prop(b, 'compressor', 5, 0, 0);
+    prop(b, 'stripCurtain', 10, 0, 0, { len: 3, h: 2.5, rot: 1 });
+    prop(b, 'rollCage', 15, 0, 0, { h: 0.9 });
+    expect(b.data.decor.map((d) => d.kind)).toEqual(['condenser', 'compressor', 'stripCurtain']);
+    expect(b.data.decor[2]!.scale).toEqual([3, 2.5, 1]);
+    expect(b.data.decor[2]!.rot).toBeCloseTo(Math.PI / 2);
+    // Verflüssiger: Füße + Körper blockieren, Spalt darunter ist nur 0.55 m hoch
+    const body = b.data.brushes.find((x) => x.mat === 'white')!;
+    expect(body.min[1]).toBeCloseTo(0.55);
+    // Rollcontainer: Gitter nur Bewegung, Ware blockiert auch Schüsse
+    const cage = b.data.brushes.find((x) => x.mat === 'cage')!;
+    expect(cage.collide).toBe('move');
+    expect(b.data.brushes.find((x) => x.mat === 'carton')!.collide).toBeUndefined();
+  });
+
+  it('Tiefkühl-Palette: Ware in Weiß/Blau-Tönen, deterministisch', () => {
+    const cold = mk();
+    for (let i = 0; i < 12; i++) prop(cold, 'palletGoods', i * 2, 0, 0, { cold: true });
+    const warm = mk();
+    for (let i = 0; i < 12; i++) prop(warm, 'palletGoods', i * 2, 0, 0);
+    const tints = (m: MapBuilder): number[] => m.data.brushes.filter((x) => x.mat === 'wrap').map((x) => x.tint!);
+    const blueish = (c: number): boolean => Math.min(c & 0xff, (c >> 8) & 0xff, (c >> 16) & 0xff) >= 0x9f; // hell, kein Karton-Braun
+    expect(tints(cold).every(blueish)).toBe(true);
+    expect(tints(warm).some((c) => !blueish(c))).toBe(true);
+    // Tiefkühl-Kartons und Regalware sind Folie (hell), nicht brauner Karton
+    const c2 = mk();
+    prop(c2, 'cartons', 0, 0, 0, { cold: true, n: 5 });
+    prop(c2, 'rack', 4, 0, 0, { cold: true });
+    prop(c2, 'shelf', 8, 0, 0, { cold: true });
+    expect(c2.data.brushes.some((x) => x.mat === 'carton')).toBe(false);
+    const w2 = mk();
+    prop(w2, 'cartons', 0, 0, 0, { n: 5 });
+    expect(w2.data.brushes.some((x) => x.mat === 'carton')).toBe(true);
   });
 });

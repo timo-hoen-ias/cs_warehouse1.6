@@ -88,8 +88,10 @@ Menümusik: Derek „JoJo“ Stegall, Tracks aus dem Red-Eclipse-Soundpaket (<ht
 | Karte | Beschreibung |
 |---|---|
 | `de_lagerstaub` | **Lagerstaub** — Logistikzentrum im Abendlicht nach klassischem Grundriss: T-Hof (Speditionshof), Außen Lang → Hallentor → Lang A mit Grube und Stapler („Auto“), A-Rampe auf die Laderampe mit dem „Serverschrank A“, Kurz A über den Gitterrost-Steg aus der Mitte (Xbox-Kiste), Mitteltür (Brandschutztor) zum CT-Bereich, Außen Tunnel → Ober-/Untertunnel (Versorgungstunnel) → Serverraum B mit Hinterer Plattform, B-Empore, B-Fenster und B-Tür. |
+| `de_kuehlhaus` | **Kühlhaus** — de_nuke als Tiefkühl-Logistikzentrum im Winterlicht: T-Spawn im Außenbereich mit Silos (Ammoniak-/Kältespeicher), Garage, Haupteingang → Lobby → Hütte (Quietschtür) → **Halle A** mit Himmel (Laufsteg +4.5 m) und Hölle, **Spot B direkt darunter im Keller** (Datenraum, −5 m). Verbindungen: Rampenraum (Lobby → Keller), Lüftung (Treppenschacht A ↔ B), Geheimgang (Hof → Tunnel → B), Kellertreppe aus dem Kontrollraum der CT, Dachweg (Garagendach → Westdach → Himmel). Bombenziele: IT-Serverschränke an der Kältemaschine (A) und im Datenraum (B). |
 
-Laufzeiten (Sprint): T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
+Laufzeiten (Sprint) Lagerstaub: T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
+Laufzeiten Kühlhaus: T → A ≈ 22 s, T → B ≈ 22 s (Geheimgang), CT → A ≈ 7 s, CT → B ≈ 14 s (Kellertreppe), Mitte (Lobby) T ≈ 12 s / CT ≈ 16 s.
 Das Kartenformat und eine Anleitung für neue Karten stehen in [`docs/KARTENFORMAT.md`](docs/KARTENFORMAT.md).
 Eine Draufsicht (PNG) samt Laufzeiten erzeugt `bun run overview [karten-id] [datei.png] [px-pro-meter] [--areas]`.
 

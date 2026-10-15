@@ -30,6 +30,16 @@ export type CellKind = {
   room?: RoomKind;
   /** Keine Bodenplatte (Rampe/Treppe kommt explizit) — Boden auf Höhe floor dennoch als Unterbau. */
   ramp?: boolean;
+  /**
+   * Unterkante des Unterbaus dieser Zellart (statt `floorBottom`): für mehrstöckige Karten.
+   * Eine Karte baut dann mehrere Grundrisse übereinander (Erdgeschoss mit dünner Platte,
+   * Untergeschoss mit eigenem Plan); Schächte (Rampen, Treppen) reichen mit `bottom` tiefer.
+   */
+  bottom?: number;
+  /** Gebäudezelle ohne Fassadenverkleidung (z. B. Tunnelmund über einem Schacht, sonst würde die Verkleidung ihn zumalen). */
+  bare?: boolean;
+  /** Das Dach ist begehbar (Plattform/Dachweg) statt reiner Deckel. */
+  roofWalk?: boolean;
 };
 
 export type Rect = { x0: number; z0: number; x1: number; z1: number };
@@ -129,20 +139,21 @@ export class CellPlan {
     for (const ch of chars) {
       const k = kindOf(ch);
       for (const r of this.merged(ch)) {
+        const base = k.bottom ?? bottom;
         if (k.building) {
           const bmat = k.building.mat;
           if (k.window) {
-            b.box([r.x0, bottom, r.z0], [r.x1, k.window.sill, r.z1], bmat, { tag: 'wall', tint: k.building.tint, noNav: true });
+            b.box([r.x0, base, r.z0], [r.x1, k.window.sill, r.z1], bmat, { tag: 'wall', tint: k.building.tint, noNav: true });
             b.box([r.x0, k.window.lintel, r.z0], [r.x1, k.building.h, r.z1], bmat, { tag: 'building', tint: k.building.tint, noNav: true, top: 'roof' });
           } else {
-            b.box([r.x0, bottom, r.z0], [r.x1, k.building.h, r.z1], bmat, { tag: 'building', top: 'roof', tint: k.building.tint, noNav: true });
+            b.box([r.x0, base, r.z0], [r.x1, k.building.h, r.z1], bmat, { tag: 'building', top: 'roof', tint: k.building.tint, noNav: true });
           }
           continue;
         }
         if (k.floor === undefined) continue;
-        b.box([r.x0, bottom, r.z0], [r.x1, k.floor, r.z1], k.mat ?? 'concrete', { top: k.top, tint: k.tint, tag: k.tunnel ? 'tunnel' : 'floor' });
+        b.box([r.x0, base, r.z0], [r.x1, k.floor, r.z1], k.mat ?? 'concrete', { top: k.top, tint: k.tint, tag: k.tunnel ? 'tunnel' : 'floor' });
         if (k.roof !== undefined) {
-          b.box([r.x0, k.roof, r.z0], [r.x1, k.roofTop ?? k.roof + 0.5, r.z1], k.roofMat ?? 'roof', { tag: 'roof', noNav: true });
+          b.box([r.x0, k.roof, r.z0], [r.x1, k.roofTop ?? k.roof + 0.5, r.z1], k.roofMat ?? 'roof', k.roofWalk ? { tag: 'floor' } : { tag: 'roof', noNav: true });
         }
         if (k.room) b.room(k.room, [r.x0, k.floor - 0.5, r.z0], [r.x1, k.roof ?? k.floor + 40, r.z1]);
       }
@@ -154,7 +165,8 @@ export class CellPlan {
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         const k = kindOf(this.get(c, r));
-        if (k.building || k.roof === undefined) continue;
+        // begehbare Dächer sind nach oben offen: kein Sturz über dem Dach
+        if (k.building || k.roof === undefined || k.roofWalk) continue;
         const nbs: [number, number, 'x' | 'z', number][] = [[c + 1, r, 'z', 1], [c - 1, r, 'z', -1], [c, r + 1, 'x', 1], [c, r - 1, 'x', -1]];
         for (const [nc, nr, axis, side] of nbs) {
           const n = kindOf(this.get(nc, nr));
@@ -204,7 +216,7 @@ export class CellPlan {
       for (let c = 0; c < this.cols; c++) {
         const ch = this.get(c, r);
         const k = kindOf(ch);
-        if (!k.building) continue;
+        if (!k.building || k.bare) continue;
         const nbs: [number, number, 'x' | 'z', number][] = [[c + 1, r, 'z', 1], [c - 1, r, 'z', -1], [c, r + 1, 'x', 1], [c, r - 1, 'x', -1]];
         for (const [nc, nr, axis, side] of nbs) {
           const nch = this.get(nc, nr);
