@@ -479,6 +479,51 @@ const DRAW: Record<MaterialId, Draw> = {
     }
     noise(c, s, r, 600, 0.08, 120, 200, 3);
   },
+  // Sandwichpaneel (Kühlhaus): vertikale Fugen alle 1.2 m, flache Rippen, Nieten, leichter Reif unten
+  panel: (c, s, r) => {
+    c.fillStyle = '#d6dfe5';
+    c.fillRect(0, 0, s, s);
+    for (let x = 0; x < s; x += 16) {
+      c.fillStyle = 'rgba(255,255,255,0.22)';
+      c.fillRect(x + 2, 0, 4, s);
+      c.fillStyle = 'rgba(40,60,80,0.07)';
+      c.fillRect(x + 9, 0, 3, s);
+    }
+    for (const x of [0, s / 2]) {
+      c.fillStyle = 'rgba(30,45,60,0.55)';
+      c.fillRect(x, 0, 3, s);
+      c.fillStyle = 'rgba(255,255,255,0.4)';
+      c.fillRect(x + 3, 0, 2, s);
+      for (let y = 10; y < s; y += 64) {
+        c.fillStyle = 'rgba(70,80,90,0.7)';
+        c.fillRect(x + 6, y, 3, 3);
+      }
+    }
+    blotches(c, s, r, 10, 'rgba(120,150,175,0.14)', 50);
+    noise(c, s, r, 1800, 0.1, 150, 255, 2);
+    const g = c.createLinearGradient(0, s * 0.8, 0, s);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(255,255,255,0.28)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, s, s);
+  },
+  // Reif/Eis: bläulich-weiß, Kristallstriche, Sprenkel
+  frost: (c, s, r) => {
+    c.fillStyle = '#c9dde9';
+    c.fillRect(0, 0, s, s);
+    blotches(c, s, r, 16, 'rgba(255,255,255,0.4)', 50);
+    blotches(c, s, r, 10, 'rgba(110,160,200,0.22)', 40);
+    c.lineWidth = 1;
+    for (let i = 0; i < 260; i++) {
+      const x = r() * s, y = r() * s, a = r() * Math.PI, l = 3 + r() * 11;
+      c.strokeStyle = `rgba(255,255,255,${0.25 + r() * 0.5})`;
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+      c.stroke();
+    }
+    noise(c, s, r, 3000, 0.3, 200, 255, 2);
+  },
   vent: (c, s) => {
     c.fillStyle = '#8a9096';
     c.fillRect(0, 0, s, s);
