@@ -269,3 +269,14 @@ describe('Rampen, Decken, Kanten (Collider)', () => {
     expect(r.m.grounded).toBe(true);
   });
 });
+
+describe('Zeitschritte', () => {
+  it('große Schritte werden unterteilt: 0.1 s legt so viel Weg zurück wie 2 × 0.05 s', () => {
+    const start: PlayerMotion = { x: 0, y: PLAYER.eye, z: 0, vy: 0, grounded: true };
+    const big = stepPlayer(start, 4, 0, false, 0.1, []);
+    const a = stepPlayer(start, 4, 0, false, 0.05, []);
+    const b = stepPlayer(a, 4, 0, false, 0.05, []);
+    expect(big.x).toBeCloseTo(0.4, 6);
+    expect(big.x).toBeCloseTo(b.x, 6);
+  });
+});

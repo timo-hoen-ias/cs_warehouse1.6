@@ -280,12 +280,21 @@ async function startGame(context: Context, level: MapData, lobby: LobbyResult): 
         const yaw = (k / 32) * Math.PI * 2;
         const d = yawPitchToDir(yaw, 0);
         const hit = world.collider.raycast({ x: t0.x, y: eyeY, z: t0.z }, d, 40);
-        if (hit && hit.t > 4 && hit.t < 25 && Math.abs(hit.normal.y) < 0.1 && (!best || hit.t < best.t)) best = { yaw, t: hit.t };
+        if (!hit || hit.t <= 4 || hit.t >= 25 || Math.abs(hit.normal.y) >= 0.1 || (best && hit.t >= best.t)) continue;
+        // keine Spieler in der Schusslinie (Bots am Spawn)
+        const blockedBy = Object.values(driver.match.players).some((p) => {
+          if (!p.alive || p.id === driver.localId) return false;
+          const f = Math.max(0, Math.min(hit.t, (p.pose.x - t0.x) * d.x + (p.pose.z - t0.z) * d.z));
+          return Math.hypot(t0.x + d.x * f - p.pose.x, t0.z + d.z * f - p.pose.z) < 1.5;
+        });
+        if (!blockedBy) best = { yaw, t: hit.t };
       }
       if (!best) return { error: 'keine Wand' };
       const d = yawPitchToDir(best.yaw, 0);
       const px = t0.x + d.x * (best.t - 3);
       const pz = t0.z + d.z * (best.t - 3);
+      driver.botsPaused = true;
+      setTimeout(() => { driver.botsPaused = false; }, 2500);
       driver.debugRevive();
       player.spawn(px, pz, best.yaw, world.groundAt(px, pz, t0.y + 0.6));
       player.setLook(best.yaw, 0.12);

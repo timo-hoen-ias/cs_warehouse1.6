@@ -73,6 +73,13 @@ export function stepPlayer(
   world: MoveWorld,
   opts: { eye?: number; radius?: number; gravity?: number; jumpSpeed?: number; height?: number } = {},
 ): PlayerMotion {
+  // Große Zeitschritte (niedrige Bildrate) in Teilschritte zerlegen statt zu kappen → Tempo bleibt echt
+  if (dt > 0.05) {
+    const n = Math.min(8, Math.ceil(dt / 0.05));
+    let s = m;
+    for (let i = 0; i < n; i++) s = stepPlayer(s, moveX, moveZ, jump && i === 0, dt / n, world, opts);
+    return s;
+  }
   const col = asCollider(world);
   const eye = opts.eye ?? PLAYER.eye;
   const radius = opts.radius ?? PLAYER.radius;
@@ -80,7 +87,6 @@ export function stepPlayer(
   const jumpSpeed = opts.jumpSpeed ?? PLAYER.jumpSpeed;
   const height = opts.height ?? PLAYER.height;
   const step = PLAYER.step;
-  dt = Math.min(dt, 0.05);
 
   const feet0 = m.y - eye;
 

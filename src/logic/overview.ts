@@ -131,14 +131,29 @@ export function renderOverview(map: MapData, opts: OverviewOpts = {}): Raster {
       const g = opts.nav;
       for (let i = 0; i < g.count; i++) put(px(g.x[i]!), pz(g.z[i]!), [255, 255, 255], 0.35);
     }
-    for (const a of map.areas) {
-      text(a.name.toUpperCase(), (a.min[0] + a.max[0]) / 2, (a.min[2] + a.max[2]) / 2, [255, 255, 255], Math.max(1, Math.round(ppm / 3)));
+    // Beschriftungen: kleine Bereiche zuerst, bei Überlappung nach unten ausweichen
+    const placed: [number, number, number, number][] = [];
+    const sc = Math.max(1, Math.round(ppm / 3));
+    const sorted = [...map.areas].sort((p, q) => (p.max[0] - p.min[0]) * (p.max[2] - p.min[2]) - (q.max[0] - q.min[0]) * (q.max[2] - q.min[2]));
+    for (const a of sorted) {
+      const label = a.name.toUpperCase();
+      const cx = (a.min[0] + a.max[0]) / 2;
+      let cz = (a.min[2] + a.max[2]) / 2;
+      const wPx = label.length * 6 * sc;
+      const hPx = 9 * sc;
+      for (let k = 0; k < 6; k++) {
+        const x0 = px(cx) - wPx / 2, y0 = pz(cz) - hPx / 2;
+        if (!placed.some(([a0, b0, a1, b1]) => x0 < a1 && x0 + wPx > a0 && y0 < b1 && y0 + hPx > b0)) break;
+        cz += hPx / ppm;
+      }
+      placed.push([px(cx) - wPx / 2, pz(cz) - hPx / 2, px(cx) + wPx / 2, pz(cz) + hPx / 2]);
+      text(label, cx, cz, [255, 255, 255], sc);
     }
   }
 
   function text(s: string, cx: number, cz: number, c: RGB, scale: number): void {
     const width = s.length * 6 * scale;
-    let x0 = px(cx) - Math.floor(width / 2);
+    let x0 = Math.max(1, Math.min(w - width - 1, px(cx) - Math.floor(width / 2)));
     const y0 = pz(cz) - Math.floor((8 * scale) / 2);
     for (const ch of s) {
       const glyph = FONT[ch] ?? FONT['?']!;

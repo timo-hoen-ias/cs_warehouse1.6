@@ -168,7 +168,8 @@ export class FpsPlayer extends Behaviour {
     const cam = this.context.mainCamera;
     if (!cam) return;
     tick('update');
-    const dt = Math.min(this.context.time.deltaTime, 0.05);
+    // bis 0.1 s je Frame (stepPlayer unterteilt intern) → echtes Lauftempo auch bei niedriger Bildrate
+    const dt = Math.min(this.context.time.deltaTime, 0.1);
 
     // Ducken; unter niedriger Decke bleibt man geduckt, bis wieder Platz ist
     const wantCrouch = !!this.keys['ControlLeft'] || !!this.keys['ControlRight'];

@@ -129,6 +129,8 @@ Runden-/Bomben-/Economy-Logik, erste Bots, HUD.
 - Fassaden-Verkleidung muss dicker sein als der Verdeckungs-Test (0.04 m), damit die Gebäudefläche dahinter entfällt.
 - Treppen-Clip-Rampe über die Stufenkanten legen (sonst sinkt man in die Stufen ein); Stufen selbst blockieren nur Strahlen.
 - `groundAt` ohne Höhenhinweis = unterste begehbare Ebene an der Stelle (Navigationsknoten), sonst landet man auf Dächern.
+- `stepPlayer` unterteilt große Zeitschritte (statt sie auf 0.05 s zu kappen) — sonst liefen Bots/Spieler bei niedriger Bildrate (Host-Teilschritte 0.1 s) nur halb so schnell und brauchten auf den großen Karten doppelt so lange.
+- Der Obere Tunnel hat einen Knick vor Spot B, damit CTs aus B nicht 70 m geradeaus in den Tunnel sehen; CT-Bots teilen sich nach Rang im Team auf A/B auf.
 
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON

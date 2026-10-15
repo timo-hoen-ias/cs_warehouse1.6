@@ -1053,8 +1053,10 @@ export class MatchDriver extends Behaviour {
     const enemies = Object.values(m.players)
       .filter((q) => q.alive && q.team !== p.team && q.id !== b.id)
       .map((q) => ({ id: q.id, pos: { x: q.pose.x, y: q.pose.y, z: q.pose.z } }));
+    // Rang innerhalb des eigenen Teams (gleichmäßige Aufteilung auf A/B unabhängig von den Bot-IDs)
+    const teamIndex = Object.values(m.players).filter((q) => q.bot && q.team === p.team).map((q) => q.id).sort().indexOf(b.id);
     const decision = decideBot({
-      self: { id: b.id, team: p.team, pos: { x: b.pose.x, y: b.pose.y, z: b.pose.z }, hasBomb: p.loadout.bomb, weaponRange: def.mode === 'melee' ? def.range : Math.min(def.range, BOT.sight), auto: def.rpm > 0, skill: this.options.botSkill, index: Number(b.id.replace(/\D/g, '')) || 0 },
+      self: { id: b.id, team: p.team, pos: { x: b.pose.x, y: b.pose.y, z: b.pose.z }, hasBomb: p.loadout.bomb, weaponRange: def.mode === 'melee' ? def.range : Math.min(def.range, BOT.sight), auto: def.rpm > 0, skill: this.options.botSkill, index: teamIndex },
       enemies: b.blind > 0 ? [] : enemies,
       solids: this.world.collider,
       smokes: this.smokes,

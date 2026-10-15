@@ -70,7 +70,8 @@ export function buildLagerstaub(): MapData {
     .rect('.', -44, -58, -28, -46) // B-Gang
     .rect('F', -44, -74, -28, -60) // Fensterraum (IT-Lager)
     .rect('F', -36, -60, -32, -58) // Tür Fensterraum
-    .rect('u', -52, -36, -46, -20) // Oberer Tunnel (unten)
+    .rect('u', -58, -36, -52, -24) // Oberer Tunnel (unten, versetzt → kein durchgehender Blick aus B)
+    .rect('u', -58, -24, -46, -20) // Knick
     .rect('V', -52, -20, -46, -6) // Tunnelrampe
     .rect('U', -52, -6, -46, 20) // Oberer Tunnel
     .rect('K', -54, 20, -38, 36) // Tunnelkreuzung
@@ -340,10 +341,13 @@ export function buildLagerstaub(): MapData {
   prop(b, 'barrel', -40, 2, 21.5);
   b.decor('pipeZ', [-46.5, 4.6, 7], 0, [1, 1, 52]);
   b.decor('pipeZ', [-46.5, 4.2, 7], 0, [0.6, 0.6, 52], 0x3a6a3a);
-  b.decor('pipeZ', [-46.5, 3.6, -27], 0, [0.8, 0.8, 18], 0x8a4a2a);
+  b.decor('pipeZ', [-57.5, 3.6, -30], 0, [0.8, 0.8, 12], 0x8a4a2a);
+  b.decor('pipeX', [-52, 3.6, -23.5], 0, [12, 0.8, 0.8], 0x8a4a2a);
   b.decor('pipeX', [-26, 2.1, 9], 0, [8, 0.6, 0.6], 0x3a6a3a);
   b.decor('pipeZ', [-29.5, 2.1, 19], 0, [0.7, 0.7, 22]);
-  prop(b, 'cableTray', -51.6, 4.9, -27, { rot: 1, len: 18 });
+  prop(b, 'cableTray', -57.6, 4.0, -29, { rot: 1, len: 12 });
+  prop(b, 'palletGoods', -47, 0, -21.5, { rot: 1 });
+  prop(b, 'barrel', -57.3, 0, -25);
   // Serverhalle B: Serverreihen („Serverschrank B“), Kühlung, USV, „B-Auto“ (Stapler)
   prop(b, 'serverRow', -60, 0, -61.2, { rot: 0, n: 6 });
   prop(b, 'serverRow', -60, 0, -48.6, { rot: 2, n: 5 });
@@ -409,7 +413,8 @@ export function buildLagerstaub(): MapData {
   b.tubeLamp(33, 4.4, 14, true, { intensity: 0.8 });
   for (const x of [-72, -64, -56, -50]) for (const z of [-72, -63, -54, -45, -39]) b.hallLamp(x, 7.6, z, { color: 0xdfeaff, intensity: 0.9, range: 12 });
   for (const [x, z] of [[-62, -60.2], [-70, -52], [-56, -45.8], [52, -69.4]] as const) b.light({ kind: 'lamp', pos: [x, z === -69.4 ? 3.2 : 1.2, z + 0.9], color: 0x40c8ff, intensity: 0.35, range: 5 });
-  for (const z of [-30, -22, -14, -6, 2, 10, 17]) b.tubeLamp(-49, z > -20 ? 5.3 : 4.3, z, false, { intensity: 0.75, range: 9 });
+  for (const z of [-14, -6, 2, 10, 17]) b.tubeLamp(-49, 5.3, z, false, { intensity: 0.75, range: 9 });
+  for (const [x, z] of [[-55, -31], [-55, -22.5], [-49, -22.5]] as const) b.tubeLamp(x, 4.3, z, z > -25, { intensity: 0.75, range: 9 });
   for (const [x, z] of [[-50, 24], [-42, 24], [-50, 32], [-42, 32]] as const) b.tubeLamp(x, 6.3, z, true, { intensity: 0.8, range: 10 });
   for (const z of [10, 15, 20, 25, 29]) b.tubeLamp(-26, 2.25, z, false, { color: 0xc8f0d0, intensity: 0.95, range: 8 });
   for (const x of [-21, -15]) b.tubeLamp(x, 2.25, 11, true, { color: 0xc8f0d0, intensity: 0.9, range: 8 });
@@ -425,7 +430,7 @@ export function buildLagerstaub(): MapData {
   // Tageslicht durch große Öffnungen
   b.light({ kind: 'window', pos: [67, 4, -45], color: 0xffd0a0, intensity: 0.8, range: 14 });
   b.light({ kind: 'window', pos: [33, 3, 15], color: 0xffd0a0, intensity: 0.7, range: 10 });
-  b.light({ kind: 'window', pos: [-49, 3, -34], color: 0xffe0c0, intensity: 0.5, range: 9 });
+  b.light({ kind: 'window', pos: [-55, 3, -34], color: 0xffe0c0, intensity: 0.5, range: 9 });
   b.light({ kind: 'window', pos: [-45, 2.5, -53], color: 0xffe0c0, intensity: 0.6, range: 10 });
 
   // ------------------------------------------------------------------ Markierungen & Schilder
@@ -482,7 +487,7 @@ export function buildLagerstaub(): MapData {
   b.area('Spot B', -78, -78, -46, -36, -1, 3);
   b.area('Hintere Plattform', -78, -78, -66, -68, 0.6, 3.5);
   b.area('B-Empore', -78, -78, -47, -72, 3.5, 9);
-  b.area('Oberer Tunnel', -54, -36, -46, 20);
+  b.area('Oberer Tunnel', -58, -36, -46, 20);
   b.area('Tunnelkreuzung', -54, 20, -38, 36);
   b.area('Unterer Tunnel', -38, 8, -10, 30, -3, 1.2);
   b.area('Außen Tunnel', -44, 36, -16, 62);
