@@ -43,6 +43,8 @@ export type RoundStats = {
   /** Zonen, die T in dieser Runde betreten haben. */
   tZones: string[];
   kills: number;
+  /** Wo starben T bzw. CT (Zonenname)? */
+  deaths: { team: Team; zone: string }[];
   /** Längste Festsitz-Zeit eines Bots (s). */
   maxStuck: number;
   /** Längste Zeit ohne Bewegung eines lebenden Bots während der Runde (s). */
@@ -199,7 +201,7 @@ export class HeadlessMatch {
     const plan = this.bots.tPlan();
     this.cur = {
       round: m.round.round, outcome: '', reason: '', duration: 0, planted: false, plantSite: null, plantAt: 0, defused: false, exploded: false,
-      tPlan: plan?.kind ?? '-', tSite: plan?.site ?? '-', entries: [], tZones: [], kills: 0, maxStuck: 0, maxIdle: 0, idleState: '', stuckAt: '',
+      tPlan: plan?.kind ?? '-', tSite: plan?.site ?? '-', entries: [], tZones: [], kills: 0, deaths: [], maxStuck: 0, maxIdle: 0, idleState: '', stuckAt: '',
       wallViolations: 0, fallViolations: 0, radio: 0, nades: 0,
     };
   }
@@ -234,7 +236,11 @@ export class HeadlessMatch {
 
   private onKill(victim: MatchPlayer, killer: string | null): void {
     const m = this.match;
-    if (this.cur) this.cur.kills++;
+    if (this.cur) {
+      this.cur.kills++;
+      const z = zoneAt(this.info, victim.pose);
+      this.cur.deaths.push({ team: victim.team, zone: z >= 0 ? this.info.zones[z]!.name : '?' });
+    }
     this.bots.notify({ k: 'kill', victim: victim.id, killer, pos: { x: victim.pose.x, y: victim.pose.y, z: victim.pose.z } }, m);
     for (const item of dropOnDeath(victim.loadout, { x: victim.pose.x, y: victim.pose.y, z: victim.pose.z }, () => this.dropSeq++)) {
       item.y = this.map.collider.groundHeight(item.x, item.z, item.y + 0.6, PLAYER.radius, 0.1);

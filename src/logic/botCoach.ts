@@ -137,11 +137,15 @@ export class TCoach {
     this.roles = roles;
     for (const g of groups) for (const id of g.members) this.routeOf.set(id, g.route);
     const kind = this.plan.kind;
-    if (kind === 'rush' || kind === 'split') {
+    if (kind === 'rush') {
+      // Rush: ohne Halt durch bis in den Spot (Granaten fliegen, sobald das Ziel in Wurfweite ist)
+      this.target = this.plan.site;
+      this.startExecute(ctx);
+    } else if (kind === 'split') {
       this.stage = 'gather';
       this.target = this.plan.site;
-      this.gatherSince = 0;
-      for (const b of ctx.bots) this.toStaging(b, ctx, kind === 'rush');
+      this.gatherSince = ctx.now;
+      for (const b of ctx.bots) this.toStaging(b, ctx, false);
       this.spread(ctx);
     } else if (kind === 'fake') {
       this.stage = 'fake';
@@ -295,10 +299,11 @@ export class TCoach {
         if (ready.length && this.firstReady < 0) this.firstReady = ctx.now;
         const need = Math.max(1, Math.ceil(ctx.bots.length * 0.7));
         const waited = this.firstReady >= 0 ? ctx.now - this.firstReady : 0;
-        const split = this.plan.kind === 'split' && ctx.elapsed < this.plan.executeAt;
+        // Split: beide Gruppen gleichzeitig — warten, bis alle da sind (höchstens kurz auf Nachzügler)
+        const split = this.plan.kind === 'split';
         const go = (ready.length >= need && !split) || (ready.length >= ctx.bots.length && ctx.bots.length > 0)
-          || (this.plan.kind === 'rush' && waited > 2.5)
-          || waited > (this.plan.kind === 'split' ? 16 : 11) || ctx.timeLeft < 30 || ctx.now - this.gatherSince > 32;
+          || (split && ready.length >= need && waited > 4) || (split && ctx.elapsed >= this.plan.executeAt)
+          || waited > (split ? 9 : 11) || ctx.timeLeft < 30 || ctx.now - this.gatherSince > 32;
         if (go) this.startExecute(ctx);
         break;
       }
@@ -380,13 +385,26 @@ export class TCoach {
       this.plantedSeen = true;
       this.stage = 'planted';
       const site = ctx.bomb.spot ?? this.target;
-      const spots = tSiteSpots(ctx.info, site, bombPos, [bombPos]);
+      const entrySpots = tSiteSpots(ctx.info, site, bombPos, [bombPos]);
+      // Hälfte mit Sicht auf die Bombe (von der CT-abgewandten Seite), Hälfte auf die CT-Eingänge
+      const sInfo = siteInfo(ctx.info, site);
+      const entries = sInfo ? siteEntrances(ctx.info, sInfo, 'defend').map((pid) => ctx.info.portals[pid]!.pos) : [];
+      const bombSpots = holdSpots(ctx.info, bombPos, 'T', { min: 5, max: 22, limit: 6, alsoSee: entries.slice(0, 2) })
+        .filter((h) => !entrySpots.some((e) => dist(e.spot.pos, h.pos) < 3))
+        .map((spot) => ({ spot, watch: bombPos }));
+      const order: { spot: HoldSpot; watch: XYZ }[] = [];
+      for (let k = 0; k < Math.max(entrySpots.length, bombSpots.length); k++) {
+        if (bombSpots[k]) order.push(bombSpots[k]!);
+        if (entrySpots[k]) order.push(entrySpots[k]!);
+      }
       ctx.bots.forEach((b, i) => {
-        const pick = spots.length ? spots[i % spots.length]! : null;
+        const pick = order.length ? order[i % order.length]! : null;
+        const watchesBomb = pick?.watch === bombPos;
         this.set(b.id, makeTask({
           kind: 'hold', label: 'Bombe verteidigen', goal: pick?.spot.pos ?? bombPos, speed: 'walk',
-          look: pick ? [pick.watch, bombPos] : [bombPos], crouch: !!pick?.spot.crouch && ctx.rnd() < 0.5,
-          alts: spots.filter((x) => x !== pick).slice(0, 2).map((x) => x.spot.pos),
+          look: pick ? (watchesBomb ? [bombPos, ...entries.slice(0, 1)] : [pick.watch, bombPos]) : [bombPos],
+          crouch: !!pick?.spot.crouch && ctx.rnd() < 0.5,
+          alts: order.filter((x) => x !== pick && x.watch === pick?.watch).slice(0, 2).map((x) => x.spot.pos),
         }));
       });
       return;

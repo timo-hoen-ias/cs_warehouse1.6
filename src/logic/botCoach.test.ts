@@ -29,35 +29,51 @@ const ctSpawn = (i: number): XYZ => ({ x: 36 + i * 2, y: 0, z: 4 });
 const d2 = (a: XYZ, b: XYZ) => Math.hypot(a.x - b.x, a.z - b.z);
 
 describe('T-Trainer', () => {
-  it('Rush: Sammeln am Bereitstellungsraum (verteilt), „Los, los, los!“, Träger pflanzt nach kurzer Verzögerung', () => {
+  it('Split: Sammeln am Bereitstellungsraum (verteilt); Rush: ohne Halt, „Los, los, los!“, Träger pflanzt nach kurzer Verzögerung', () => {
+    const split = new TCoach({ kind: 'split', site: 'a', fakeSite: null, executeAt: 30 });
+    const sb = [0, 1, 2, 3].map((i) => bot(`t${i}`, tSpawn(i)));
+    split.start(ctx('T', sb));
+    expect(split.stage).toBe('gather');
+    const goals = sb.map((b) => split.tasks.get(b.id)!.goal!);
+    for (let i = 0; i < goals.length; i++) for (let j = i + 1; j < goals.length; j++) expect(d2(goals[i]!, goals[j]!)).toBeGreaterThan(1.5);
     const coach = new TCoach({ kind: 'rush', site: 'a', fakeSite: null, executeAt: 0 });
     const bots = [0, 1, 2, 3].map((i) => bot(`t${i}`, tSpawn(i), { hasBomb: i === 1 }));
     const radio: [string, BotRadioKey][] = [];
     coach.start(ctx('T', bots, {}, radio));
-    expect(coach.stage).toBe('gather');
-    const goals = bots.map((b) => coach.tasks.get(b.id)!.goal!);
-    for (let i = 0; i < goals.length; i++) for (let j = i + 1; j < goals.length; j++) expect(d2(goals[i]!, goals[j]!)).toBeGreaterThan(1.5);
-    // alle am Ziel → los
-    bots.forEach((b) => (b.pos = coach.tasks.get(b.id)!.goal!));
-    coach.update(ctx('T', bots, { now: 20, elapsed: 20 }, radio));
     expect(coach.stage).toBe('execute');
     expect(radio.some(([, k]) => k === 'go')).toBe(true);
     expect(coach.tasks.get('t0')!.label).toContain('Spot A');
     expect(coach.tasks.get('t0')!.urgent).toBe(true);
-    // Träger wartet noch (alter Auftrag), danach Pflanz-Auftrag
-    expect(coach.tasks.get('t1')!.kind).not.toBe('plant');
-    coach.update(ctx('T', bots, { now: 22, elapsed: 22 }, radio));
+    // Träger wartet noch kurz, danach Pflanz-Auftrag
+    expect(coach.tasks.get('t1')?.kind).not.toBe('plant');
+    coach.update(ctx('T', bots, { now: 2, elapsed: 2 }, radio));
     const plant = coach.tasks.get('t1')!;
     expect(plant.kind).toBe('plant');
     expect(d2(plant.goal!, siteInfo(info, 'a')!.plant)).toBeLessThan(1);
+  });
+
+  it('Split: beide Gruppen warten gesammelt bis zum Ausführzeitpunkt (Uhr = Spielzeit, nicht 0)', () => {
+    const coach = new TCoach({ kind: 'split', site: 'a', fakeSite: null, executeAt: 35 });
+    const bots = [0, 1, 2, 3].map((i) => bot(`t${i}`, tSpawn(i), { hasBomb: i === 1 }));
+    coach.start(ctx('T', bots, { now: 1000, elapsed: 0 }));
+    expect(coach.groups).toHaveLength(2);
+    coach.update(ctx('T', bots, { now: 1005, elapsed: 5 }));
+    expect(coach.stage).toBe('gather');
+    // eine Gruppe da, die andere noch unterwegs, Zeit noch nicht erreicht → warten
+    const first = coach.groups[0]!.members;
+    for (const b of bots) if (first.includes(b.id)) b.pos = coach.tasks.get(b.id)!.goal!;
+    coach.update(ctx('T', bots, { now: 1020, elapsed: 20 }));
+    expect(coach.stage).toBe('gather');
+    // alle da → los
+    bots.forEach((b) => (b.pos = coach.tasks.get(b.id)!.goal!));
+    coach.update(ctx('T', bots, { now: 1022, elapsed: 22 }));
+    expect(coach.stage).toBe('execute');
   });
 
   it('Ausführen mit Granaten: Blend in den Spot, Rauch auf die CT-Position', () => {
     const coach = new TCoach({ kind: 'rush', site: 'a', fakeSite: null, executeAt: 0 });
     const bots = [0, 1, 2].map((i) => bot(`t${i}`, tSpawn(i)));
     coach.start(ctx('T', bots));
-    bots.forEach((b) => (b.pos = coach.tasks.get(b.id)!.goal!));
-    coach.update(ctx('T', bots, { now: 20, elapsed: 20 }));
     const all = bots.flatMap((b) => coach.tasks.get(b.id)!.nades);
     expect(all.some((n) => n.kind === 'flash')).toBe(true);
     expect(all.some((n) => n.kind === 'smoke')).toBe(true);
@@ -107,8 +123,6 @@ describe('T-Trainer', () => {
     const coach = new TCoach({ kind: 'rush', site: 'b', fakeSite: null, executeAt: 0 });
     const bots = [bot('t0', tSpawn(0)), bot('t1', tSpawn(1))];
     coach.start(ctx('T', bots));
-    bots.forEach((b) => (b.pos = coach.tasks.get(b.id)!.goal!));
-    coach.update(ctx('T', bots, { now: 20, elapsed: 20 }));
     expect(coach.stage).toBe('execute');
     expect(coach.tasks.get('t1')!.kind).toBe('hold');
     bots[1]!.hasBomb = true;
@@ -130,6 +144,13 @@ describe('T-Trainer', () => {
       expect(d2(t.goal!, bomb)).toBeGreaterThanOrEqual(3);
       expect(t.look.length).toBeGreaterThan(0);
     }
+    // mindestens einer deckt die Bombe selbst (Sichtlinie), einer einen Eingang
+    const seesBomb = bots.filter((b) => {
+      const g = coach.tasks.get(b.id)!.goal!;
+      return info.col.clear({ x: g.x, y: g.y + 1.6, z: g.z }, { x: bomb.x, y: bomb.y + 1.2, z: bomb.z });
+    });
+    expect(seesBomb.length).toBeGreaterThanOrEqual(1);
+    expect(bots.some((b) => coach.tasks.get(b.id)!.look[0] !== bomb)).toBe(true);
     coach.update(ctx('T', bots, { now: 50, elapsed: 50, bomb: { ...planted, phase: 'defusing', fuseLeft: 28 } }));
     expect(coach.tasks.get('t0')!.kind).toBe('hunt');
     // kurz vor der Explosion: Abstand halten

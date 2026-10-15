@@ -53,7 +53,7 @@ export function pickTPlan(info: BotMapInfo, buy: BuyKind, alive: number, rnd: ()
   if (!Object.keys(w).length) kind = 'rush';
   const fakeSite: SiteId | null = kind === 'fake' ? (sites.find((s) => s !== site) ?? null) : null;
   const span = (a: number, b: number): number => a + rnd() * (b - a);
-  const executeAt = kind === 'rush' ? 0 : kind === 'split' ? span(28, 40) : kind === 'default' ? span(42, 60) : kind === 'fake' ? span(30, 42) : span(58, 72);
+  const executeAt = kind === 'rush' ? 0 : kind === 'split' ? span(25, 35) : kind === 'default' ? span(42, 60) : kind === 'fake' ? span(30, 42) : span(58, 72);
   return { kind: fakeSite || kind !== 'fake' ? kind : 'rush', site, fakeSite, executeAt };
 }
 

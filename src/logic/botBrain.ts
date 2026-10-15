@@ -15,7 +15,7 @@ import type { Team } from './economy';
 import type { Smoke } from './grenade';
 import type { Loadout } from './loadout';
 import { GRENADE_ID } from './loadout';
-import { NAV_FLAG, forNodesNear, nearestNode, type Avoid, type XYZ } from './nav';
+import { NAV_FLAG, astar, forNodesNear, nearestNode, type Avoid, type XYZ } from './nav';
 import type { BotRadioKey } from './radio';
 import type { RoundPhase } from './round';
 import { WEAPONS } from './weapons';
@@ -449,6 +449,25 @@ export class BotBrain {
       this.radioDone.add('backup');
       out.radio = out.radio ?? 'needBackup';
     }
+    // Außer Reichweite (SMG/Pistole gegen Gegner weit weg): nicht stehen bleiben und sprühen, sondern
+    // weiterlaufen (Blick auf den Gegner) bzw. bei Treffern in Deckung — außer man hält bereits seine Position.
+    const holding = task?.kind === 'hold' && this.arrivedAt >= 0;
+    if (task?.goal && !holding && def.type !== 'sniper' && def.mode !== 'melee' && t.dist > effectiveRange(def) * 1.2) {
+      if (this.damage && v.now - this.damage.t < 1.5) {
+        const cover = findCover(v.info, v.col, s.pos, t.pos);
+        if (cover) {
+          this.retreat = { goal: cover, until: v.now + 2 };
+          this.plan++;
+        }
+      }
+      const o = this.execute(v, out, task);
+      o.look = aimPoint(t.pos, t.crouch, false);
+      o.snap = true;
+      o.weapon = weapon;
+      if (o.speed === 'walk' || o.speed === 'sneak') o.speed = 'run';
+      o.state = `außer Reichweite (${t.dist.toFixed(0)} m)`;
+      return o;
+    }
     const c = combatTick(this.combat, { def, dist: t.dist, skill: this.skill, ready: this.reaction <= 0 && !s.reloading, stillFor: s.stillFor, dt: v.dt, rnd: this.rnd });
     const aim = aimPoint(t.pos, t.crouch, this.combat.head);
     out.weapon = weapon;
@@ -461,7 +480,7 @@ export class BotBrain {
       const l = Math.hypot(dx, dz) || 1;
       out.strafe = { x: (-dz / l) * this.combat.strafe, z: (dx / l) * this.combat.strafe };
       out.speed = 'walk';
-    } else if (c.move === 'push' || t.dist > effectiveRange(def) * 1.3) {
+    } else if (c.move === 'push') {
       if (!(task?.kind === 'hold' && this.arrivedAt >= 0) || def.mode === 'melee') {
         out.goal = t.pos;
         out.speed = 'walk';
@@ -684,8 +703,7 @@ export function findCover(info: BotMapInfo, col: Collider, pos: XYZ, threat: XYZ
   const g = info.nav;
   const eye = { x: threat.x, y: threat.y + 1.5, z: threat.z };
   const dThreat = d2(pos, threat);
-  let best: XYZ | null = null;
-  let bestScore = -Infinity;
+  const scored: { p: XYZ; node: number; sc: number }[] = [];
   let checks = 0;
   const cand: number[] = [];
   forNodesNear(g, pos.x, pos.z, radius, (i) => {
@@ -705,10 +723,15 @@ export function findCover(info: BotMapInfo, col: Collider, pos: XYZ, threat: XYZ
     let sc = -dd * 0.4;
     if (g.flags[i]! & NAV_FLAG.cover) sc += 2;
     if (d2(p, threat) < dThreat - 1) sc -= 3;
-    if (sc > bestScore) {
-      bestScore = sc;
-      best = p;
-    }
+    scored.push({ p, node: i, sc });
   }
-  return best;
+  // Erreichbarkeit prüfen (dünne Wand dazwischen?): Laufweg höchstens ~2.2× Luftlinie
+  scored.sort((a, b) => b.sc - a.sc);
+  const start = nearestNode(g, pos.x, pos.y, pos.z, 3);
+  for (const c of scored.slice(0, 4)) {
+    if (start < 0) return c.p;
+    const nodes = astar(g, start, c.node, { maxExpand: 600 });
+    if (nodes.length && nodes.length - 1 <= Math.max(6, d2(c.p, pos) * 2.2)) return c.p;
+  }
+  return null;
 }

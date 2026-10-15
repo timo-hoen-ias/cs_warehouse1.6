@@ -60,15 +60,18 @@ describe('Headless-Simulation de_lagerstaub (5 gegen 5)', () => {
 
 describe('Headless-Simulation Testkarte (3 gegen 3)', () => {
   it('Runden laufen kartenunabhängig durch (auch ohne Callouts)', () => {
+    let plants = 0;
     for (const areas of [true, false]) {
       const sim = new HeadlessMatch(compileMap(buildBotTestMap({ areas })), { perTeam: 3, skill: 0.5, seed: 7 });
-      sim.runRounds(6);
+      sim.runRounds(10);
       const s = summarize(sim.stats);
-      expect(sim.stats.length).toBe(6);
+      expect(sim.stats.length).toBe(10);
       expect(s.wallViolations).toBe(0);
       expect(s.fallViolations).toBe(0);
       expect(s.maxStuck as number).toBeLessThanOrEqual(6);
-      expect(s.plants as number).toBeGreaterThanOrEqual(1);
+      expect(s.tWins as number).toBeGreaterThanOrEqual(1);
+      plants += s.plants as number;
     }
+    expect(plants).toBeGreaterThanOrEqual(3);
   });
 }, 60_000);

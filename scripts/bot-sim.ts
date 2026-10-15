@@ -48,4 +48,11 @@ if (flags.has('--rounds')) {
   }
 }
 console.log(summarize(sim.stats));
+if (flags.has('--deaths')) {
+  for (const team of ['T', 'CT'] as const) {
+    const by = new Map<string, number>();
+    for (const r of sim.stats) for (const d of r.deaths) if (d.team === team) by.set(d.zone, (by.get(d.zone) ?? 0) + 1);
+    console.log(`Tode ${team}:`, [...by].sort((a, b) => b[1] - a[1]).map(([z, n]) => `${z} ${n}`).join(', '));
+  }
+}
 if (flags.has('--radio')) console.log(sim.radioLog.slice(0, 60).join('\n'));

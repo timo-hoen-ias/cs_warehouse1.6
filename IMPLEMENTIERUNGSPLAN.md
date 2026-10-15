@@ -226,7 +226,7 @@ Alles pure Logik in `src/logic/bot*.ts` (kartenunabhängig, getestet); der Drive
 - [x] **Driver**: alter `tickBot`/`botMove`/`decideBot` ersetzt durch `BotSystem`; Ereignisse (Schuss, Treffer, Kill, Explosion) gehen an die Bots, Bots ducken sichtbar (Pose `c`, Hitbox), Funk als Team-Chat, Blendung mit Blickrichtung inkl. Neigung; Debug `__bots()` (Rolle/Auftrag/Zustand), `__botPlan()`
 - **Verifikation:** `bun run test` (alle Bot-Module + Simulation 3 × 14 Runden 5v5 auf de_lagerstaub + Testkarte mit/ohne Callouts), `tsc`, `build`, Smoke, Netztest grün; Bots im Browser als Zuschauer beobachtet.
 
-**Simulation de_lagerstaub (5v5, je 20 Runden):** Skill 0.6 (3 Seeds): T 25 : CT 35, Pflanzrate 35–75 %, 11 Entschärfungen; Skill 0.3: 5 : 15; Skill 0.9: 16 : 2 (Economy-Schneeball je Match). Rundendauer Ø 70–87 s, Festsitzen ≤ 1.2 s, Leerlauf ≤ 3.1 s, 0 Wand-/Fallfehler, alle 4 Spot-Eingänge und alle 5 Planarten genutzt, ~2 Granaten und ~13 Funksprüche je Runde (beide Teams). 20 Runden rechnen in ~5 s.
+**Simulation (5v5, Skill 0.6, je 5 Seeds × 20 Runden):** de_lagerstaub T 50 : CT 50, Pflanzrate 40–80 %, 16 Entschärfungen, Ø Runde 66–85 s; de_kuehlhaus (Nuke-Topologie) T 14 : CT 79 — T sterben vor allem in „Halle A“ und im langen „Geheimgang“, den CT von Halte-Positionen abdecken (kartenbedingt CT-lastig, Daten für die Kartenpflege: `bun scripts/bot-sim.ts de_kuehlhaus 20 --deaths`). Beide Karten: Festsitzen ≤ 1.2 s, Leerlauf ≤ 3.3 s, 0 Wand-/Fallfehler, alle Planarten, alle Spot-Eingänge genutzt, ~2 Granaten und ~13 Funksprüche je Runde (beide Teams). 20 Runden rechnen in ~5–8 s.
 
 **Erkenntnisse/Notizen (Bots):**
 - Float32-Distanzfelder im Dijkstra führen zu endlosem Neu-Einreihen (Rundung) → intern Float64.
@@ -234,6 +234,10 @@ Alles pure Logik in `src/logic/bot*.ts` (kartenunabhängig, getestet); der Drive
 - Gruppen brauchen getrennte Stehplätze (sonst schubsen sie sich endlos am selben Knoten); ein leicht verschobenes Ziel muss übernommen werden (sonst „angekommen“ am alten Ziel).
 - Eine Sichtlinie aus einem Gang direkt in den T-Spawn entscheidet Runden in Sekunden — Kartenregel (die Testkarte hat deshalb eine Spawnwand).
 - Die Balance schwankt je Match stark (Economy-Schneeball wie in CS); für Aussagen ≥ 60 Runden über mehrere Seeds simulieren.
+- Rush heißt „ohne Halt durch“ (Granaten fliegen, sobald das Ziel in Wurfweite ist); Split wartet nur kurz auf die zweite Gruppe — langes Warten am Bereitstellungsraum gibt den CT Zeit zum Rotieren.
+- Nach dem Plant muss mindestens ein T die Bombe selbst sehen; nur Eingänge zu beobachten lässt Entschärfer unbemerkt durch (Serverräume mit Regalen).
+- SMG/Pistole gegen Gegner weit außerhalb der Reichweite: weiterlaufen statt stehen bleiben (sonst Kanonenfutter für AWP-Linien).
+- Deckungssuche prüft den Laufweg (dünne Wände): sonst pendelt ein Bot zwischen unerreichbaren „Deckungen“.
 
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON

@@ -3,7 +3,8 @@ import { analyzeMap, siteInfo, type BotMapInfo } from './botMap';
 import { BotBrain, findCover, type BrainInput, type SeenEnemy } from './botBrain';
 import { makeTask, type Task } from './botCoach';
 import { newKnowledge, report, sighting } from './botKnowledge';
-import { buildBotTestMap } from './botTestMap';
+import { BOT_TEST_ENV, buildBotTestMap } from './botTestMap';
+import { MapBuilder } from './mapkit';
 import { defaultLoadout, giveWeapon, type Loadout } from './loadout';
 import { compileMap } from './mapcompile';
 import type { XYZ } from './nav';
@@ -62,6 +63,24 @@ describe('Bot-Gehirn: Kampf', () => {
     lo.guns['m4a1']!.mag = 0;
     const it = b.think(input({ lo, visible: [enemy({ x: 10, y: 0, z: 26 }, 8)] }));
     expect(it.weapon).toBe('usp');
+  });
+
+  it('außer Reichweite (Pistole gegen Gegner auf 60 m): weiterlaufen statt stehen und sprühen', () => {
+    const b = new BotBrain('t1', 'T', 0.6, mulberry32(16));
+    const lo = defaultLoadout('T');
+    const task = makeTask({ kind: 'move', label: 'Sammeln', goal: { x: 3, y: 0, z: 30 }, speed: 'run' });
+    const far = enemy({ x: 40, y: 0, z: 10 }, 60);
+    let it = b.think(input({ task, lo, pos: { x: 40, y: 0, z: 70 }, visible: [far] }));
+    for (let i = 0; i < 20; i++) it = b.think(input({ task, lo, pos: { x: 40, y: 0, z: 70 }, visible: [far], now: 50 + i * 0.05 }));
+    expect(it.fire).toBeNull();
+    expect(it.goal).toEqual(task.goal);
+    expect(it.speed).toBe('run');
+    expect(it.look!.z).toBeCloseTo(10);
+    // Gewehr auf dieselbe Distanz: kämpft
+    const r = new BotBrain('t2', 'T', 0.6, mulberry32(16));
+    let ir = r.think(input({ task, pos: { x: 40, y: 0, z: 70 }, visible: [far], lo: armed('T') }));
+    for (let i = 0; i < 30 && !ir.fire; i++) ir = r.think(input({ task, pos: { x: 40, y: 0, z: 70 }, visible: [far], lo: armed('T'), now: 50 + i * 0.05 }));
+    expect(ir.fire).not.toBeNull();
   });
 
   it('verlorenen Gegner anhalten: Blick auf die letzte Position, stehen bleiben', () => {
@@ -213,6 +232,19 @@ describe('Bot-Gehirn: Aufträge', () => {
 });
 
 describe('Deckung finden', () => {
+  it('Deckung hinter einer dünnen Wand zählt nur, wenn sie zu Fuß nahe erreichbar ist', () => {
+    // Freie Fläche, dünne Wand (x = 0, z −20..20); Bot links der Wand, Bedrohung links weiter weg:
+    // die nächste sichtgeschützte Stelle liegt hinter der Wand, ist aber nur um die Wand herum (> 40 m) erreichbar
+    const b = new MapBuilder({ id: 'de_cover', name: 'c', description: '', bounds: { min: [-31, -1, -31], max: [31, 8, 31] }, env: BOT_TEST_ENV });
+    b.floor(-30, -30, 30, 30, 0, 'concrete');
+    b.box([-0.2, 0, -20], [0.2, 4, 20], 'concrete');
+    b.spawn('T', -20, 0, 25, 0);
+    b.spawn('CT', 20, 0, 25, 0);
+    const cm = compileMap(b.data);
+    const ci = analyzeMap({ nav: cm.nav, collider: cm.collider, sites: [], spawns: cm.spawns });
+    expect(findCover(ci, cm.collider, { x: -1.5, y: 0, z: 0 }, { x: -12, y: 0, z: 0 }, 6)).toBeNull();
+  });
+
   it('liefert eine nahe Position ohne Sichtlinie zur Bedrohung oder null', () => {
     const threat = { x: 3, y: 0, z: 40 };
     const c = findCover(info, m.collider, { x: 3, y: 0, z: 26 }, threat)!;
