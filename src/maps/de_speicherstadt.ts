@@ -64,7 +64,8 @@ export function buildSpeicherstadt(): MapData {
     .rect('W', -78, -4, -76, 4)
     .rect('W', -64, -4, -62, 4)
     .rect('K', -70, 6, -64, 12) // Pförtnerhaus (Schikane)
-    .rect('K', -76, -18, -70, -12) // Pumpenhaus (Schikane)
+    .rect('K', -76, -18, -68, -12) // Pumpenhaus (Schikane)
+    .rect('K', -70, -26, -64, -20) // Zollhäuschen (zweite Schikane, Ostseite): sperrt die 40-m-Linie aus dem Hof in die Banane
     .rect('.', -10, 8, 4, 48) // Untere Mitte (Lane unter der T-Rampe)
     .rect('.', 4, 22, 18, 46) // Kistenhof
     .rect('.', -18, -20, 10, 8) // Mitte
@@ -106,6 +107,7 @@ export function buildSpeicherstadt(): MapData {
     .rect('r', -6, -70, 6, -58) // CT-Rampe
     .rect('r', -46, -54, -36, -42) // Baustellen-Rampe
     .rect('r', 14, -42, 26, -34) // Kurz-Rampe
+    .rect('#', 26, -42, 34, -40) // Fleet-Rest neben der Rampe zumauern (Bots fielen hinein und saßen fest)
     .rect('r', 48, -52, 56, -42); // Grubenrampe
   // Speicherböden (Wohnungen): Eingang/Treppe, Südhalle, Speicherbrücke, Nordhalle, Balkon
   P.rect('q', 16, 62, 20, 68)
@@ -257,14 +259,16 @@ export function buildSpeicherstadt(): MapData {
   b.site('B', 'Serverschrank B', [-74, -1, -54], [-38, 4, -28], [-65.6, 0, -32.6]);
 
   // Bot-Hinweise: bewährte Rauchwürfe der T (Sichtblocker vor den Halte-Positionen der CT), Werte per Wurfsimulation geprüft
-  b.botHint({ kind: 'smoke', from: [-67.5, 0, -18.5], target: [-66, 0, -38], team: 'T', site: 'B' }); // aus der Banane auf die Serverschränke B
+  b.botHint({ kind: 'smoke', from: [-74.5, 0, -27.5], target: [-66, 0, -38], team: 'T', site: 'B' }); // aus der Banane auf die Serverschränke B
   b.botHint({ kind: 'smoke', from: [-71.5, 0, -22.5], target: [-70, 0, -42], team: 'T', site: 'B' }); // in den Hof, Richtung Dunkel
   b.botHint({ kind: 'smoke', from: [-75.5, 0, -26.5], target: [-62, 0, -44], team: 'T', site: 'B' }); // über den Brunnen
   b.botHint({ kind: 'smoke', from: [23.5, 1.1, -39.5], target: [40, 1.6, -56], team: 'T', site: 'A' }); // von der Kurz-Rampe vor den Kessel-Ausgang
   b.botHint({ kind: 'smoke', from: [31.5, 1.6, -46.5], target: [44, 1.6, -66], team: 'T', site: 'A' }); // aus dem Kessel auf die Container
   b.botHint({ kind: 'smoke', from: [61.5, 0, -50.5], target: [56, 1.6, -70], team: 'T', site: 'A' }); // aus der Grube in den Friedhof
   b.botHint({ kind: 'smoke', from: [57.5, 0, -42.5], target: [52, 1.6, -62], team: 'T', site: 'A' }); // aus der Grube auf die Serverschränke A
-  b.spawnGrid('T', -11, 1.6, 63, 8, 2, 3, 0);
+  // Bot-Hinweise: T pflanzen an der eigenen Seite der Serverreihen (Deckung gegen die CT im Norden, kurze Wege vom Eingang)
+  b.botHint({ kind: 'plant', pos: [45.5, 1.6, -49.4], site: 'A' });
+  b.spawnGrid('T', -13, 1.6, 63, 8, 2, 3, 0);
   b.spawnGrid('CT', -2, 1.6, -81, 8, 2, 3, Math.PI);
   b.buy('T', -34, 60, 16, 82);
   b.buy('CT', -16, -90, 16, -70);

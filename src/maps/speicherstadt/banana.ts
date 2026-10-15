@@ -70,7 +70,6 @@ export function dressBanana(b: B): void {
   // Banane → B (B-Eingang)
   prop(b, 'sacks', -70, 0, -12, { len: 4.5, n: 4 });
   prop(b, 'palletStack', -74.6, 0, -18, { n: 6 });
-  prop(b, 'barrelGroup', -65.4, 0, -22, {});
   prop(b, 'crate', -65.4, 0, -10, { h: 1.2 });
   prop(b, 'gasLamp', -65, 0, -28.6);
   prop(b, 'gasLamp', -75, 0, -14.8);
