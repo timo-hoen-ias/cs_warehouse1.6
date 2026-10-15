@@ -13,9 +13,17 @@ Referenzkarte: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logist
 
 - Meter. **x = Osten, y = oben, z = Süden.** Blick `yaw 0` = Norden (−Z), `yaw π` = Süden.
 - Spieler: Radius 0.35 m, Höhe 1.8 m (geduckt 1.25 m), Augen 1.65 m.
-- Stufen bis **0.55 m** läuft man hoch, Sprung ≈ **1.2 m** (Kisten bis 1.1 m erklimmbar).
+- Stufen bis **0.55 m** läuft man hoch. Sprung: Scheitel ≈ **1.1 m** (CS 45 u), in der Luft zählt die echte Höhe
+  (Stufenhöhe dort nur 0.25 m) → vom Boden aus erreicht man **Kanten bis ≈ 1.4 m** (Palette, Kiste 1.2 m, Xbox-Kiste 1.25 m);
+  mit **Hocksprung** (Strg in der Luft, Beine anziehen +0.45 m, wie CS 63 u) **bis ≈ 1.85 m**. Alles darüber (Regale, zweite
+  Xbox-Stufe 1.95 m, Container 2.4 m) ist nur über Treppen/Rampen oder von anderen Kisten aus erreichbar — Absätze ≥ 1.4 m
+  brauchen also Hocksprung oder eine Zwischenstufe (Test `move.body.test.ts` prüft die Kisten der Referenzkarte).
 - Rampen bis **40°** sind begehbar, steilere wirken wie Wände.
-- Tempo: Gehen 4.2 m/s, Sprint 6.2 m/s (≈ CS-Lauftempo 250 u/s). **Laufzeiten werden mit Sprint gemessen.**
+- Stürze: ab ≈ 5.2 m Fallhöhe Schaden (CS: 580 u/s), tödlich ab ≈ 16 m; Absätze bis 4 m (Laufstege, Gruben) sind harmlos.
+- Tempo (CS 1.6, **1 u = 2.48 cm** → Messer 250 u/s = **6.2 m/s**): **Standard = Laufen** mit dem Tempo der gehaltenen Waffe
+  (Messer/Pistolen 6.2, AK 5.5, AWP 5.2, Scout 6.45 m/s), **Shift = leise gehen** (52 %, ≈ 3.2 m/s, keine Schrittgeräusche),
+  **Strg = Ducken** (34 %, ≈ 2.1 m/s). Beschleunigung/Reibung wie GoldSrc (Vollgas nach ≈ 0.45 s, Gegentaste stoppt in ≈ 0.1 s).
+  **Laufzeiten werden mit dem Messer-Lauftempo 6.2 m/s gemessen** (`PLAYER.runSpeed`, früher „Sprint“; `sprintSpeed` ist ein Alias).
 
 ## Bausteine
 
@@ -106,7 +114,7 @@ Bewegungsregeln (Stufen, Rampen, Wände, Kopffreiheit), Herunterspringen als Ein
 
 ## Gestaltungsregeln (CS-Dramaturgie)
 
-1. **Laufzeiten (Sprint 6.2 m/s):** T-Spawn → Spot **18–25 s**, CT-Spawn → Spot **6–15 s** und
+1. **Laufzeiten (Laufen mit dem Messer, 6.2 m/s):** T-Spawn → Spot **18–25 s**, CT-Spawn → Spot **6–15 s** und
    mindestens 5 s schneller als T. Mitte für beide Teams ähnlich schnell (≤ 5 s Unterschied).
 2. **Drei Wege** je Seite (lang, kurz/Verbinder, Mitte) mit Engstellen; jeder Spot hat **2–3 Eingänge**.
 3. Keine großen leeren Flächen: Deckung alle ~10–15 m (Kisten, Paletten, Container, Stützen).

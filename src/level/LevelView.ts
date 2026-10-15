@@ -5,12 +5,15 @@ import { LEVEL_HIGH, LEVEL_LOW, buildLevelMesh, sampleLight, type LevelBake } fr
 import { luminance, type RGB } from '../logic/bake';
 import { decalTexture, glowTexture, materialTexture, serverFrontTexture, serverLedTexture, setTextureQuality, signTexture } from './textures';
 import { decorGeometry, decorGlows } from './decor';
+import { DynamicLights } from './DynamicLights';
 
 export type LevelBuild = {
   group: THREE.Group;
   bake: LevelBake;
   /** Gebackenes Licht an einem Punkt (für Figuren/Viewmodel-Helligkeit). */
   probe(x: number, y: number, z: number): RGB;
+  /** Dynamisches Kurzzeit-Licht (Mündungsfeuer, Explosionen) für die unbeleuchteten Materialien. */
+  dyn: DynamicLights;
   stats: { meshes: number; verts: number; tris: number; instances: number; ms: number };
 };
 
@@ -23,6 +26,7 @@ export type LevelBuild = {
 export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): LevelBuild {
   const t0 = performance.now();
   setTextureQuality(quality);
+  const dyn = new DynamicLights(quality);
   const group = new THREE.Group();
   group.name = 'level';
   const { parts, bake } = buildLevelMesh(map, quality === 'high' ? LEVEL_HIGH : LEVEL_LOW);
@@ -33,7 +37,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
   const matFor = (m: MaterialId): THREE.MeshBasicMaterial => {
     let mat = mats.get(m);
     if (!mat) {
-      mat = new THREE.MeshBasicMaterial({ vertexColors: true, map: m === 'emissive' ? null : materialTexture(m) });
+      mat = dyn.patch(new THREE.MeshBasicMaterial({ vertexColors: true, map: m === 'emissive' ? null : materialTexture(m) }));
       if (m === 'cage') {
         mat.alphaTest = 0.5;
         mat.side = THREE.DoubleSide;
@@ -103,7 +107,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
     }
     return [best[0] * 0.6 + sum[0] * 0.08, best[1] * 0.6 + sum[1] * 0.08, best[2] * 0.6 + sum[2] * 0.08];
   };
-  const decorMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+  const decorMat = dyn.patch(new THREE.MeshBasicMaterial({ vertexColors: true }), 'tint');
   for (const [kind, list] of byKind) {
     instanced(kind, decorGeometry(kind, quality === 'low'), decorMat, list, decorGlows(kind));
     if (kind === 'serverRack') {
@@ -113,7 +117,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
         if (flip) g.rotateY(Math.PI);
         return g.translate(0, 1.0, z);
       };
-      const front = new THREE.MeshBasicMaterial({ map: serverFrontTexture(), color: 0xd0d8e0 });
+      const front = dyn.patch(new THREE.MeshBasicMaterial({ map: serverFrontTexture(), color: 0xd0d8e0 }));
       instanced('serverLeds', mergeGeometries([panel(0.505, false), panel(-0.505, true)])!, front, list.map((d) => ({ ...d, tint: 0xffffff })), false);
       const leds = new THREE.MeshBasicMaterial({ map: serverLedTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
       instanced('serverLeds', mergeGeometries([panel(0.512, false), panel(-0.512, true)])!, leds, list.map((d) => ({ ...d, tint: 0xffffff })), true);
@@ -129,7 +133,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
     const tex = signTexture(s.text, color, bg, s.sub);
     const L = light(s.pos[0], s.pos[1], s.pos[2], facingN[s.facing]);
     const k = Math.max(0.55, Math.min(1.3, luminance(L) * 1.4));
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, color: new THREE.Color(k, k, k) });
+    const mat = dyn.patch(new THREE.MeshBasicMaterial({ map: tex, transparent: true, color: new THREE.Color(k, k, k) }));
     // Textur: obere Hälfte = Schild
     const geo = new THREE.PlaneGeometry(s.w, s.h);
     const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
@@ -145,7 +149,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
   for (const d of map.decals) {
     const L = light(d.pos[0], d.pos[1], d.pos[2]);
     const c = new THREE.Color(d.color ?? 0xffffff).convertSRGBToLinear();
-    const mat = new THREE.MeshBasicMaterial({
+    const mat = dyn.patch(new THREE.MeshBasicMaterial({
       map: d.kind === 'line' ? null : decalTexture(d.kind, d.text),
       transparent: true,
       depthWrite: false,
@@ -154,7 +158,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
       polygonOffsetUnits: -2,
       opacity: d.kind === 'grid' ? 0.7 : d.kind === 'stain' ? 0.9 : 0.85,
       color: new THREE.Color(c.r * L[0], c.g * L[1], c.b * L[2]),
-    });
+    }), 'tint');
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(d.size[0], d.size[1]), mat);
     mesh.rotation.order = 'YXZ';
     mesh.rotation.set(-Math.PI / 2, d.rot ?? 0, 0);
@@ -215,7 +219,7 @@ export function buildLevelView(map: MapData, quality: 'high' | 'low' = 'high'): 
   };
 
   stats.ms = performance.now() - t0;
-  return { group, bake, probe, stats };
+  return { group, bake, probe, dyn, stats };
 }
 
 /** Ungefähre Höhe der Deko-Formen (für Lichtproben über dem Objekt). */

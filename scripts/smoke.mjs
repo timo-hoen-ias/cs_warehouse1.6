@@ -232,6 +232,17 @@ async function run() {
     if (!d8?.error && p8 && p8.hp < 90 && p8.hp > 50) ok(`Sturz aus 8 m: ${100 - p8.hp} HP Schaden`);
     else fail(`Sturz aus 8 m: ${JSON.stringify(d8)} hp=${p8?.hp}`);
 
+    // 6d) Dynamisches Licht: Explosion/Mündungsfeuer landen im Pool und im Shader-Array (Einzelstufe niedrig: 2, hoch: 6 Lichter)
+    await evJson('globalThis.__lightTest?.("he", 4)');
+    const dl = await waitFor('globalThis.__dynLights?.()', (v) => v.active >= 1, 4000, 100);
+    if (dl?.active >= 1 && (dl.max === 2 || dl.max === 6)) ok(`Dynamisches Licht: ${dl.active} aktiv, Pool ${dl.pool}, max ${dl.max}`);
+    else fail('Dynamisches Licht fehlt: ' + JSON.stringify(dl));
+    await evJson('globalThis.__lightTest?.("muzzle", 3)');
+    await waitFor('globalThis.__dynLights?.()', (v) => v.pool === 0, 15000, 200); // klingt ab → Pool leer
+    const dl2 = await evJson('globalThis.__dynLights?.()');
+    if (dl2?.pool === 0) ok('Dynamisches Licht klingt ab (Pool leer)');
+    else fail('Dynamisches Licht bleibt hängen: ' + JSON.stringify(dl2));
+
     // 7) Schuss auf Gegner-Bot (AWP, Körpermitte, 4 m)
     const before = await evJson('globalThis.__enemyHp?.()');
     const aimRes = await evJson('globalThis.__aimAtBot?.()');

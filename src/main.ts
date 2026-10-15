@@ -21,6 +21,7 @@ import { SettingsMenu } from './ui/SettingsMenu';
 import { LevelLighting } from './level/Lighting';
 import { yawPitchToDir, dirToYawPitch } from './logic/combat';
 import { PLAYER } from './logic/move';
+import { explosionLight, flashLight, muzzleLight } from './logic/dynlight';
 import type { Settings } from './logic/settings';
 import { WEAPONS } from './logic/weapons';
 import { parseLaunch, roomLink, type GameSetup } from './logic/menu';
@@ -152,6 +153,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
   const fx = playerRoot.addComponent(Fx);
   const viewModel = playerRoot.addComponent(ViewModel);
   viewModel.solids = [];
+  fx.lights = world.view.dyn;
   shooter.fx = fx;
   shooter.viewModel = viewModel;
   const grenades = playerRoot.addComponent(Grenades);
@@ -195,6 +197,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
     const cam = context.mainCamera;
     if (!cam) return;
     lighting.update(cam.position, dt);
+    world.view.dyn.update(dt, cam.position);
     viewModel.solids = world.blockersNear(cam.position.x, cam.position.y, cam.position.z);
   };
   playerRoot.addComponent(AudioListener).sfx = sfx;
@@ -387,6 +390,21 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
         return { x, y: y! + h, z, ground: y };
       }
       return { error: 'kein freier Platz' };
+    };
+    /** Dynamisches Licht: Status bzw. Explosion/Blitz ~4 m vor der Kamera auslösen (Sichtprüfung/Smoke). */
+    g.__dynLights = () => ({ max: world.view.dyn.max, active: world.view.dyn.active, pool: world.view.dyn.poolSize() });
+    g.__lightTest = (kind: 'he' | 'flash' | 'muzzle' = 'he', dist = 4, hold = 0) => {
+      const c = context.mainCamera!;
+      const d = c.getWorldDirection(new THREE.Vector3());
+      const p = { x: c.position.x + d.x * dist, y: c.position.y + d.y * dist - 0.3, z: c.position.z + d.z * dist };
+      if (hold > 0) {
+        // Standbild für Screenshots: Lebensdauer verlängert (bei niedriger Bildrate sonst kaum zu erwischen)
+        const spec = kind === 'he' ? explosionLight(p, 1) : kind === 'flash' ? flashLight(p) : muzzleLight(p, 1.1);
+        world.view.dyn.add({ ...spec, duration: hold });
+      } else if (kind === 'he') world.view.dyn.explosion(p, 1);
+      else if (kind === 'flash') world.view.dyn.flash(p);
+      else fx.muzzleFlash(p, d, 1.1);
+      return p;
     };
     g.__counters = () => driver.debugCounters();
     g.__map = () => ({ id: world.data.id, brushes: world.data.brushes.length, nav: world.nav.count, areas: world.nav.areas.map((a) => a.name), view: world.view.stats });

@@ -134,6 +134,7 @@ export class Grenades extends Behaviour {
       light.position.copy(pos).add(new THREE.Vector3(0, 0.5, 0));
       this.root.add(ball, light);
       this.blasts.push({ obj: ball, life: 0.45, total: 0.45, light });
+      this.fx.lights?.explosion(at, scale);
       // Funken + Rauch über Fx
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2;
@@ -147,6 +148,7 @@ export class Grenades extends Behaviour {
       light.position.copy(pos);
       this.root.add(ball, light);
       this.blasts.push({ obj: ball, life: 0.25, total: 0.25, light });
+      this.fx.lights?.flash(at);
     } else {
       const group = new THREE.Group();
       group.position.copy(pos);

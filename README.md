@@ -47,9 +47,9 @@ Menümusik: Derek „JoJo“ Stegall, Tracks aus dem Red-Eclipse-Soundpaket (<ht
 | Taste | Aktion |
 |---|---|
 | W A S D | Bewegen |
-| Shift | Sprinten |
-| Strg | Ducken |
-| Leertaste | Springen |
+| Shift | Leise gehen (Schleichen, 52 % Tempo, keine Schritte zu hören) |
+| Strg | Ducken (34 % Tempo); in der Luft Beine anziehen = Hocksprung |
+| Leertaste | Springen (für den nächsten Sprung neu drücken) |
 | Linke Maustaste | Schießen |
 | Rechte Maustaste | Zielfernrohr (AWP, Scout, G3SG1, SG 550, AUG, SG 552) / schwerer Messerstich / kurzer Granatenwurf |
 | R | Nachladen |
@@ -89,7 +89,7 @@ Menümusik: Derek „JoJo“ Stegall, Tracks aus dem Red-Eclipse-Soundpaket (<ht
 |---|---|
 | `de_lagerstaub` | **Lagerstaub** — Logistikzentrum im Abendlicht nach klassischem Grundriss: T-Hof (Speditionshof), Außen Lang → Hallentor → Lang A mit Grube und Stapler („Auto“), A-Rampe auf die Laderampe mit dem „Serverschrank A“, Kurz A über den Gitterrost-Steg aus der Mitte (Xbox-Kiste), Mitteltür (Brandschutztor) zum CT-Bereich, Außen Tunnel → Ober-/Untertunnel (Versorgungstunnel) → Serverraum B mit Hinterer Plattform, B-Empore, B-Fenster und B-Tür. |
 
-Laufzeiten (Sprint): T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
+Laufzeiten (Laufen mit dem Messer, 6.2 m/s): T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
 Das Kartenformat und eine Anleitung für neue Karten stehen in [`docs/KARTENFORMAT.md`](docs/KARTENFORMAT.md).
 Eine Draufsicht (PNG) samt Laufzeiten erzeugt `bun run overview [karten-id] [datei.png] [px-pro-meter] [--areas]`.
 

@@ -169,10 +169,10 @@ Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenma
 - [x] Lobby/Registry auf `src/maps`; alte DB-Pipeline entfernt (query/layout/transform/demo/level-Generatoren, `levels/*.json`, `bake-map.ts`, MSSQL-Abhängigkeit); HUD-Radar zeigt vorgerenderte Kartendraufsicht
 - **Verifikation:** `bun run test`, `tsc`, `build`, Smoke (angepasst: Schussposition mit Sichtlinie, Wand-Suche per Strahl) und Netztest grün; Screenshots hoch/niedrig gesichtet.
 
-**Laufzeiten de_lagerstaub (Sprint 6.2 m/s, Knotenwege):** T → A 145 m ≈ 23.4 s, T → B 146 m ≈ 23.5 s, CT → A 50 m ≈ 8.1 s, CT → B 77 m ≈ 12.5 s, T → Mitte ≈ 9.6 s, CT → Mitte ≈ 11.4 s.
+**Laufzeiten de_lagerstaub (Laufen mit dem Messer, 6.2 m/s, Knotenwege):** T → A 145 m ≈ 23.4 s, T → B 146 m ≈ 23.5 s, CT → A 50 m ≈ 8.1 s, CT → B 77 m ≈ 12.5 s, T → Mitte ≈ 9.6 s, CT → Mitte ≈ 11.4 s.
 
 **Erkenntnisse/Notizen (M4):**
-- Referenztempo für Laufzeiten ist der Sprint (≈ CS-Lauftempo 250 u/s); mit Gehtempo 4.2 m/s wären es ~35 s. CT → A ist wie im Vorbild bewusst kurz (≈ 8 s).
+- Referenztempo für Laufzeiten ist das Lauftempo mit dem Messer (250 u/s = 6.2 m/s, `PLAYER.runSpeed`; seit M5 ist Laufen der Standard und Shift das leise Gehen); beim Schleichen (3.2 m/s) wären es ~45 s. CT → A ist wie im Vorbild bewusst kurz (≈ 8 s).
 - Gebackenes Licht + unbeleuchtete Materialien sind in Software-GL kaum teurer als einfarbige Flächen; die Qualitätsstufe ändert nur Raster/Strahlen beim Backen und die Extras (Lichtkegel, Leuchthöfe).
 - Lichtproben für Deko nicht im eigenen Kollisionskörper nehmen (sonst schwarz) — hellste freie Probe über dem Objekt.
 - Fassaden-Verkleidung muss dicker sein als der Verdeckungs-Test (0.04 m), damit die Gebäudefläche dahinter entfällt.
@@ -199,9 +199,26 @@ Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenma
 - Engine-`deltaTime` ist gedeckelt → HUD-Timer (Banner, Meldungen) laufen über `performance.now()`.
 - Headless-Tests mit mehreren SwiftShader-Browsern sind CPU-gebunden: verwaiste Browserprozesse verlangsamen alles so stark, dass Netz-/Lobbytests zeitlich scheitern — vor Testläufen aufräumen.
 
+### M5 — Spielgefühl wie CS 1.6: Bewegung, Treffsicherheit, dynamisches Licht ✅ (Okt 2026)
+- [x] **Einheiten** (`logic/units.ts`): 1 CS-Einheit = 0.0248 m → Messer 250 u/s = 6.2 m/s, damit alle Kartenlaufzeiten gültig bleiben (`PLAYER.runSpeed`, `sprintSpeed` als Alias für Validator/Bots)
+- [x] **Bewegung im GoldSrc-Stil** (`logic/move.ts`, `stepBody`, getestet in `move.body.test.ts`): `sv_accelerate 5`, `sv_friction 4`, `sv_stopspeed 100`, `sv_airaccelerate 10` (Luft: Wunschtempo auf 30 u/s gedeckelt → Air-Strafing), Beschleunigung nach Basistempo der Waffe (Schleichen/Ducken werden nicht von der Reibung erstickt), Wandgleiten mit Tempoverlust, Sprung 6.65 m/s (≈ 268 u/s) nur nach Loslassen (kein Dauerhopsen), **Bunnyhop-Bremse** (CS 1.6: über 1.2 × Tempo → × 0.8), Rampen/Stufen/Stillstand wie zuvor (kein Rutschen auf flachen Rampen)
+- [x] **Standard = Laufen**, Shift = leise gehen (52 %, Schritte lautlos: `STEP.minSpeed` 140 u/s), Strg = Ducken (34 %); **Tempo je Waffe** aus `weapons.json` (`maxSpeed` in u/s: Messer/Pistolen/Granaten/C4 250, P90 245, M3 230, XM1014 240, AK 221, M4 230, Famas 220, Galil 240, AUG 221, SG552 235, Scout 260, AWP/G3/SG550 210, M249 220; `scopedSpeed`: AWP/G3/SG550 150, Scout 220) und `weaponSpeed(def, scoped)` als reiner Helfer (Bots können ihn später übernehmen; `MatchDriver.BOT_SPEED` ist bewusst unverändert)
+- [x] **Hocksprung** (+0.45 m = 18 u Beine anziehen) mit echter Luft-Stufenhöhe (0.25 m): Standsprung erreicht Kanten bis ≈ 1.4 m (Kisten 1.2/Xbox 1.25 m), Hocksprung bis ≈ 1.85 m, nicht die zweite Xbox-Stufe (Test gegen die Kisten von `de_lagerstaub`)
+- [x] **Landung und Sturz** (`logic/fall.ts`): harte Landung ab 350 u/s (Kameraruck, Tempo bis × 0.5), Schaden ab 580 u/s linear bis 100 HP bei 1024 u/s (≈ 5.2 m / 16 m Fallhöhe bei g = 20); **host-autoritativ**: Spieler meldet Aufprallgeschwindigkeit (`FallMsg`), Host prüft (`acceptFallReport`: endlich, ≤ 40 m/s, ≥ 0.4 s Abstand, nur lebende Menschen), `applyFall` (Rüstung schützt nicht, Waffe `fall`, Kill-Feed „Sturz“), Ereignis `hit` mit `fall: true`; Bots erleiden keinen Sturzschaden (sie springen nicht)
+- [x] **Treffsicherheit nach echter Bewegung** (`logic/fire.ts`): Streuung aus Horizontaltempo + Luft (`MoveSpreadState`), weiche Schwellen 140–170 u/s (Schleichen bleibt genau, Rennen ≈ 6× ungenauer), Scharfschützengewehre schon ab 10 u/s ungenau, Sprung = `airSpread` je Waffe (AK 0.16 ≈ 16× Stehwert, AWP 0.30), Ducken wie zuvor; Wärme klingt in < 1 s ab (erster Schuss wieder genau); `boolean` bleibt für Bots gültig
+- [x] **Sicht** (`player/FpsPlayer.ts`): Bob dezent (1.6 cm, kein Kamera-Roll), weiches Nachgleiten nach Absätzen/Aufspringen, Landedip, Sprint-Haltung des Viewmodels entfällt (CS kennt kein Sprinten); FOV unverändert 75° vertikal (≈ CS-Standard 90° horizontal bei 4:3)
+- [x] **Dynamisches Licht** (`logic/dynlight.ts` getestet, `level/DynamicLights.ts`): Pool (16) mit Lebensdauer-Kurven (Flash/Blast), Auswahl der wichtigsten Lichter nach Kameranähe (hoch 6, niedrig 2), Mündungsfeuer/HE/C4/Blendgranate aus `Fx`/`Grenades`; Shader-Patch (`onBeforeCompile`) auf den unbeleuchteten Level-, Deko-, Schilder- und Markierungs-Materialien: ein Uniform-Array, Abstand² bis zum Radius, Flächenausrichtung aus Bildschirm-Ableitungen (Licht hinter Wänden strahlt die Vorderseite nicht an), ohne Schatten, Early-out bei 0 Lichtern; ein neues Licht ist mindestens einen Frame sichtbar (auch bei niedriger Bildrate)
+- **Verifikation:** `bun run test` (siehe Abschlussbericht), `tsc`, `build`, Smoke (neu: Tempo Messer/AWP/gezoomt, Schleichen, Ducken, Schrittgeräusche leise, Sprunghöhe, Sturz 3 m/8 m; `CDP_PORT` per Umgebung), Netztest; Screenshots Tunnel (Mündungsfeuer/HE/Blendgranate) in hoch/niedrig.
+
+**Erkenntnisse/Notizen (M5):**
+- Reibung schluckt bei GoldSrc-Zahlen langsame Zielgeschwindigkeiten (Ducken mit AWP: 70 u/s Ziel, 400 u/s² Bremse) → Beschleunigung richtet sich nach dem Basistempo der Waffe, das Ziel nach der Haltung.
+- Mit echter Luft-Stufenhöhe (0.25 m statt 0.55 m) braucht ein Sprung auf Kisten Anlauf/Timing wie in CS; `stepPlayer` (Bots) behält die alte Stufenhöhe (`airStep` ist optional).
+- Dynamisches Licht darf nicht mit dem gebackenen Vertex-Licht multipliziert werden (dunkle Tunnel würden kaum heller) → Albedo vor der Vertex-Farbe abgreifen; für Deko/Markierungen Farbton auf feste Helligkeit normieren.
+- Spielzeit pro Frame ist auf 0.1 s gedeckelt: bei Software-Rendering (≈ 3 fps) läuft die Spielzeit langsamer als die Echtzeit; Smoke wartet daher auf Zustände (`air`), nicht auf feste Zeiten.
+
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON
-- [ ] Wallbangs (Durchschuss durch dünne Requisiten), Fallschaden
+- [ ] Wallbangs (Durchschuss durch dünne Requisiten); Sturzschaden für Bots
 - [ ] Sprach-Chat (Needle `Voip`), Chat-Teamfilter
 - [ ] Weitere Karten im neuen Format (z. B. Hafen/Containerterminal, Kühlhaus), taktische Bots auf dem Bereichsgraphen (Rollen je Callout, Smokes/Flashes, Rotationen)
 - [ ] Sprung-Kanten in der Navigation (Kisten ≤ 1.1 m), Leitern

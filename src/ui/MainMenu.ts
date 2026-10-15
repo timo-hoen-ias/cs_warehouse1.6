@@ -460,7 +460,7 @@ class MainMenu {
   private helpHtml(): string {
     const k = (...keys: string[]): string => keys.map((x) => `<span class="ui-kbd">${escapeHtml(x)}</span>`).join('');
     const rows: [string, string][] = [
-      [k('W', 'A', 'S', 'D'), 'Bewegen'], [k('Shift'), 'Leise gehen / Sprinten'], [k('Strg'), 'Ducken'], [k('Leertaste'), 'Springen'],
+      [k('W', 'A', 'S', 'D'), 'Bewegen'], [k('Shift'), 'Leise gehen (Schleichen)'], [k('Strg'), 'Ducken / Hocksprung'], [k('Leertaste'), 'Springen'],
       [k('Maus links'), 'Schießen / Granate weit werfen'], [k('Maus rechts'), 'Zielfernrohr · Messerstich · kurz werfen'], [k('R'), 'Nachladen'], [k('F'), 'Waffe inspizieren'],
       [k('1', '2', '3', '4', '5'), 'Waffenslots'], [k('Q'), 'Letzte Waffe · Mausrad wechselt'], [k('G'), 'Waffe/C4 fallen lassen'], [k('E'), 'Bombe legen / entschärfen (halten)'],
       [k('B'), 'Kaufmenü (1–8 wie CS 1.6)'], [k('Tab'), 'Punktetafel'], [k('Y', 'U'), 'Chat an alle / Team'], [k('Z', 'X', 'C'), 'Funkbefehle'], [k('M'), 'Team wählen'], [k('O'), 'Einstellungen'], [k('Esc'), 'Maus freigeben'],
