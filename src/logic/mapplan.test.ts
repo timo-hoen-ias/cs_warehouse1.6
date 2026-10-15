@@ -130,4 +130,32 @@ describe('CellPlan', () => {
     expect(mk(false)).toBeGreaterThan(0);
     expect(mk(true)).toBe(0);
   });
+  it('Kanalzelle: Gebäude mit eigener Oberseite (Wasser), Sturzmaterial und mehrere Fensterreihen wählbar', () => {
+    const p = new CellPlan(0, 0, 24, 12, 2, '#');
+    p.rect('C', 0, 4, 24, 8).rect('.', 8, 4, 16, 8).rect('g', 16, 4, 20, 8);
+    const legend: Record<string, CellKind> = {
+      '#': { building: { h: 12, mat: 'brick' } },
+      C: { building: { h: -1.2, mat: 'brick', top: 'water' } },
+      '.': { floor: 0, mat: 'brick', top: 'cobble', room: 'outdoor' },
+      g: { floor: 0, mat: 'wood', roof: 4, room: 'room' },
+    };
+    const b = new MapBuilder({ id: 'de_p', name: 'P', description: '', bounds: { min: [0, -5, 0], max: [24, 14, 12] }, env: ENV });
+    p.build(b, legend, {
+      floorBottom: -2, lintelTop: 10, lintelMat: 'brick', lintelTint: 0xc0a090,
+      facades: { '@#': { mat: 'brick', windows: [{ y: 2, h: 1.2, w: 1, every: 3 }, { y: 6, h: 1.2, w: 1, every: 3 }, { y: 9, h: 1, w: 1, every: 3 }] } },
+    });
+    const br = b.data.brushes;
+    // Kanal: Oberseite Wasser, Wasserspiegel unter der Straße, kein Navigationsboden
+    const canal = br.find((x) => x.top === 'water')!;
+    expect(canal.max[1]).toBe(-1.2);
+    expect(canal.noNav).toBe(true);
+    expect(br.some((x) => x.top === 'cobble' && x.max[1] === 0)).toBe(true);
+    // Sturz der Stube über dem Hof: Ziegel statt Wellblech, mit Farbton
+    const lintel = br.find((x) => x.tag === 'wall' && x.min[1] === 4 && x.max[1] === 10);
+    expect(lintel?.mat).toBe('brick');
+    expect(lintel?.tint).toBe(0xc0a090);
+    // drei Fensterreihen übereinander an der Fassade (nur Reihen, die in die Wandhöhe passen)
+    const rows = new Set(br.filter((x) => x.mat === 'window').map((x) => x.min[1]));
+    expect(rows.size).toBe(3);
+  });
 });

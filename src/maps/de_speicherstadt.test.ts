@@ -1,0 +1,178 @@
+import { describe, expect, it } from 'vitest';
+import { loadMapData } from './index';
+import { compileMap, brushItem } from '../logic/mapcompile';
+import { astar, nearestNode, routeLength } from '../logic/nav';
+import { MAX_WALK_SLOPE, rampSlope } from '../logic/collision';
+import { PLAYER } from '../logic/move';
+
+/**
+ * Kartenspezifische Topologie von de_speicherstadt (de_inferno als Hafen-Speicherviertel):
+ * Banane ist die Hauptroute der T nach B, die Wohnungen (Speicherboden, Speicherbrücke, Balkon) führen nach A,
+ * Kurz über den Kessel, Lange Halle zur Grube, Bogen/Bibliothek von CT nach A.
+ */
+const data = loadMapData('de_speicherstadt');
+const map = compileMap(data);
+const g = map.nav;
+
+type P = { x: number; y: number; z: number };
+const area = (name: string) => g.areas.find((a) => a.name === name)!;
+const node = (p: P): number => nearestNode(g, p.x, p.y, p.z, 2);
+const areasOn = (a: P, b: P): string[] => {
+  const path = astar(g, node(a), node(b));
+  expect(path.length, 'Weg existiert').toBeGreaterThan(0);
+  const names: string[] = [];
+  for (const n of path) {
+    const nm = g.area[n]! >= 0 ? g.areas[g.area[n]!]!.name : '-';
+    if (names.at(-1) !== nm) names.push(nm);
+  }
+  return names;
+};
+const nodesIn = (names: string[], stride = 1): number[] => {
+  const out: number[] = [];
+  for (let i = 0; i < g.count; i += stride) if (g.area[i]! >= 0 && names.includes(g.areas[g.area[i]!]!.name)) out.push(i);
+  return out;
+};
+/** Anzahl der Knotenpaare mit freier Sichtlinie (Augenhöhe) zwischen zwei Bereichsgruppen. */
+const sightPairs = (a: string[], b: string[], stride = 3): number => {
+  let n = 0;
+  for (const i of nodesIn(a, stride)) for (const j of nodesIn(b, stride)) {
+    if (map.collider.clear({ x: g.x[i]!, y: g.y[i]! + 1.6, z: g.z[i]! }, { x: g.x[j]!, y: g.y[j]! + 1.6, z: g.z[j]! })) n++;
+  }
+  return n;
+};
+
+describe('de_speicherstadt: Inferno-Topologie', () => {
+  it('alle Callouts sind vorhanden und begehbar', () => {
+    for (const n of ['T-Spawn', 'T-Rampe', 'Untere Mitte', 'Mitte', 'Obere Mitte', 'Zweite Mitte', 'Banane-Anfang', 'Banane', 'Lieferwagen', 'Banane-Brücke',
+      'B-Eingang', 'Spot B', 'Dunkel', 'Baustelle', 'Verladerampe', 'Büro', 'CT-Passage', 'CT-Spawn', 'Bogen', 'Bibliothek', 'A-Hof', 'Spot A', 'Balkon', 'Balkontreppe',
+      'Wohnungen Süd', 'Wohnungen Nord', 'Speicherbrücke', 'Treppenhaus', 'Kurz', 'Kessel', 'Lange Halle', 'Grube', 'Grubenrampe', 'Brückengasse', 'Ladehof', 'Kistenhof']) {
+      expect(area(n), n).toBeDefined();
+      expect(area(n).nodeCount, n).toBeGreaterThan(0);
+    }
+  });
+
+  it('Banane ist die kürzeste Route der T nach B (nicht über die Mitte); die Brückengasse ist die längere zweite Route', () => {
+    const route = areasOn(map.zones.t, map.zones.b);
+    for (const n of ['Banane-Anfang', 'Banane', 'Lieferwagen', 'Banane-Brücke', 'B-Eingang']) expect(route, n).toContain(n);
+    expect(route).not.toContain('Obere Mitte');
+    const viaMitte = routeLength(g, map.zones.t, area('Brückengasse').center) + routeLength(g, area('Brückengasse').center, map.zones.b);
+    expect(viaMitte).toBeGreaterThan(routeLength(g, map.zones.t, map.zones.b) + 6);
+    expect(areasOn(map.zones.t, area('Brückengasse').center)).toContain('Obere Mitte');
+  });
+
+  it('Banane ist gekrümmt: kein Blick vom B-Eingang oder Hof B zum T-Ausgang; Mitte und A-Hof ohne Sichtachse zum T-Spawn', () => {
+    expect(sightPairs(['B-Eingang'], ['Banane-Anfang', 'Banane'])).toBe(0);
+    expect(sightPairs(['Spot B'], ['Banane', 'Lieferwagen'])).toBe(0);
+    expect(sightPairs(['Spot A'], ['Mitte', 'Untere Mitte', 'Zweite Mitte'])).toBe(0);
+    // Zollwaage in der Mitte bricht die lange Achse T-Rampe → Obere Mitte (nur Randstreifen bleiben)
+    const lane = nodesIn(['Untere Mitte', 'T-Rampe'], 4).length * nodesIn(['Obere Mitte', 'CT-Rampe'], 4).length;
+    expect(sightPairs(['Untere Mitte', 'T-Rampe'], ['Obere Mitte', 'CT-Rampe'], 4) / lane).toBeLessThan(0.02);
+  });
+
+  it('Wohnungen: Treppenhaus → Speicherboden → Speicherbrücke → Balkon → Balkontreppe → A (zwei Stockwerke über dem Hof)', () => {
+    const route = areasOn(area('Treppenhaus').center, map.zones.a);
+    for (const n of ['Wohnungen Süd', 'Speicherbrücke', 'Wohnungen Nord', 'Balkon', 'Balkontreppe']) expect(route, n).toContain(n);
+    expect(area('Wohnungen Süd').center.y).toBeGreaterThanOrEqual(4.3);
+    expect(area('Balkon').center.y).toBeGreaterThanOrEqual(4.3);
+    expect(map.zones.a.y).toBeCloseTo(1.6, 2);
+    // der Balkon liegt 2.8 m über dem Hof und blickt auf Spot A
+    expect(area('Balkon').center.y - map.zones.a.y).toBeCloseTo(2.8, 1);
+  });
+
+  it('Speicherbrücke liegt über der Gasse „Zweite Mitte“ (4.4 m über dem Pflaster)', () => {
+    const bridge = nodesIn(['Speicherbrücke']).filter((i) => g.x[i]! > 37 && g.x[i]! < 43 && Math.abs(g.z[i]!) < 3);
+    const alley = nodesIn(['Zweite Mitte']).filter((i) => g.x[i]! > 37 && g.x[i]! < 43 && Math.abs(g.z[i]!) < 3);
+    expect(bridge.length).toBeGreaterThan(10);
+    expect(alley.length).toBeGreaterThan(10);
+    expect(Math.min(...bridge.map((i) => g.y[i]!))).toBeGreaterThan(4.3);
+    expect(Math.max(...alley.map((i) => g.y[i]!))).toBeLessThan(0.1);
+  });
+
+  it('Kurz über den Kessel ist die kürzeste Route der T nach A; Lange Halle führt durch die Grube über die Rampe nach A', () => {
+    const route = areasOn(map.zones.t, map.zones.a);
+    for (const n of ['Mitte', 'Kurz', 'Kurz-Rampe', 'Kessel']) expect(route, n).toContain(n);
+    expect(route).not.toContain('Speicherbrücke');
+    const long = areasOn(area('Zweite Mitte').center, map.zones.a);
+    expect(long.length).toBeGreaterThan(2);
+    const viaLong = areasOn(area('Lange Halle').center, map.zones.a);
+    for (const n of ['Grube', 'Grubenrampe']) expect(viaLong, n).toContain(n);
+    expect(area('Grube').center.y).toBeLessThan(0.5);
+    expect(area('Spot A').center.y).toBeGreaterThanOrEqual(1.5);
+    expect(routeLength(g, area('Mitte').center, area('Lange Halle').center)).toBeGreaterThan(40);
+  });
+
+  it('CT: Bogen führt vom Zollhof in den Kranhof, die Bibliothek verbindet Bogen und A; Baustelle führt zu B', () => {
+    expect(areasOn(map.zones.ct, map.zones.a)).toContain('Bogen');
+    const lib = areasOn(area('Bogen').center, area('Bibliothek').center);
+    expect(lib.at(-1)).toBe('Bibliothek');
+    const b = areasOn(map.zones.ct, map.zones.b);
+    expect(b).toContain('CT-Passage');
+    expect(b).toContain('Baustelle');
+    // Dock (Verladerampe) liegt 1.6 m über dem Hof B und ist über die Baustelle erreichbar
+    expect(area('Verladerampe').center.y).toBeGreaterThan(area('Spot B').center.y + 1.4);
+    expect(areasOn(area('Baustelle').center, area('Verladerampe').center)).toContain('Verladerampe');
+  });
+
+  it('Ebenen: Straßen 0 m, Hochkai 1.6 m (T, CT, A), Speicherboden 4.4 m; alle Rampen ≤ 30°', () => {
+    expect(map.zones.t.y).toBeCloseTo(1.6, 2);
+    expect(map.zones.ct.y).toBeCloseTo(1.6, 2);
+    expect(area('Mitte').center.y).toBeCloseTo(0, 1);
+    const ramps = data.brushes.filter((b) => b.ramp && b.tag === 'ramp');
+    expect(ramps.length).toBeGreaterThanOrEqual(6);
+    for (const r of ramps) {
+      const it = brushItem(r, 0)!;
+      expect((Math.atan(rampSlope(it)) * 180) / Math.PI, JSON.stringify(r.min)).toBeLessThanOrEqual(30);
+      expect(rampSlope(it)).toBeLessThan(MAX_WALK_SLOPE);
+    }
+  });
+
+  it('Wasser: Kanäle und Hafenbecken sind nicht begehbar, keine Falle durch Parapete', () => {
+    const water = data.brushes.filter((b) => b.top === 'water');
+    expect(water.length).toBeGreaterThanOrEqual(3);
+    for (const w of water) expect(w.max[1]).toBeCloseTo(-1.2, 5);
+    for (let i = 0; i < g.count; i++) expect(g.y[i]!, `Knoten ${g.x[i]},${g.z[i]}`).toBeGreaterThan(-0.2);
+    // Brückenbrüstungen sind höher als der Sprung (kein Hineinspringen ins Fleet)
+    const parapets = data.brushes.filter((b) => b.tag === 'building' && b.max[1] === 1.7);
+    expect(parapets.length).toBeGreaterThan(0);
+    expect(1.7).toBeGreaterThan(PLAYER.step + 1.1);
+  });
+
+  it('Ausstattung erzählt die Geschichte: Brunnen, Lieferwagen, Torbogen, Säcke, Baumstämme, Laternen, Serverschränke, Kräne, Archiv', () => {
+    const decor = (k: string) => data.decor.filter((d) => d.kind === k).length;
+    expect(decor('fountain')).toBe(1);
+    expect(decor('van')).toBeGreaterThanOrEqual(2);
+    expect(decor('archRing')).toBeGreaterThanOrEqual(1);
+    expect(decor('sack')).toBeGreaterThan(150);
+    expect(decor('log')).toBeGreaterThanOrEqual(10);
+    expect(decor('lantern')).toBeGreaterThanOrEqual(40);
+    expect(decor('serverRack')).toBeGreaterThanOrEqual(16);
+    // Speicherluken (Seilwinden) an den Fassaden, Aktenregale in der Bibliothek, Gerüst auf der Baustelle
+    expect(data.brushes.filter((b) => b.mat === 'black' && b.tint === 0x2a1c12).length).toBeGreaterThan(80);
+    expect(data.brushes.filter((b) => b.mat === 'carton' && b.min[0] > 17 && b.max[0] < 33 && b.min[2] > -70 && b.max[2] < -54).length).toBeGreaterThan(40);
+    expect(data.brushes.filter((b) => b.mat === 'wood' && b.tint === 0xb09060).length).toBeGreaterThan(4);
+    // Kopfsteinpflaster und Backstein überall
+    expect(data.brushes.filter((b) => b.top === 'cobble').length).toBeGreaterThan(20);
+    expect(data.brushes.filter((b) => b.mat === 'brick').length).toBeGreaterThan(200);
+    expect(data.lights.length).toBeGreaterThan(80);
+  });
+
+  it('Callout-Schilder: jede wichtige Ortsbezeichnung hängt als Schild an einer Wand', () => {
+    const texts = data.signs.map((s) => s.text);
+    for (const t of ['BANANE', 'MITTE', 'OBERE MITTE', 'ZWEITE MITTE', 'KURZ', 'KESSEL', 'LANGE HALLE', 'GRUBE', 'BOGEN', 'BIBLIOTHEK', 'BALKON', 'WOHNUNGEN',
+      'LIEFERWAGEN', 'B-EINGANG', 'DUNKEL', 'BAUSTELLE', 'BRUNNEN', 'NEUE KISTE', 'T-SPAWN', 'T-RAMPE', 'FRIEDHOF', 'SERVERSCHRANK A', 'SERVERSCHRANK B']) {
+      expect(texts, t).toContain(t);
+    }
+    // Schilder hängen nicht in der Luft: nahe an einer Wand (Kollision) oder auf Pfosten
+    for (const s of data.signs) expect(s.w).toBeGreaterThan(0);
+  });
+
+  it('Serverschränke stehen frei: Pflanzpunkte A/B liegen zwischen zwei Schrankreihen', () => {
+    for (const site of ['A', 'B'] as const) {
+      const s = data.sites.find((q) => q.id === site)!;
+      const racks = data.decor.filter((d) => d.kind === 'serverRack' && d.pos[0] > s.min[0] && d.pos[0] < s.max[0] && d.pos[2] > s.min[2] && d.pos[2] < s.max[2]);
+      expect(racks.length, `Schränke ${site}`).toBeGreaterThanOrEqual(8);
+      const left = racks.some((r) => Math.hypot(r.pos[0] - s.plant[0], r.pos[2] - s.plant[2]) < 4);
+      expect(left, `Reihe in Reichweite des Pflanzpunkts ${site}`).toBe(true);
+    }
+  });
+});

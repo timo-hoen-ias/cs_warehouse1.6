@@ -20,7 +20,7 @@ export type MaterialId =
   | 'corrugated' | 'corrugatedDark' | 'metal' | 'steel' | 'grating' | 'wood' | 'crate' | 'pallet' | 'wrap'
   | 'carton' | 'hazard' | 'tile' | 'roof' | 'container' | 'rubber' | 'cage' | 'server' | 'door' | 'gate'
   | 'epoxy' | 'gravel' | 'foliage' | 'rust' | 'black' | 'white' | 'emissive' | 'sky' | 'window' | 'skylight' | 'vent'
-  | 'panel' | 'frost';
+  | 'panel' | 'frost' | 'cobble' | 'water' | 'sack';
 
 /** Standard-Oberfläche (Schrittklang) und Texturmaßstab je Material. */
 export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
@@ -64,6 +64,9 @@ export const MATERIALS: Record<MaterialId, { surface: Surface; uv: number }> = {
   vent: { surface: 'metal', uv: 1 },
   panel: { surface: 'metal', uv: 2.4 },
   frost: { surface: 'tile', uv: 2 },
+  cobble: { surface: 'gravel', uv: 2.4 },
+  water: { surface: 'concrete', uv: 6 },
+  sack: { surface: 'wood', uv: 0.9 },
 };
 
 /** Kollision eines Brushes: alles, nur Bewegung (Clip/Geländer), nur Strahlen, oder nichts (Deko). */
@@ -100,7 +103,8 @@ export type DecorKind =
   | 'barrel' | 'drum' | 'pipeX' | 'pipeZ' | 'pipeY' | 'wheel' | 'lampHall' | 'lampWall' | 'lampTube' | 'lampPost'
   | 'forklift' | 'serverRack' | 'serverLeds' | 'ibc' | 'fencePost' | 'conveyorRoller' | 'cone' | 'extinguisher'
   | 'cableTrayX' | 'cableTrayZ' | 'fanUnit' | 'rail'
-  | 'tank' | 'tankDome' | 'stripCurtain' | 'compressor' | 'condenser';
+  | 'tank' | 'tankDome' | 'stripCurtain' | 'compressor' | 'condenser'
+  | 'sack' | 'van' | 'fountain' | 'lantern' | 'log' | 'archRing';
 
 export type Decor = {
   kind: DecorKind;

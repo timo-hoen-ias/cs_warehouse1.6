@@ -2,6 +2,7 @@ import type { MapData } from '../logic/mapkit';
 import { buildGueterbahnhof } from './de_gueterbahnhof';
 import { buildLagerstaub } from './de_lagerstaub';
 import { buildKuehlhaus } from './de_kuehlhaus';
+import { buildSpeicherstadt } from './de_speicherstadt';
 
 /**
  * Karten-Registry (pure): handgebaute Karten als Module. Die Lobby listet sie, der Host
@@ -27,6 +28,12 @@ export const MAPS: MapEntry[] = [
     name: 'Güterbahnhof',
     description: 'Bahn-Logistikzentrum nach dem Vorbild de_train: Gleisfeld A unter der Kranbahn, Efeu, Z-Verbindung, Serverinsel B zwischen den Gleisen.',
     build: buildGueterbahnhof,
+  },
+  {
+    id: 'de_speicherstadt',
+    name: 'Speicherstadt',
+    description: 'Hafen-Speicherviertel (de_inferno): Banane mit Lieferwagen nach B, Wohnungen und Speicherbrücke zum Balkon über A, Kurz über den Kessel, Lange Halle zur Grube.',
+    build: buildSpeicherstadt,
   },
 ];
 
