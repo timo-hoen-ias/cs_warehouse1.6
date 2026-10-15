@@ -63,9 +63,9 @@
 
 /* ---------- oben links: Radar ---------- */
 .hud-radar { position: absolute; left: calc(var(--edge) + var(--side)); top: var(--edge); width: calc(230 * var(--u)); display: flex; flex-direction: column; gap: calc(6 * var(--u)); }
-.hud-radar-box { position: relative; width: calc(230 * var(--u)); height: calc(230 * var(--u)); border-radius: calc(6 * var(--u)); overflow: hidden; background: rgba(6,9,12,.62); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 6px 22px rgba(0,0,0,.4); }
+.hud-radar-box { position: relative; width: calc(230 * var(--u)); height: calc(230 * var(--u)); border-radius: calc(6 * var(--u)); overflow: hidden; background: rgba(7,11,13,.76); border: 1px solid rgba(160,200,210,.22); box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 6px 22px rgba(0,0,0,.4); }
 .hud-radar-box canvas { width: 100%; height: 100%; display: block; }
-.hud-radar-box::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at center, transparent 55%, rgba(0,0,0,.45)); }
+.hud-radar-box::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at center, transparent 62%, rgba(0,0,0,.38)); }
 .hud-radar-label { display: flex; justify-content: space-between; align-items: baseline; font: 600 calc(13 * var(--u)) var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: #cfd6de; text-shadow: 0 1px 2px #000; }
 .hud-radar-net { font: 500 calc(11 * var(--u)) var(--font-ui); color: var(--c-dim); text-shadow: 0 1px 2px #000; margin-top: calc(-4 * var(--u)); }
 

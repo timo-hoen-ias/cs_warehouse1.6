@@ -240,8 +240,8 @@ export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c));
 }
 
-/** Ping-Anzeige im Scoreboard. */
+/** Ping-Anzeige im Scoreboard: Bots „BOT“, ungemessen (negativ/ungültig) „–“, sonst Millisekunden (Host = 0). */
 export function pingText(bot: boolean, ping: number): string {
   if (bot) return 'BOT';
-  return Number.isFinite(ping) && ping > 0 ? String(Math.round(ping)) : '–';
+  return Number.isFinite(ping) && ping >= 0 ? String(Math.round(ping)) : '–';
 }

@@ -4,10 +4,10 @@ import type { HudState } from '../weapons/Shooter';
 import type { Team } from '../logic/economy';
 import type { MatchState, Pose } from '../logic/match';
 import type { GameEvent } from '../logic/net';
-import type { Raster } from '../logic/overview';
 import type { Vec3 } from '../logic/hitbox';
 import { scoreboard } from '../logic/match';
-import { worldToRadar } from '../logic/radar';
+import type { RadarPlayer } from '../logic/radar';
+import { Radar, type RadarSource, type RadarSite } from './Radar';
 import { WEAPONS, type BuyCategory } from '../logic/weapons';
 import { radioMenuFor, radioPick, type RadioMenu } from '../logic/radio';
 import {
@@ -46,9 +46,7 @@ export type PlayerInfo = {
   canBuy: boolean;
 };
 
-type RadarDot = { x: number; z: number; yaw: number; team: Team; alive: boolean; id: string };
 type CrosshairStyle = 'classic' | 'dot' | 'circle';
-type Zones = { a: { x: number; z: number }; b: { x: number; z: number }; t: { x: number; z: number }; ct: { x: number; z: number } };
 
 const RADAR_CSS = 230;
 const FEED_MS = 7000;
@@ -84,8 +82,9 @@ export class Hud {
   private root?: HTMLDivElement;
   private readonly el: Record<string, HTMLElement> = {};
   private readonly textCache = new Map<HTMLElement, string>();
-  private radar?: HTMLCanvasElement;
+  private radarCanvas?: HTMLCanvasElement;
   private radarPx = 0;
+  private readonly radar = new Radar(null, () => getComputedStyleFont());
   private chatInput?: HTMLInputElement;
   private crossStyle: CrosshairStyle = 'classic';
   private crossCfg = { color: '#9ff09f', size: 9, gap: 3, thickness: 2, dynamic: true };
@@ -109,23 +108,11 @@ export class Hud {
   private chatLines: { node: HTMLElement; t: number }[] = [];
   private chatSig = '';
   private chatSeen = new Map<string, number>();
-  /** Vorgerenderte Karten-Draufsicht fürs Radar (logic/overview). */
-  private radarMap: { canvas: HTMLCanvasElement; minX: number; minZ: number; w: number; h: number } | null = null;
-  private zones: Zones | null = null;
   private fpsFrames = 0;
   private fpsTime = 0;
   private scoreTimer = 0;
   private hostId = '';
   private readonly host = (): HTMLElement => (document.querySelector('needle-engine') as HTMLElement | null) ?? document.body;
-
-  /** Radarbild der Karte setzen (Draufsicht aus logic/overview). */
-  setRadarMap(r: Raster): void {
-    const canvas = document.createElement('canvas');
-    canvas.width = r.w;
-    canvas.height = r.h;
-    canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.w, r.h), 0, 0);
-    this.radarMap = { canvas, minX: r.minX, minZ: r.minZ, w: r.w / r.pxPerM, h: r.h / r.pxPerM };
-  }
 
   mount(): void {
     const root = document.createElement('div');
@@ -183,7 +170,8 @@ export class Hud {
       <div class="hud-modal" data-k="teamModal"><div class="hud-teamsel" data-k="team"></div></div>`;
     for (const n of root.querySelectorAll<HTMLElement>('[data-k]')) this.el[n.dataset.k!] = n;
     this.root = root;
-    this.radar = this.el.radar as HTMLCanvasElement;
+    this.radarCanvas = this.el.radar as HTMLCanvasElement;
+    this.radar.attach(this.radarCanvas);
     this.chatInput = this.el.chatin!.querySelector('input')!;
     this.host().appendChild(root);
 
@@ -241,10 +229,10 @@ export class Hud {
     this.root.style.setProperty('--side', `${hudSideInset(w, h)}px`);
     // Radar gestochen scharf: Canvas-Pixel = CSS-Größe × DPR
     const px = canvasPixels(RADAR_CSS * this.uiScale, window.devicePixelRatio || 1);
-    if (this.radar && px !== this.radarPx) {
+    if (this.radarCanvas && px !== this.radarPx) {
       this.radarPx = px;
-      this.radar.width = px;
-      this.radar.height = px;
+      this.radarCanvas.width = px;
+      this.radarCanvas.height = px;
     }
     this.lastGap = -1;
     this.applyCrosshair();
@@ -515,9 +503,12 @@ export class Hud {
     this.noticeTimer = 3;
   }
 
-  setHint(text: string | null): void {
+  /** Hinweis in der Bildmitte; `alpha` < 1 = Ausblenden (logic/hudHint.ts). */
+  setHint(text: string | null, alpha = 1): void {
     this.cls(this.el.hint, 'on', !!text);
     if (text) {
+      const o = (Math.round(alpha * 20) / 20).toString();
+      if (this.el.hint.style.opacity !== o) this.el.hint.style.opacity = o;
       // „E halten: …“ → Taste hervorheben
       const m = /^(\w) halten: (.*)$/.exec(text);
       this.html(this.el.hint, m ? `<span class="ui-kbd">${escapeHtml(m[1]!)}</span><span>halten: ${escapeHtml(m[2]!)}</span>` : escapeHtml(text));
@@ -606,106 +597,22 @@ export class Hud {
     });
   }
 
-  /** Bombenspots/Spawns fürs Radar (A/B-Markierungen). */
-  setZones(z: Zones): void {
-    this.zones = z;
+  /** Kartenbilder fürs Radar (je Höhenband, aus logic/overview) und Bombenspot-Beschriftung. */
+  setRadarMap(src: RadarSource, sites: RadarSite[]): void {
+    this.radar.setSource(src);
+    this.radar.setSites(sites);
   }
 
-  setRadar(self: Pose, others: RadarDot[], team: Team, bombPos: Vec3 | null): void {
-    const cv = this.radar;
-    const c = cv?.getContext('2d');
-    if (!c || !cv) return;
-    const size = cv.width;
-    const view = { size, range: 42 };
-    const px = size / 230; // Pixel je Design-Pixel im Radar
-    c.clearRect(0, 0, size, size);
-    // Raster
-    c.strokeStyle = 'rgba(160,190,220,.06)';
-    c.lineWidth = 1;
-    for (let g = 1; g < 6; g++) {
-      const p = (g * size) / 6;
-      c.beginPath(); c.moveTo(p, 0); c.lineTo(p, size); c.moveTo(0, p); c.lineTo(size, p); c.stroke();
-    }
-    // Karten-Draufsicht: um den Spieler gedreht (Blickrichtung oben)
-    if (this.radarMap) {
-      const k = size / 2 / view.range;
-      c.save();
-      c.translate(size / 2, size / 2);
-      c.scale(k, k);
-      c.rotate(self.yaw);
-      c.translate(-self.x, -self.z);
-      c.globalAlpha = 0.9;
-      c.imageSmoothingEnabled = true;
-      c.drawImage(this.radarMap.canvas, this.radarMap.minX, this.radarMap.minZ, this.radarMap.w, this.radarMap.h);
-      c.restore();
-    }
-    // Bombenspots
-    if (this.zones) {
-      c.font = `800 ${Math.round(18 * px)}px ${getComputedStyleFont()}`;
-      c.textAlign = 'center';
-      c.textBaseline = 'middle';
-      for (const k of ['a', 'b'] as const) {
-        const z = worldToRadar(self.x, self.z, self.yaw, this.zones[k].x, this.zones[k].z, view);
-        if (this.radarMap && z.inside) continue; // Radarbild zeigt den Spot schon; sonst Randmarkierung
-        const x = Math.max(12 * px, Math.min(size - 12 * px, z.x));
-        const y = Math.max(12 * px, Math.min(size - 12 * px, z.y));
-        c.fillStyle = 'rgba(255,90,74,.18)';
-        c.beginPath(); c.arc(x, y, 13 * px, 0, Math.PI * 2); c.fill();
-        c.fillStyle = z.inside ? '#ff8a6a' : 'rgba(255,138,106,.6)';
-        c.fillText(k.toUpperCase(), x, y + 1);
-      }
-    }
-    if (bombPos) {
-      const b = worldToRadar(self.x, self.z, self.yaw, bombPos.x, bombPos.z, view);
-      const blink = Math.floor(performance.now() / 400) % 2 === 0;
-      c.fillStyle = blink ? '#ff3b2b' : '#ffb3a8';
-      c.fillRect(b.x - 7 * px, b.y - 5 * px, 14 * px, 10 * px);
-      c.fillStyle = '#200';
-      c.fillRect(b.x - 4 * px, b.y - 2 * px, 8 * px, 4 * px);
-    }
-    for (const o of others) {
-      if (!o.alive) continue;
-      if (o.team !== team) continue; // CS-Radar zeigt nur Teamkameraden
-      const p = worldToRadar(self.x, self.z, self.yaw, o.x, o.z, view);
-      const x = Math.max(5 * px, Math.min(size - 5 * px, p.x));
-      const y = Math.max(5 * px, Math.min(size - 5 * px, p.y));
-      c.fillStyle = o.team === 'T' ? '#f0a53a' : '#6fa8ff';
-      c.strokeStyle = 'rgba(0,0,0,.7)';
-      c.lineWidth = 1.5 * px;
-      c.beginPath();
-      c.arc(x, y, 4.5 * px, 0, Math.PI * 2);
-      c.fill();
-      c.stroke();
-      // Blickrichtung relativ zum eigenen Blick
-      const rel = o.yaw - self.yaw;
-      c.strokeStyle = c.fillStyle;
-      c.beginPath();
-      c.moveTo(x, y);
-      c.lineTo(x - Math.sin(rel) * 9 * px, y - Math.cos(rel) * 9 * px);
-      c.stroke();
-    }
-    // Sichtkegel + eigene Position (Pfeil nach oben)
-    const cx = size / 2;
-    const grad = c.createRadialGradient(cx, cx, 0, cx, cx, size * 0.45);
-    grad.addColorStop(0, 'rgba(255,255,255,.14)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = grad;
-    c.beginPath();
-    c.moveTo(cx, cx);
-    c.arc(cx, cx, size * 0.45, -Math.PI / 2 - 0.55, -Math.PI / 2 + 0.55);
-    c.closePath();
-    c.fill();
-    c.fillStyle = '#fff';
-    c.strokeStyle = 'rgba(0,0,0,.8)';
-    c.lineWidth = 1.5 * px;
-    c.beginPath();
-    c.moveTo(cx, cx - 8 * px);
-    c.lineTo(cx - 6 * px, cx + 6 * px);
-    c.lineTo(cx, cx + 3 * px);
-    c.lineTo(cx + 6 * px, cx + 6 * px);
-    c.closePath();
-    c.fill();
-    c.stroke();
+  /** Radar-Einstellungen: Drehung mit dem Blick, Zoom (1 = ≈ 50 m Radius). */
+  setRadarOptions(rotate: boolean, zoom: number): void {
+    this.radar.rotate = rotate;
+    this.radar.zoom = zoom;
+  }
+
+  /** Radar zeichnen: Mitspieler, gesichtete Gegner (`spotted`), bekannte Bombe. */
+  setRadar(self: Pose & { id: string }, others: readonly RadarPlayer[], team: Team, spotted: (id: string) => boolean, bomb: { x: number; y: number; z: number; kind: 'planted' | 'dropped' } | null): void {
+    if (!this.radarCanvas) return;
+    this.radar.draw({ self, team, others, spotted, bomb, now: performance.now() });
   }
 
   setRadarLabel(text: string): void {

@@ -42,7 +42,9 @@ describe('Formate', () => {
 
   it('Ping-Anzeige', () => {
     expect(pingText(true, 0)).toBe('BOT');
-    expect(pingText(false, 0)).toBe('–');
+    expect(pingText(false, -1)).toBe('–');
+    expect(pingText(false, Number.NaN)).toBe('–');
+    expect(pingText(false, 0)).toBe('0');
     expect(pingText(false, 42.4)).toBe('42');
   });
 

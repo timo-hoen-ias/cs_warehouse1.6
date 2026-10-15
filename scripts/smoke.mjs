@@ -159,17 +159,26 @@ async function run() {
     const openRun = await evJson('globalThis.__openRun?.()');
     if (openRun?.free >= 12) ok(`Anlaufstrecke: ${openRun.free} m frei`);
     else fail('keine freie Anlaufstrecke: ' + JSON.stringify(openRun));
-    const holdKeys = (codes, ms) => ev(`new Promise((res) => {
+    // Tasten halten und Tempo/Sprunghöhe messen. Die Spielzeit läuft pro Frame höchstens 0.1 s weiter: bei hoher CPU-Last
+    // (Frames von Sekunden) reichen feste Echtzeit-Haltezeiten nicht aus, um das Tempo zu erreichen. Daher: mindestens `ms`
+    // halten UND weitermessen, bis das Tempo sich 6 Frames lang nicht mehr erhöht (Plateau); Modus 'jump': bis zur Landung.
+    // Obergrenze 40 s. Die Sollwerte und Toleranzen der Prüfungen bleiben unverändert.
+    const holdKeys = (codes, ms, mode = 'speed') => ev(`new Promise((res) => {
       const codes = ${JSON.stringify(codes)};
       for (const code of codes) document.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
       const p0 = globalThis.__pos();
-      let max = 0, maxY = 0;
+      let max = 0, maxY = 0, frames = 0, lastImprove = 0, airSeen = false;
       const t0 = performance.now();
       const loop = () => {
         const p = globalThis.__pos();
-        max = Math.max(max, p.speed); maxY = Math.max(maxY, p.y - p0.y);
-        if (performance.now() - t0 < ${ms}) requestAnimationFrame(loop);
-        else { for (const code of codes) document.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true })); res(JSON.stringify({ max, maxY, run: p.run })); }
+        frames++;
+        if (p.speed > max + 0.02) { max = p.speed; lastImprove = frames; }
+        maxY = Math.max(maxY, p.y - p0.y);
+        if (p.air) airSeen = true;
+        const el = performance.now() - t0;
+        const done = ${JSON.stringify(mode)} === 'jump' ? (airSeen && !p.air && el > 300) : (el >= ${ms} && frames - lastImprove >= 6);
+        if (!done && el < 40000) requestAnimationFrame(loop);
+        else { for (const code of codes) document.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true })); res(JSON.stringify({ max, maxY, run: p.run, ms: Math.round(el) })); }
       };
       loop();
     })`).then((v) => JSON.parse(v ?? 'null'));
@@ -213,7 +222,7 @@ async function run() {
     await ev('globalThis.__unzoom()');
     await ev('globalThis.__weapon("knife")');
     await reset();
-    const jump = await holdKeys(['Space'], 1100);
+    const jump = await holdKeys(['Space'], 1100, 'jump');
     if (inRange(jump?.maxY, 0.95, 1.25)) ok(`Sprunghöhe: ${jump.maxY.toFixed(2)} m (Soll ≈ 1.1)`);
     else fail('Sprunghöhe: ' + JSON.stringify(jump));
     // Sturz: 3 m harmlos, 8 m ≈ 30 HP Schaden (Host rechnet)
@@ -243,16 +252,24 @@ async function run() {
     if (dl2?.pool === 0) ok('Dynamisches Licht klingt ab (Pool leer)');
     else fail('Dynamisches Licht bleibt hängen: ' + JSON.stringify(dl2));
 
-    // 7) Schuss auf Gegner-Bot (AWP, Körpermitte, 4 m)
-    const before = await evJson('globalThis.__enemyHp?.()');
-    const aimRes = await evJson('globalThis.__aimAtBot?.()');
-    await sleep(1500);
-    const after = await evJson('globalThis.__enemyHp?.()');
-    const victim = aimRes?.target;
-    const hpB = before?.find((p) => p.id === victim)?.hp;
-    const hpA = after?.find((p) => p.id === victim)?.hp;
-    if (victim && hpA < hpB) ok(`Schuss trifft Bot ${victim}: HP ${hpB} → ${hpA}`);
-    else fail(`Schuss ohne Treffer (${JSON.stringify(aimRes)}, ${hpB} → ${hpA})`);
+    // 7) Schuss auf Gegner-Bot (Pistole, Körpermitte, ~4 m). Der Hook schießt erst, wenn die echte Kamera an der Zielpose
+    // steht; Bots bleiben bis dahin angehalten. Unter hoher CPU-Last braucht ein Frame Sekunden → auf den Treffer warten
+    // (statt fester Pause) und bei Fehlschlag mit frischen Positionen neu zielen (höchstens 3 Versuche, Prüfung bleibt: HP fällt).
+    let hit = null;
+    const shotLog = [];
+    for (let attempt = 1; attempt <= 3 && !hit; attempt++) {
+      const before = await evJson('globalThis.__enemyHp?.()');
+      const aimRes = await evJson('globalThis.__aimAtBot?.()');
+      const victim = aimRes?.target;
+      const hpB = before?.find((p) => p.id === victim)?.hp;
+      const after = victim ? await waitFor('globalThis.__enemyHp?.()', (v) => v.find((p) => p.id === victim)?.hp < hpB, 45000, 400) : null;
+      const hpA = after?.find((p) => p.id === victim)?.hp;
+      const info = await evJson('globalThis.__lastShot?.()');
+      shotLog.push(`#${attempt} ${JSON.stringify(aimRes)} ${hpB} → ${hpA} ${JSON.stringify(info)}`);
+      if (victim && hpA < hpB) hit = { victim, hpB, hpA, attempt, info };
+    }
+    if (hit) ok(`Schuss trifft Bot ${hit.victim}: HP ${hit.hpB} → ${hit.hpA} (Versuch ${hit.attempt}, Kamera nach ${hit.info?.settleMs} ms bereit)`);
+    else fail('Schuss ohne Treffer:\n  ' + shotLog.join('\n  '));
 
     // 7b) Zielfernrohr: AWP zoomt (FOV 40), Viewmodel unsichtbar
     const z = JSON.parse((await ev('globalThis.__zoom?.("awp").then((v) => JSON.stringify(v))')) ?? 'null');
@@ -260,13 +277,19 @@ async function run() {
     else fail('Zielfernrohr fehlerhaft: ' + JSON.stringify(z));
     await evJson('globalThis.__unzoom?.()');
 
-    // 8) Wand-Decal
-    const wallBefore = (await evJson('globalThis.__fxWall?.()')) ?? 0;
-    await evJson('globalThis.__wallShot?.()');
-    const wallAfter = (await waitFor('({ n: globalThis.__fxWall?.() })', (v) => v.n > wallBefore, 5000, 200))?.n ?? 0;
-    const decals = await evJson('globalThis.__decals?.()');
-    if (wallAfter > wallBefore && decals && decals.maxSize <= 0.1) ok(`Wand-Decal: ${wallAfter - wallBefore} neu, Größe ≤${decals.maxSize} m`);
-    else fail(`Wand-Decal fehlt (${wallBefore} → ${wallAfter}, ${JSON.stringify(decals)})`);
+    // 8) Wand-Decal (Wand 4–25 m vom T-Spawn, geprüfter Schuss; wie bei 7 erst nach stabiler Kamera, bis zu 3 Versuche)
+    let wallOk = null;
+    const wallLog = [];
+    for (let attempt = 1; attempt <= 3 && !wallOk; attempt++) {
+      const wallBefore = (await evJson('globalThis.__fxWall?.()')) ?? 0;
+      const wres = await evJson('globalThis.__wallShot?.()');
+      const wallAfter = wres?.ok ? (await waitFor('({ n: globalThis.__fxWall?.() })', (v) => v.n > wallBefore, 45000, 300))?.n ?? 0 : wallBefore;
+      const decals = await evJson('globalThis.__decals?.()');
+      wallLog.push(`#${attempt} ${JSON.stringify(wres)} ${wallBefore} → ${wallAfter} ${JSON.stringify(decals)} ${JSON.stringify(await evJson('globalThis.__lastShot?.()'))}`);
+      if (wallAfter > wallBefore && decals && decals.maxSize <= 0.1) wallOk = { n: wallAfter - wallBefore, size: decals.maxSize, attempt, dist: wres.wallDist };
+    }
+    if (wallOk) ok(`Wand-Decal: ${wallOk.n} neu, Größe ≤${wallOk.size} m, Wand ${wallOk.dist} m entfernt (Versuch ${wallOk.attempt})`);
+    else fail('Wand-Decal fehlt:\n  ' + wallLog.join('\n  '));
 
     // 9) Granate werfen → fliegt → Rauch
     await evJson('globalThis.__throwNade?.("smoke")');

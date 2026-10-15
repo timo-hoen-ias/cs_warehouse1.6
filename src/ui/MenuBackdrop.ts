@@ -12,6 +12,8 @@ export interface MenuBackdropLike {
   setPaused(paused: boolean): void;
   /** Akzentfarbe/Stimmung je nach gewählter Karte (optional). */
   setMood?(seed: number): void;
+  /** Gewählte Karte (für einen 3D-Flug durch genau diese Karte); optional. */
+  setMap?(mapId: string): void;
   dispose(): void;
 }
 

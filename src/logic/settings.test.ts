@@ -9,6 +9,8 @@ import {
   DEFAULT_SETTINGS,
   HUD_SCALE_MAX,
   HUD_SCALE_MIN,
+  RADAR_ZOOM_MAX,
+  RADAR_ZOOM_MIN,
   FOV_MAX,
   FOV_MIN,
   SENSITIVITY_MAX,
@@ -54,6 +56,8 @@ describe('DEFAULT_SETTINGS', () => {
       crosshairGap: 3,
       crosshairThickness: 2,
       crosshairDynamic: true,
+      radarRotate: true,
+      radarZoom: 1,
     });
   });
 });
@@ -93,6 +97,8 @@ describe('sanitizeSettings', () => {
       crosshairGap: 6,
       crosshairThickness: 3,
       crosshairDynamic: false,
+      radarRotate: false,
+      radarZoom: 1.4,
     };
     expect(sanitizeSettings(full)).toEqual(full);
   });
@@ -152,6 +158,8 @@ describe('sanitizeSettings', () => {
       crosshairGap: {},
       crosshairThickness: '2',
       crosshairDynamic: 0,
+      radarRotate: 'ja',
+      radarZoom: '2',
     });
     expect(s).toEqual(DEFAULT_SETTINGS);
     const mixed = sanitizeSettings({ sensitivity: 'abc', fov: 100, invertY: 0, showFps: true });
@@ -198,6 +206,10 @@ describe('neue Einstellungen (Musik, HUD-Skalierung, Fadenkreuz-Details)', () =>
     expect(sanitizeSettings({ hudScale: 9 }).hudScale).toBe(HUD_SCALE_MAX);
     expect(sanitizeSettings({ hudScale: 1.1 }).hudScale).toBe(1.1);
     expect(sanitizeSettings({ hudScale: Infinity }).hudScale).toBe(1);
+    expect(sanitizeSettings({ radarZoom: 0.1 }).radarZoom).toBe(RADAR_ZOOM_MIN);
+    expect(sanitizeSettings({ radarZoom: 9 }).radarZoom).toBe(RADAR_ZOOM_MAX);
+    expect(sanitizeSettings({ radarZoom: 1.2 }).radarZoom).toBe(1.2);
+    expect(sanitizeSettings({ radarRotate: false }).radarRotate).toBe(false);
   });
 
   it('klemmt Fadenkreuz-Abstand und -Stärke', () => {

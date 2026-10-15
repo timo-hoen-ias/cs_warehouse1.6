@@ -40,6 +40,10 @@ export type Settings = {
   crosshairThickness: number;
   /** Fadenkreuz öffnet sich mit der Streuung (dynamisch wie in CS 1.6). */
   crosshairDynamic: boolean;
+  /** Radar dreht sich mit dem Blick (CS 1.6); aus = Norden oben, der Pfeil dreht sich. */
+  radarRotate: boolean;
+  /** Radar-Zoom (1 = ≈ 50 m sichtbarer Radius, größer = näher). */
+  radarZoom: number;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -61,6 +65,8 @@ export const DEFAULT_SETTINGS: Settings = {
   crosshairGap: 3,
   crosshairThickness: 2,
   crosshairDynamic: true,
+  radarRotate: true,
+  radarZoom: 1,
 };
 
 export const SENSITIVITY_MIN = 0.0004;
@@ -75,6 +81,8 @@ export const CROSSHAIR_THICKNESS_MIN = 1;
 export const CROSSHAIR_THICKNESS_MAX = 4;
 export const HUD_SCALE_MIN = 0.75;
 export const HUD_SCALE_MAX = 1.5;
+export const RADAR_ZOOM_MIN = 0.6;
+export const RADAR_ZOOM_MAX = 1.6;
 
 export const CROSSHAIR_STYLES: readonly CrosshairStyle[] = ['classic', 'dot', 'circle'];
 
@@ -122,6 +130,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     crosshairGap: num(r.crosshairGap, d.crosshairGap, CROSSHAIR_GAP_MIN, CROSSHAIR_GAP_MAX),
     crosshairThickness: num(r.crosshairThickness, d.crosshairThickness, CROSSHAIR_THICKNESS_MIN, CROSSHAIR_THICKNESS_MAX),
     crosshairDynamic: bool(r.crosshairDynamic, d.crosshairDynamic),
+    radarRotate: bool(r.radarRotate, d.radarRotate),
+    radarZoom: num(r.radarZoom, d.radarZoom, RADAR_ZOOM_MIN, RADAR_ZOOM_MAX),
   };
 }
 

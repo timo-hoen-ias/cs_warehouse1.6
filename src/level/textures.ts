@@ -18,7 +18,9 @@ export function setTextureQuality(q: 'high' | 'low'): void {
 type Draw = (ctx: CanvasRenderingContext2D, s: number, r: () => number) => void;
 
 function make(key: string, draw: Draw, opts: { size?: number; repeat?: boolean; seed?: number } = {}): THREE.CanvasTexture {
-  const hit = cache.get(key);
+  // Cache je Texturgröße: der 3D-Menühintergrund baut „niedrig“, das Spiel danach evtl. „hoch“ (sonst blieben die kleinen Texturen)
+  const ck = `${maxSize}:${key}`;
+  const hit = cache.get(ck);
   if (hit) return hit;
   const base = opts.size ?? 256;
   const size = maxSize < 256 ? Math.max(64, base / 2) : base;
@@ -35,7 +37,7 @@ function make(key: string, draw: Draw, opts: { size?: number; repeat?: boolean; 
   tex.colorSpace = THREE.SRGBColorSpace;
   if (opts.repeat !== false) tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 4;
-  cache.set(key, tex);
+  cache.set(ck, tex);
   return tex;
 }
 
