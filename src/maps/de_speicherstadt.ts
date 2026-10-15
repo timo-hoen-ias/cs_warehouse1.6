@@ -64,8 +64,7 @@ export function buildSpeicherstadt(): MapData {
     .rect('W', -78, -4, -76, 4)
     .rect('W', -64, -4, -62, 4)
     .rect('K', -70, 6, -64, 12) // Pförtnerhaus (Schikane)
-    .rect('K', -76, -18, -68, -12) // Pumpenhaus (Schikane)
-    .rect('K', -70, -26, -64, -20) // Zollhäuschen (zweite Schikane, Ostseite): sperrt die 40-m-Linie aus dem Hof in die Banane
+    .rect('K', -76, -18, -70, -12) // Pumpenhaus (Schikane)
     .rect('.', -10, 8, 4, 48) // Untere Mitte (Lane unter der T-Rampe)
     .rect('.', 4, 22, 18, 46) // Kistenhof
     .rect('.', -18, -20, 10, 8) // Mitte
@@ -74,7 +73,7 @@ export function buildSpeicherstadt(): MapData {
     .rect('W', -8, -46, -6, -40)
     .rect('W', 6, -46, 8, -40)
     .rect('.', -16, -36, -6, -26) // Ladehof (Nische westlich der Oberen Mitte)
-    .rect('.', -36, -36, -16, -28) // Brückengasse (Ladehof → Hof B, zweite Route der T nach B)
+    .rect('r', -36, -36, -30, -28) // Brückengasse-Rampe (Hof B → Brückengasse)
     .rect('.', 10, -4, 62, 4) // Zweite Mitte (Gasse)
     .rect('.', 14, -34, 26, -4) // Kurz
     .rect('.', 10, -18, 14, -8) // Kurz-Tor (Durchgang Mitte → Kurz)
@@ -85,6 +84,7 @@ export function buildSpeicherstadt(): MapData {
     .rect('h', -16, -90, 16, -70) // CT-Hof
     .rect('b', 16, -84, 34, -74) // Bogen
     .rect('w', -34, -84, -16, -74) // CT-Passage
+    .rect('h', -30, -36, -16, -28) // Brückengasse (+1.6: Kaimauer zum Ladehof — die CT springen vom Hof hinunter, die T kommen nicht hinauf)
     .rect('h', -46, -84, -34, -54) // Baustelle
     .rect('h', -80, -62, -46, -54) // Dock
     .rect('o', -58, -72, -48, -64) // Büro auf dem Dock
@@ -204,6 +204,7 @@ export function buildSpeicherstadt(): MapData {
   b.ramp(-6, -70, 6, -58, 0, 1.6, 'nz', 'brick', rampOpts); // CT-Rampe
   b.ramp(-46, -54, -36, -42, 0, 1.6, 'nz', 'brick', rampOpts); // Baustellen-Rampe
   b.ramp(14, -42, 26, -34, 0, 1.6, 'nz', 'brick', rampOpts); // Kurz-Rampe
+  b.ramp(-36, -36, -30, -28, 0, 1.6, 'px', 'brick', rampOpts); // Brückengasse-Rampe
   b.ramp(48, -52, 56, -42, 0, 1.6, 'nx', 'brick', rampOpts); // Grubenrampe
   b.stairs(20, 44, 28, 56, 1.6, 4.4, 'nz', 'wood', { tint: 0xa88a6a }); // Treppe zum Speicherboden
   b.stairs(38, -46, 46, -38, 1.6, 4.4, 'pz', 'wood', { tint: 0xa88a6a }); // Balkontreppe
@@ -222,7 +223,7 @@ export function buildSpeicherstadt(): MapData {
   b.area('Obere Mitte', -6, -58, 6, -20);
   b.area('Fleet-Brücke', -8, -46, 8, -40);
   b.area('Ladehof', -16, -36, -6, -26);
-  b.area('Brückengasse', -36, -36, -16, -28);
+  b.area('Brückengasse', -36, -36, -16, -28, -1, 5);
   b.area('CT-Rampe', -6, -70, 6, -58);
   b.area('CT-Spawn', -16, -90, 16, -70, 0, 6);
   b.area('Zweite Mitte', 10, -4, 60, 4, -1, 3);
@@ -259,17 +260,15 @@ export function buildSpeicherstadt(): MapData {
   b.site('B', 'Serverschrank B', [-74, -1, -54], [-38, 4, -28], [-65.6, 0, -32.6]);
 
   // Bot-Hinweise: bewährte Rauchwürfe der T (Sichtblocker vor den Halte-Positionen der CT), Werte per Wurfsimulation geprüft
-  b.botHint({ kind: 'smoke', from: [-74.5, 0, -27.5], target: [-66, 0, -38], team: 'T', site: 'B' }); // aus der Banane auf die Serverschränke B
+  b.botHint({ kind: 'smoke', from: [-67.5, 0, -18.5], target: [-66, 0, -38], team: 'T', site: 'B' }); // aus der Banane auf die Serverschränke B
   b.botHint({ kind: 'smoke', from: [-71.5, 0, -22.5], target: [-70, 0, -42], team: 'T', site: 'B' }); // in den Hof, Richtung Dunkel
   b.botHint({ kind: 'smoke', from: [-75.5, 0, -26.5], target: [-62, 0, -44], team: 'T', site: 'B' }); // über den Brunnen
   b.botHint({ kind: 'smoke', from: [23.5, 1.1, -39.5], target: [40, 1.6, -56], team: 'T', site: 'A' }); // von der Kurz-Rampe vor den Kessel-Ausgang
   b.botHint({ kind: 'smoke', from: [31.5, 1.6, -46.5], target: [44, 1.6, -66], team: 'T', site: 'A' }); // aus dem Kessel auf die Container
   b.botHint({ kind: 'smoke', from: [61.5, 0, -50.5], target: [56, 1.6, -70], team: 'T', site: 'A' }); // aus der Grube in den Friedhof
   b.botHint({ kind: 'smoke', from: [57.5, 0, -42.5], target: [52, 1.6, -62], team: 'T', site: 'A' }); // aus der Grube auf die Serverschränke A
-  // Bot-Hinweise: T pflanzen an der eigenen Seite der Serverreihen (Deckung gegen die CT im Norden, kurze Wege vom Eingang)
-  b.botHint({ kind: 'plant', pos: [45.5, 1.6, -49.4], site: 'A' });
-  b.spawnGrid('T', -13, 1.6, 63, 8, 2, 3, 0);
-  b.spawnGrid('CT', -2, 1.6, -81, 8, 2, 3, Math.PI);
+  b.spawnGrid('T', -11, 1.6, 63, 8, 2, 3, 0);
+  b.spawnGrid('CT', -2, 1.6, -72, 8, 2, 3, Math.PI);
   b.buy('T', -34, 60, 16, 82);
   b.buy('CT', -16, -90, 16, -70);
 

@@ -8,8 +8,9 @@ export function dressSiteB(b: B): void {
   prop(b, 'gasLamp', -58.4, 0, -45.4);
   prop(b, 'gasLamp', -51.6, 0, -38.6);
   // Serverschränke (IT-Provisorium) nahe am Eingang: zwei Reihen gegenüber, USV, Klimagerät, Plane
-  prop(b, 'serverRow', -68.4, 0, -32.6, { rot: 3, n: 4 });
-  prop(b, 'serverRow', -62.8, 0, -32.6, { rot: 1, n: 4 });
+  // Reihen 3 m nach Norden versetzt (nicht mehr flankierend am Pflanzpunkt): Planter am B-Eingang sind für die CT einsehbar
+  prop(b, 'serverRow', -68.4, 0, -35.8, { rot: 3, n: 4 });
+  prop(b, 'serverRow', -62.8, 0, -35.8, { rot: 1, n: 4 });
   prop(b, 'ups', -68.4, 0, -29.4);
   prop(b, 'cooler', -62.8, 0, -29.2);
   b.decal({ kind: 'letter', pos: [-65.6, 0.02, -32.6], size: [5.6, 5.6], text: 'B', color: 0xffffff });
@@ -33,8 +34,7 @@ export function dressSiteB(b: B): void {
   prop(b, 'crateStack', -48, 0, -31);
   prop(b, 'handTruck', -58, 0, -31, { rot: 2 });
   prop(b, 'gasLamp', -45, 0, -52.4);
-  // Container in der NW-Ecke des Hofs: nimmt den CT die Ecke mit Sicht an der Westwand entlang auf den B-Eingang
-  prop(b, 'container', -74.8, 0, -51, { rot: 1, tint: 0x6a5a3a });
+  prop(b, 'gasLamp', -74, 0, -52.4);
   prop(b, 'gasLamp', -37.6, 0, -30);
 
   // Verladerampe (Dock, +1.6 m): Tore, Ware, Treppe zum Hof
@@ -44,8 +44,7 @@ export function dressSiteB(b: B): void {
   prop(b, 'rollerDoor', -62, Y, -62 + F * 0.5, { rot: 0, len: 3.4, h: 3.6, tint: 0x7a4a32 });
   hoists(b, 'pz', -62, -80, -64, Y, 2, 6, { len: 1.5, load: 1 });
   hoists(b, 'pz', -62, -80, -60, Y, 3, 6, { len: 1.5, first: 3, load: 2 });
-  prop(b, 'container', -74.2, Y, -58.6, { rot: 0, tint: 0x3a5a7a }); // sperrt den Scharfschützenplatz am Dock-Westende
-  prop(b, 'sacks', -69.4, Y, -59.8, { len: 3.6, n: 3 });
+  prop(b, 'sacks', -72.4, Y, -59.8, { len: 3.6, n: 3 });
   prop(b, 'palletGoods', -65.4, Y, -59.4, { tint: 0xc9ad7c });
   prop(b, 'palletGoods', -65.4, Y, -58.2, { tint: 0xb8996a });
   prop(b, 'handTruck', -58, Y, -59.4, { rot: 0 });

@@ -5,7 +5,8 @@ import { F, awning, edge, hoists, ladder, lamp, line, plate, shop, type B } from
 export function dressSiteA(b: B): void {
   const Y = 1.6;
   // Serverschränke der IT: zwei Reihen gegenüber, USV, Klimagerät; Container und Plane daneben
-  prop(b, 'serverRow', 45.5, Y, -58.5, { rot: 0, n: 4 });
+  // Nordreihe 6 m nach Norden versetzt: der Planter steht nicht mehr im Schutz zweier Reihen, die CT sehen ihn (Balance, Plant-Rate der T)
+  prop(b, 'serverRow', 45.5, Y, -64.5, { rot: 0, n: 4 });
   prop(b, 'serverRow', 45.5, Y, -51.5, { rot: 2, n: 4 });
   b.light({ kind: 'lamp', pos: [45.5, Y + 3.4, -55], color: 0xcfe4ff, intensity: 1.3, range: 10 });
   prop(b, 'ups', 42.4, Y, -55);
