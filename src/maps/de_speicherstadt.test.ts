@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { loadMapData } from './index';
-import { compileMap, brushItem } from '../logic/mapcompile';
+import { compileMap, brushItem, siteAt } from '../logic/mapcompile';
 import { astar, nearestNode, routeLength } from '../logic/nav';
 import { MAX_WALK_SLOPE, rampSlope } from '../logic/collision';
 import { PLAYER } from '../logic/move';
+import { HeadlessMatch, summarize } from '../logic/botSim';
 
 /**
  * Kartenspezifische Topologie von de_speicherstadt (de_inferno als Hafen-Speicherviertel):
@@ -175,4 +176,81 @@ describe('de_speicherstadt: Inferno-Topologie', () => {
       expect(left, `Reihe in Reichweite des Pflanzpunkts ${site}`).toBe(true);
     }
   });
+});
+
+/**
+ * Balance (Bot-Simulation, siehe IMPLEMENTIERUNGSPLAN M4): die CT sahen vom Hof B (NW-Ecke, Dock) 40–50 m an der Westwand
+ * entlang in die Banane; die T stauten sich dort und trafen sich gegenseitig. Die Gegenmaßnahmen sind absichtlich.
+ */
+describe('de_speicherstadt: Balance (Sichtlinien, Laufzeiten)', () => {
+  const col = map.collider;
+  const EYE = PLAYER.eye;
+
+  it('B-Eingang ist eine S-Schikane (Pumpenhaus West, Zollhäuschen Ost): vom Hof sieht man nicht in die Banane-Brücke', () => {
+    let clear = 0;
+    for (let sx = -76; sx <= -68; sx += 2) for (let sz = -54; sz <= -40; sz += 2) for (let tx = -75; tx <= -65; tx += 2) for (let tz = -12; tz <= 0; tz += 2) {
+      if (col.clear({ x: sx, y: EYE, z: sz }, { x: tx, y: EYE, z: tz })) clear++;
+    }
+    expect(clear).toBeLessThanOrEqual(2);
+    // Schikane ist kein Sperrriegel: jeder Durchgang ist mindestens 4 m breit und die T kommen hindurch
+    expect(areasOn(map.zones.t, map.zones.b)).toContain('B-Eingang');
+  });
+
+  it('T-Laufzeiten bleiben im Fenster (18–25.5 s Sprint) und behalten ≥ 0.4 s Reserve; CT → B bleibt unter 15 s', () => {
+    const RUN = PLAYER.sprintSpeed;
+    for (const to of [map.zones.a, map.zones.b]) {
+      const t = routeLength(g, map.zones.t, to) / RUN;
+      expect(t).toBeGreaterThanOrEqual(18);
+      expect(t).toBeLessThanOrEqual(25.1);
+    }
+    expect(routeLength(g, map.zones.ct, map.zones.b) / RUN).toBeLessThanOrEqual(15);
+  });
+
+  it('keine Navigationsknoten im Wasser: Bots können nicht ins Fleet fallen und dort festsitzen', () => {
+    let low = 0;
+    for (let i = 0; i < g.count; i++) if (g.y[i]! < -0.3) low++;
+    expect(low).toBe(0);
+  });
+
+  it('Container sperren die CT-Scharfschützenplätze: NW-Ecke des Hofs B und Dock-Westende', () => {
+    const boxes = data.brushes.filter((b) => b.mat === 'container' && !b.ramp);
+    const near = (x: number, z: number) => boxes.some((b) => b.min[0] <= x && b.max[0] >= x && b.min[2] <= z && b.max[2] >= z);
+    expect(near(-74.8, -51)).toBe(true);
+    expect(near(-74.2, -58.6)).toBe(true);
+  });
+
+  it('Pflanzhinweis der T für A liegt im Spot, hinter den Serverreihen (Deckung gegen Norden) und nicht weiter weg als der Pflanzpunkt', () => {
+    const h = (data.botHints ?? []).find((q) => q.kind === 'plant' && q.site === 'A');
+    expect(h).toBeDefined();
+    if (!h || h.kind !== 'plant') return;
+    const p = { x: h.pos[0], y: h.pos[1], z: h.pos[2] };
+    expect(siteAt(map.sites, p)).toBe('a');
+    const centre = map.sites.find((q) => q.id === 'A')!.plant;
+    expect(routeLength(g, map.zones.t, p)).toBeLessThanOrEqual(routeLength(g, map.zones.t, { x: centre[0], y: centre[1], z: centre[2] }) + 0.5);
+    // Serverreihe (2 m hoch) verdeckt den Hinweis vor der Nordhalle des A-Hofs
+    expect(col.clear({ x: p.x, y: p.y + EYE, z: p.z }, { x: p.x, y: p.y + EYE, z: -66 })).toBe(false);
+  });
+});
+
+/**
+ * Balance-Wächter: Bot-Simulation (5 gegen 5, Skill 0.6, 4 Seeds × 20 Runden). Vor dem Umbau ≈ 38 % T (Autor: 31 %), B nur ≈ 35 %.
+ * Die Schwellen sind weit, weil die Simulation je Seed stark streut (Economy-Schneeball, Teamkills in Warteschlangen).
+ */
+describe('de_speicherstadt: Balance (Bot-Simulation)', () => {
+  it('T gewinnen 30–70 % der Runden, es wird auf beiden Spots gepflanzt, niemand sitzt fest', () => {
+    const stats = [1, 2, 3, 4].flatMap((seed) => {
+      const sim = new HeadlessMatch(map, { perTeam: 5, skill: 0.6, seed });
+      sim.runRounds(20);
+      return sim.stats;
+    });
+    const s = summarize(stats);
+    const tShare = (s.tWins as number) / stats.length;
+    expect(stats.length).toBeGreaterThanOrEqual(60);
+    expect(tShare).toBeGreaterThanOrEqual(0.3);
+    expect(tShare).toBeLessThanOrEqual(0.7);
+    for (const site of ['a', 'b']) expect(stats.filter((r) => r.plantSite === site).length, `Plants ${site}`).toBeGreaterThanOrEqual(10);
+    expect(s.wallViolations).toBe(0);
+    expect(s.fallViolations).toBe(0);
+    expect(s.maxStuck as number).toBeLessThanOrEqual(6);
+  }, 180_000);
 });
