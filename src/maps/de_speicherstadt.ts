@@ -16,6 +16,10 @@ import { dressCT } from './speicherstadt/ct';
  * Bibliothek (Archiv), Grube und Kessel (Kurz). Bombenziele: Serverschränke, die die IT „in die
  * Nähe gestellt“ hat.
  *
+ * Balance (Bot-Simulation, IMPLEMENTIERUNGSPLAN M4): Die Brückengasse liegt auf Hochkai-Höhe (+1.6 m) und ist eine Kaimauer-Einbahn — die CT
+ * kommen vom Hof B über die Rampe hinauf und springen in den Ladehof hinunter, die T gelangen nur über die Banane nach B. Der CT-Spawn liegt
+ * am Fuß der CT-Rampe, die Serverreihen stehen nicht flankierend an den Pflanzpunkten.
+ *
  * Aufbau: ein Grundriss (2-m-Raster), Rampen/Treppen/Brücke explizit, Ausstattung je Bereich in
  * `speicherstadt/*.ts`. Höhen: Mitte/Gassen/B/Grube 0, Hochkai (T, CT, A) +1.6, Speicherboden/Balkon +4.4.
  */

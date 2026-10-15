@@ -207,6 +207,7 @@ Was die Bots von einer Karte erwarten (M6.3, gilt für beide Teams):
 - **Keine langen Sichtachsen aus T-Gebieten auf CT-Plätze oder den CT-Spawn** (> 40 m aus Mitte, Gassen, Obergeschossen): Die T erschießen Anker, Rotierer und Rettende aus der
   Ferne (Befund de_speicherstadt: Brückengasse/Ladehof → Hof B, Wohnungen Nord → A, Mitte → CT-Rampe → CT-Spawn; die Karte bleibt ≈ 65–70 % T). Messen: Kill-Positionen der
   Simulation bzw. Knotenpaare mit `collider.clear` (wie in `de_speicherstadt.test.ts`).
+  *Messbefund (de_speicherstadt, Runde 2):* Sichtlinien sind gegenseitig — das Brechen langer Achsen zu den CT-Plätzen verbesserte die T eher. Wirksam waren die **Zahl der T-Wege** je Spot (ein Nebenweg, den die CT nicht mit abdecken können, kostet ≈ 15 Punkte; als Einbahn/Absatz sperren, für die CT als Rotation lassen), ein CT-Spawn nahe der Rampe und Pflanzpunkte, die nicht beidseitig von Schrankreihen gedeckt sind.
 - **Balance-Wächter:** Jede Karte ruft in `src/maps/<id>.test.ts` `balanceGuard('<id>')` auf (`src/maps/balanceGuard.ts`: 5 Seeds × 20 Runden, T 30–70 %, Plants auf beiden
   Spots, keine Wand-/Fallfehler, Festsitzen ≤ 6 s). Für Aussagen zur Balance ≥ 2 × 24 Seeds rechnen (Streuung ±4–5 Punkte je Block).
 
