@@ -3,6 +3,8 @@ import { MAPS, loadMapData, mapById } from './index';
 import { compileMap, inBuyZoneBox, siteAt } from '../logic/mapcompile';
 import { astar, nearestNode, reachableFrom, routeLength, type NavGraph } from '../logic/nav';
 import { PLAYER } from '../logic/move';
+import { analyzeMap, portalHoldSpots, routesTo, siteEntrances } from '../logic/botMap';
+import { solveThrow } from '../logic/botThrow';
 
 /**
  * Karten-Validator: jede registrierte Karte muss spielbar sein (Spawns, Spots,
@@ -155,5 +157,24 @@ describe.each(MAPS.map((m) => m.id))('Karte %s', (id) => {
       for (let k = 0; k < 3; k++) expect(b.max[k]!).toBeGreaterThan(b.min[k]!);
     }
     for (const l of data.lights) expect(inside(l.pos)).toBe(true);
+  });
+
+  it('Bots: jede Seite hat T-Routen, jeder Angriffseingang CT-Halte-Positionen; Bot-Hinweise sind gültig', () => {
+    const info = analyzeMap({ nav: g, collider: col, sites: map.sites, spawns: map.spawns, hints: data.botHints });
+    for (const s of info.sites) {
+      expect(routesTo(info, 'T', s.id).length, `T-Routen zu ${s.id}`).toBeGreaterThanOrEqual(1);
+      for (const pid of siteEntrances(info, s, 'attack')) expect(portalHoldSpots(info, pid, 'CT').length, `Halten ${s.id}`).toBeGreaterThanOrEqual(1);
+    }
+    for (const h of data.botHints ?? []) {
+      if (h.kind === 'smoke') {
+        const eye = { x: h.from[0], y: h.from[1] + 1.6, z: h.from[2] };
+        expect(solveThrow(col, 'smoke', eye, { x: h.target[0], y: h.target[1], z: h.target[2] }), `Rauch ${JSON.stringify(h)}`).not.toBeNull();
+        continue;
+      }
+      const n = nearestNode(g, h.pos[0], h.pos[1], h.pos[2], 1.6);
+      expect(n, `Hinweis auf Navigation ${JSON.stringify(h)}`).toBeGreaterThanOrEqual(0);
+      expect(Math.abs(g.y[n]! - h.pos[1])).toBeLessThan(1);
+      if (h.kind === 'plant') expect(siteAt(map.sites, { x: h.pos[0], y: h.pos[1], z: h.pos[2] })).toBe(h.site.toLowerCase());
+    }
   });
 });

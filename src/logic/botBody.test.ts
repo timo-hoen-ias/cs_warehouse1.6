@@ -65,6 +65,14 @@ describe('Bot-Körper', () => {
     expect(body.pose.z).toBeLessThan(zBefore - 4); // weiter Richtung Spot, nicht zurück zum ersten Wegpunkt
   });
 
+  it('leicht verschobenes Ziel (gleicher Plan) wird übernommen statt am alten stehen zu bleiben', () => {
+    const body = new BotBody({ x: 3, y: 0, z: 60, yaw: 0, pitch: 0 });
+    let t = run(body, intent({ goal: { x: 3, y: 0, z: 60 }, plan: 5 }), 0.5);
+    expect(body.speed).toBeLessThan(0.3);
+    t = run(body, intent({ goal: { x: 4.3, y: 0, z: 58.8 }, plan: 5 }), 1.5, t);
+    expect(Math.hypot(body.pose.x - 4.3, body.pose.z - 58.8)).toBeLessThan(0.5);
+  });
+
   it('Strafen nur auf begehbarem Boden (nicht in Wände)', () => {
     const body = new BotBody({ x: 1, y: 0, z: 50, yaw: 0, pitch: 0 });
     run(body, intent({ strafe: { x: -1, z: 0 }, speed: 'walk' }), 1);

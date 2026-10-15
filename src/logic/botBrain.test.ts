@@ -189,7 +189,7 @@ describe('Bot-Gehirn: Aufträge', () => {
     let it = b.think(input({ task, lo, pos: { x: 3, y: 0, z: 34 }, weapon: 'ak47' }));
     expect(it.state).toContain('Granate');
     expect(it.weapon).toBe('smokegrenade');
-    let thrown = null;
+    let thrown: typeof it.throwNade = null;
     for (let i = 0; i < 20 && !thrown; i++) {
       it = b.think(input({ task, lo, pos: { x: 3, y: 0, z: 34 }, weapon: 'smokegrenade', now: 50 + i * 0.05 }));
       thrown = it.throwNade;

@@ -80,6 +80,8 @@ export class BotBody {
   private viaDone = new WeakMap<XYZ[], number>();
   private goal: XYZ | null = null;
   private planKey = '';
+  /** Ziel hat sich leicht verschoben → beim nächsten erlaubten Zeitpunkt neu planen. */
+  private stale = false;
   private repathAt = 0;
   private stuckT = 0;
   private stuckRef = { x: 0, z: 0 };
@@ -101,6 +103,7 @@ export class BotBody {
     this.via = [];
     this.goal = null;
     this.planKey = '';
+    this.stale = false;
     this.crouch = false;
     this.speed = 0;
     this.stillFor = 0;
@@ -196,11 +199,11 @@ export class BotBody {
       if (replan) {
         this.viaSrc = it.via;
         this.via = remainingVia(it.via, this.viaDone.get(it.via) ?? 0, this.feet);
-        this.goal = { ...goal };
         this.path = [];
         this.pathAt = 0;
         this.repathAt = 0;
-      }
+      } else this.stale = true; // Ziel leicht verschoben: alten Pfad weiterlaufen, bald neu planen
+      this.goal = { ...goal };
     }
     // Erreichte Routen-Wegpunkte abhaken (Fortschritt je Wegpunktliste merken)
     while (this.via.length) {
@@ -220,9 +223,10 @@ export class BotBody {
       this.path = [];
       return null;
     }
-    if ((!this.path.length || this.pathAt >= this.path.length) && env.now >= this.repathAt) {
+    if ((this.stale || !this.path.length || this.pathAt >= this.path.length) && env.now >= this.repathAt) {
       const res = findPath(env.nav, env.col, this.feet, sub, { avoid: it.avoid });
       this.repathAt = env.now + BODY.repath;
+      this.stale = false;
       if (res) {
         this.path = res.points;
         this.pathAt = 0;
