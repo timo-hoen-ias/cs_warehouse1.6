@@ -4,6 +4,7 @@ import { compileMap } from '../logic/mapcompile';
 import { astar, nearestNode, routeLength } from '../logic/nav';
 import { MAX_WALK_SLOPE, rampSlope } from '../logic/collision';
 import { brushItem } from '../logic/mapcompile';
+import { PLAYER } from '../logic/move';
 
 /**
  * Kartenspezifische Topologie von de_kuehlhaus (de_nuke als Kühlhaus): B liegt direkt UNTER A,
@@ -90,10 +91,89 @@ describe('de_kuehlhaus: Nuke-Topologie', () => {
     expect(area('Himmel').center.y).toBeGreaterThanOrEqual(4.4);
   });
 
-  it('Hütte (Quietschtür) ist der kürzeste Weg der T nach A, nicht der Dachweg', () => {
+  it('der kürzeste Weg der T nach A führt durch die Lobby (Hütte oder Frachtflur), nicht über den Dachweg', () => {
     const route = areasOn(map.zones.t, map.zones.a);
-    expect(route).toContain('Quietschtür');
-    expect(route).toContain('Hütte');
+    expect(route).toContain('Lobby');
+    expect(route.includes('Hütte') || route.includes('Frachtflur')).toBe(true);
     expect(route).not.toContain('Westdach');
+  });
+});
+
+/**
+ * Balance (Bot-Simulation, siehe IMPLEMENTIERUNGSPLAN M4): die CT hielten die Karte mit langen Sichtlinien
+ * (Hütte, Geheimgang) und nur zwei T-Zugängen zu A. Diese Eigenschaften sind absichtlich und werden hier gesichert.
+ */
+describe('de_kuehlhaus: Balance (Zugänge, Sichtlinien)', () => {
+  const RUN = PLAYER.sprintSpeed;
+  const EYE = PLAYER.eye;
+  const col = map.collider;
+  const names = (n: string): string[] => area(n).neighbors.map((i) => g.areas[i]!.name);
+  /** Laufzeit (Sprint) T-Spawn → Zwischenpunkt → Ziel. */
+  const via = (mid: P, to: P): number => (routeLength(g, map.zones.t, mid) + routeLength(g, mid, to)) / RUN;
+
+  it('Halle A hat drei Zugänge für T: Hütte, Frachtflur (beide aus der Lobby) und Hölle (Westgang)', () => {
+    expect(names('Hütte')).toContain('Halle A');
+    expect(names('Frachtflur')).toEqual(expect.arrayContaining(['Lobby', 'Halle A']));
+    expect(names('Hölle')).toContain('Westgang');
+  });
+
+  it('beide Lobby-Zugänge zu A liegen im T-Zeitfenster (18–25.5 s) und sind etwa gleich schnell', () => {
+    const hut = via(area('Hütte').center, map.zones.a);
+    const freight = via(area('Frachtflur').center, map.zones.a);
+    for (const t of [hut, freight]) {
+      expect(t).toBeGreaterThanOrEqual(18);
+      expect(t).toBeLessThanOrEqual(25.5);
+    }
+    expect(Math.abs(hut - freight)).toBeLessThan(3);
+  });
+
+  it('der Geheimgang bleibt im T-Zeitfenster nach B', () => {
+    const t = via(area('Geheimgang').center, map.zones.b);
+    expect(t).toBeGreaterThanOrEqual(18);
+    expect(t).toBeLessThanOrEqual(25.5);
+  });
+
+  it('kein Durchblick durch die Hütte: Quietschtür und Hüttentür sind um 8 m versetzt', () => {
+    for (const x of [3, 4, 5, 7, 8, 9, 11, 12, 13]) {
+      expect(col.clear({ x, y: EYE, z: 20 }, { x, y: EYE, z: -30 }), `x=${x}`).toBe(false);
+    }
+  });
+
+  it('kein Durchblick durch die Frachtflur von Halle A in die Lobby', () => {
+    for (const x of [24.5, 26, 27.5, 19, 21]) {
+      expect(col.clear({ x, y: EYE, z: 20 }, { x, y: EYE, z: -30 }), `x=${x}`).toBe(false);
+    }
+  });
+
+  it('Geheimgang: Nordtunnel hat keine freie Sichtlinie über 28 m (vorher 38 m; Brandschutzwände mit versetzten Durchgängen)', () => {
+    const y = -5 + EYE;
+    let longest = 0;
+    for (let x = 46.3; x <= 49.7; x += 0.2) {
+      let free = 0;
+      for (let z = -50; z < 0; z += 0.5) {
+        const open = col.clear({ x, y, z }, { x, y, z: z + 0.5 });
+        free = open ? free + 0.5 : 0;
+        longest = Math.max(longest, free);
+      }
+    }
+    expect(longest).toBeLessThanOrEqual(28);
+  });
+
+  it('Geheimgang: vom Rampenfuß sieht man nicht in den Nordtunnel (versetzter Knick)', () => {
+    const y = -5 + EYE;
+    for (const x of [52, 54, 56]) expect(col.clear({ x, y, z: 20 }, { x: x - 6, y, z: -30 }), `x=${x}`).toBe(false);
+  });
+
+  it('B hat zwei Tunnelmünder aus dem Geheimgang (Kaltgang und hinter den Serverreihen)', () => {
+    // Bodenzellen am Ostrand von B (x 44…46): zwei getrennte Öffnungen, dazwischen Wand
+    const open = (z: number): boolean => col.clear({ x: 42, y: -5 + EYE, z }, { x: 48, y: -5 + EYE, z });
+    const mouths = [-35, -47].filter(open);
+    expect(mouths).toHaveLength(2);
+    expect(open(-41)).toBe(false);
+  });
+
+  it('Deckung vor den Türen der Halle: Container versperrt die Linie Hüttentür → Spot-Nordwand', () => {
+    expect(col.clear({ x: 12, y: EYE, z: -15 }, { x: 12, y: EYE, z: -40 })).toBe(false);
+    expect(col.clear({ x: 26, y: EYE, z: -15 }, { x: 26, y: EYE, z: -40 })).toBe(false);
   });
 });

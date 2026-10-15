@@ -25,7 +25,7 @@ export function dressLobby(b: B): void {
   prop(b, 'palletGoods', 21, 0, 12, { cold: true });
   prop(b, 'cartons', 20.5, 0, 17, { cold: true });
   prop(b, 'palletStack', 21.2, 0, 23.4, { n: 5 });
-  prop(b, 'handTruck', 20, 0, 6, { rot: 2 });
+  prop(b, 'handTruck', 15.8, 0, 6.5, { rot: 2 });
   prop(b, 'electricBox', 14, 0, 4.2 + F, { rot: 0, tint: 0xa8b0a0 });
   b.decor('extinguisher', [16.5, 1.2, 4.3], 0);
   b.decor('extinguisher', [10.3, 1.2, 25.5], 0);
@@ -41,7 +41,7 @@ export function dressLobby(b: B): void {
   lampGrid(b, -6, 8, 18, 22, 3, 3, 6.6, { intensity: 1.35, range: 15 });
   b.light({ kind: 'window', pos: [10, 2.6, 28.2], color: 0xe2efff, intensity: 1.0, range: 16 });
   // Wegweiser
-  hangSign(b, 'HALLE A →', 8, 4.6, 6.2, 0xffd040, 'HÜTTE · QUIETSCHTÜR', 4.4);
+  hangSign(b, 'HALLE A →', 5, 4.6, 6.2, 0xffd040, 'HÜTTE · QUIETSCHTÜR', 4.4);
   b.sign('RAMPENRAUM', [-15.85, 3.4, 12], 'px', 3.4, 0.8, { color: 0x7fc0ff, sub: '← KELLER · B' });
   b.sign('WESTGANG', [-13.9, 3.6, 4.15], 'pz', 3, 0.8, { color: 0xffb070, sub: '→ HALLE A · HÖLLE' });
   b.sign('LOBBY', [10, 6.2, 25.85], 'nz', 4, 1.0, { color: 0xf0f6fa, bg: 0x2f78c0, sub: 'KÜHLHAUS · EMPFANG' });
@@ -52,14 +52,32 @@ export function dressLobby(b: B): void {
   prop(b, 'locker', 13.6, 0, -4, { rot: 1 });
   prop(b, 'locker', 13.6, 0, -2.9, { rot: 1 });
   prop(b, 'shelf', 7, 0, -9.6, { len: 2.4 });
-  prop(b, 'cartons', 12.5, 0, -8.8, { cold: true });
+  prop(b, 'cartons', 3.6, 0, -9.0, { cold: true });
   prop(b, 'electricBox', 14 - F, 0, 0.4, { rot: 1 });
   b.box([3.1, 0.78, -5.6], [3.14, 1.15, -5.2], 'emissive', { collide: 'none', tint: 0x6fb0ff, noNav: true, occlude: false });
   b.sign('PFÖRTNER', [8, 3.1, 1.86], 'nz', 3, 0.7, { color: 0xffd040, sub: 'TÜR QUIETSCHT · NICHT ÖLEN' });
   b.sign('HALLE A', [8, 3.1, -9.86], 'pz', 3, 0.7, { color: 0xff7a5a, sub: 'KÜHLZONE · JACKE ANZIEHEN' });
   tubeRow(b, 5, -4, 11, -4, 2, 3.65, true, { intensity: 0.9, range: 8 });
   tubeRow(b, 8, 0, 8, -8, 2, 3.65, false, { intensity: 0.7, range: 7 });
-  frost(b, 8, 0, -12, 4, 4);
+  frost(b, 12, 0, -12, 4, 4);
+
+  // Frachtflur (x 18…22, z −8…4, dann Knick nach Osten und Nord zur Halle A): Staplerweg, zweiter Zugang zur Halle
+  tubeRow(b, 20, 2, 20, -6, 3, 3.45, false, { intensity: 0.9, range: 8 });
+  tubeRow(b, 23, -6, 27, -6, 2, 3.45, true, { intensity: 0.9, range: 8 });
+  tubeRow(b, 26, -9.5, 26, -12.5, 2, 3.45, false, { intensity: 0.9, range: 8 });
+  prop(b, 'stripCurtain', 20, 0, 3.85, { len: 3.4, h: 3.0 });
+  prop(b, 'palletGoods', 18.7, 0, 0.4, { cold: true, rot: 1 });
+  prop(b, 'palletGoods', 18.7, 0, -0.9, { cold: true, rot: 1 });
+  prop(b, 'electricBox', 22 - F, 0, 1.5, { rot: 3 });
+  b.decor('extinguisher', [27.7, 1.2, -4.3], 0);
+  b.decal({ kind: 'line', pos: [20, 0.02, -2], size: [0.15, 12], color: 0xe8c020 });
+  b.decal({ kind: 'line', pos: [26, 0.02, -8], size: [0.15, 12], color: 0xe8c020 });
+  b.decal({ kind: 'arrow', pos: [20, 0.02, -3], size: [2, 3], rot: 0, color: 0xe8e8e8 });
+  edge(b, 18, 3.6, 22, 4, 0);
+  frost(b, 20, 0, 0, 4, 6);
+  b.sign('FRACHTFLUR', [20, 5.4, 4.15], 'pz', 3.8, 0.8, { color: 0xffd040, sub: '→ HALLE A · NUR STAPLER' });
+  b.sign('HALLE A', [20, 3.0, -7.85], 'pz', 2.6, 0.6, { color: 0xff7a5a, sub: '→ DURCHGANG' });
+  b.sign('FRACHTFLUR', [26, 4.4, -14.15], 'nz', 3.4, 0.8, { color: 0xffd040, sub: '↓ LOBBY · STAPLERVERKEHR' });
 
   // Westgang (x −16…−12, z −20…4)
   edge(b, -16, 3.6, -12, 4, 0);

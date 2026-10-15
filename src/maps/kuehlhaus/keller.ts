@@ -94,21 +94,28 @@ export function dressKeller(b: B): void {
   b.light({ kind: 'lamp', pos: [53, -3.5, 40], color: 0xdbeaff, intensity: 0.8, range: 10 });
   tubeRow(b, 53, 28, 53, 8, 5, -0.95, false, { intensity: 1.0, range: 9 });
   tubeRow(b, 54, 3, 46, 3, 3, -0.95, true, { intensity: 1.0, range: 9 });
-  tubeRow(b, 49, -2, 49, -36, 6, -0.95, false, { intensity: 1.0, range: 9 });
+  tubeRow(b, 48, -2, 48, -48, 7, -0.95, false, { intensity: 1.0, range: 9 });
   b.tubeLamp(45, -0.95, -35, true, { intensity: 1.0, range: 9 });
+  b.tubeLamp(45, -0.95, -47, true, { intensity: 1.0, range: 9 });
   b.decor('pipeZ', [51, -1.5, 18], 0, [1.2, 1.2, 24], 0xd8dde2);
   b.decor('pipeZ', [51.7, -1.9, 18], 0, [0.7, 0.7, 24], 0xc0442e);
   b.decor('pipeX', [50, -1.5, 3.6], 0, [12, 1.2, 1.2], 0xd8dde2);
   b.decor('pipeZ', [46.6, -1.5, -18], 0, [1.2, 1.2, 38], 0xd8dde2);
   b.decor('cableTrayZ', [55.3, -1.6, 18], 0, [1, 1, 24]);
   prop(b, 'electricBox', 56 - F, FLOOR, 22, { rot: 1 });
-  prop(b, 'electricBox', 46 + F, FLOOR, -8, { rot: 3 });
+  prop(b, 'electricBox', 46 + F, FLOOR, -12, { rot: 3 });
   prop(b, 'cartons', 54.6, FLOOR, 10, { cold: true });
-  prop(b, 'barrel', 47.4, FLOOR, -14);
-  prop(b, 'palletGoods', 51.2, FLOOR, -26, { cold: true });
+  prop(b, 'barrel', 47.4, FLOOR, -11);
+  // Slalom im Nordtunnel (4 m breit): Regale wechselseitig an der Wand → keine 40-m-Sichtlinie, Deckung für Angreifer
+  // Brandschutzwände mit versetzten 2-m-Durchgängen (Streifenvorhang): jede Gerade im Nordtunnel wird irgendwo gesperrt
+  // (Durchgänge wechseln die Seite an x = 48) → Knick statt 40-m-Sichtlinie, Ecken zum Peeken für Angreifer
+  for (const [z, x0, x1] of [[-10, 48, 50], [-22, 46, 48], [-30, 48, 50]] as const) {
+    b.box([x0, FLOOR, z - 0.2], [x1, -0.8, z + 0.2], 'panel', { tint: 0xdde6ec, tag: 'wall' });
+    prop(b, 'stripCurtain', x0 === 48 ? 47 : 49, FLOOR, z, { len: 2.0, h: 2.8 });
+  }
   prop(b, 'gitterbox', 51.4, FLOOR, 5, { n: 1, rot: 1 });
   b.sign('GEHEIMGANG', [53, -2.2, 29.85], 'nz', 4, 0.9, { color: 0xffd040, sub: 'SERVICE · NUR PERSONAL' });
-  b.sign('B ↑', [49, -2.2, -37.85], 'pz', 2.4, 0.8, { color: 0xffb13a, sub: 'RECHENZENTRUM' });
+  b.sign('B ↑', [48, -2.2, -49.85], 'pz', 2.4, 0.8, { color: 0xffb13a, sub: 'RECHENZENTRUM' });
   b.sign('HOF', [49, -2.2, 3.15], 'pz', 2.2, 0.7, { color: 0xffd040, sub: '↓ AUSGANG' });
   b.ambient('ventilation', [51, -3, 14], 14, 0.5);
   b.ambient('drip', [48, -3, -10], 8, 0.5);
