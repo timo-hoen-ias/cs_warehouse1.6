@@ -7,6 +7,7 @@ import { defaultLoadout } from './loadout';
 import { makeGun } from './fire';
 import { WEAPONS } from './weapons';
 import type { DroppedItem } from './drops';
+import type { LobbyConfig } from './lobby';
 
 /**
  * Netzwerk-Protokoll (pure Typen + Helfer). Transport: Needle `context.connection`
@@ -18,7 +19,8 @@ import type { DroppedItem } from './drops';
  * Granaten und Bots rechnet der Host und verteilt Snapshots + Ereignisse.
  */
 export type PoseMsg = { t: 'pose'; id: string; x: number; y: number; z: number; yaw: number; pitch: number; w: string; c: boolean; m: boolean; e: boolean };
-export type HelloMsg = { t: 'hello'; id: string; name: string; team: Team | 'auto' };
+/** `pw` = Passwort-Prüfsumme (lobby.ts), `v` = Spielversion (serverList.ts) — beide optional für ältere Clients. */
+export type HelloMsg = { t: 'hello'; id: string; name: string; team: Team | 'auto'; pw?: string | null; v?: string };
 export type FireMsg = { t: 'fire'; id: string; w: string; o: [number, number, number]; d: [number, number, number][]; seq: number };
 export type ThrowMsg = { t: 'throw'; id: string; kind: GrenadeKind; o: [number, number, number]; d: [number, number, number]; s: number };
 export type BuyMsg = { t: 'buy'; id: string; item: string };
@@ -49,7 +51,9 @@ export type GameEvent =
   | { k: 'drop'; item: DroppedItem; by: string | null }
   | { k: 'pickup'; id: number; by: string; weapon: string }
   | { k: 'join'; id: string; name: string; team: Team }
-  | { k: 'leave'; id: string; name: string };
+  | { k: 'leave'; id: string; name: string }
+  /** Host lehnt einen Beitritt ab (Passwort, voll, Version); der Client verlässt den Raum. */
+  | { k: 'kick'; id: string; reason: string };
 
 /** Kompakter Spieler-Snapshot. */
 export type PlayerSnap = {
@@ -88,6 +92,8 @@ export type Snapshot = {
   bombPos: [number, number, number] | null;
   /** Liegende Waffen/C4 (ohne Munitionsstand). */
   drops?: { id: number; weapon: string; p: [number, number, number] }[];
+  /** Server-Konfiguration (Name, Limit, Passwort-Prüfsumme, Lobby) — übersteht Host-Migration. */
+  lobby?: LobbyConfig | null;
 };
 
 /**
@@ -123,7 +129,7 @@ export function packPlayer(p: MatchPlayer): PlayerSnap {
   };
 }
 
-export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapshot['nades']; smokes: Smoke[]; bombPos: Snapshot['bombPos']; drops?: Snapshot['drops'] }): Snapshot {
+export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapshot['nades']; smokes: Smoke[]; bombPos: Snapshot['bombPos']; drops?: Snapshot['drops']; lobby?: LobbyConfig | null }): Snapshot {
   return {
     seq,
     time: m.time,
@@ -136,6 +142,7 @@ export function packSnapshot(m: MatchState, seq: number, extra: { nades: Snapsho
     smokes: extra.smokes.map((s) => ({ p: [s.pos.x, s.pos.y, s.pos.z], r: s.radius, t: s.timeLeft })),
     bombPos: extra.bombPos,
     drops: extra.drops ?? [],
+    ...(extra.lobby !== undefined ? { lobby: extra.lobby } : {}),
   };
 }
 
