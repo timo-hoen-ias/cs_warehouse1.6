@@ -103,6 +103,19 @@ describe('T-Trainer', () => {
     expect(coach.tasks.get('t0')!.kind).not.toBe('pickup');
   });
 
+  it('neuer Träger während des Ausführens bekommt den Pflanz-Auftrag', () => {
+    const coach = new TCoach({ kind: 'rush', site: 'b', fakeSite: null, executeAt: 0 });
+    const bots = [bot('t0', tSpawn(0)), bot('t1', tSpawn(1))];
+    coach.start(ctx('T', bots));
+    bots.forEach((b) => (b.pos = coach.tasks.get(b.id)!.goal!));
+    coach.update(ctx('T', bots, { now: 20, elapsed: 20 }));
+    expect(coach.stage).toBe('execute');
+    expect(coach.tasks.get('t1')!.kind).toBe('hold');
+    bots[1]!.hasBomb = true;
+    coach.update(ctx('T', bots, { now: 30, elapsed: 30 }));
+    expect(coach.tasks.get('t1')!.kind).toBe('plant');
+  });
+
   it('nach dem Plant: Positionen mit Blick auf die CT-Eingänge, nicht auf der Bombe; Entschärfen gehört → zur Bombe', () => {
     const coach = new TCoach({ kind: 'rush', site: 'a', fakeSite: null, executeAt: 0 });
     const bomb = siteInfo(info, 'a')!.plant;

@@ -307,6 +307,9 @@ export class TCoach {
         if (c && this.carrierRelease >= 0 && ctx.now >= this.carrierRelease) {
           this.carrierRelease = -1;
           this.executeTask(c, ctx, true);
+        } else if (c && this.carrierRelease < 0 && this.tasks.get(c.id)?.kind !== 'plant') {
+          // Neuer Träger (C4 aufgehoben) → pflanzen
+          this.executeTask(c, ctx, true);
         }
         break;
       }

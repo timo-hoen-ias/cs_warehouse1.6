@@ -60,8 +60,9 @@ describe('Bot-Körper', () => {
     expect(body.pose.x).toBeLessThan(8); // über den Lang-Gang, nicht durch die Mitte
     // Umweg (anderer Plan), dann zurück zum Auftrag: der erste Wegpunkt bleibt abgehakt
     t = run(body, intent({ goal: { x: 3, y: 0, z: 45 }, plan: 2 }), 1, t);
+    const zBefore = body.pose.z;
     run(body, { ...it, plan: 3 }, 1, t);
-    expect(body.pose.z).toBeLessThan(50);
+    expect(body.pose.z).toBeLessThan(zBefore - 4); // weiter Richtung Spot, nicht zurück zum ersten Wegpunkt
   });
 
   it('Strafen nur auf begehbarem Boden (nicht in Wände)', () => {

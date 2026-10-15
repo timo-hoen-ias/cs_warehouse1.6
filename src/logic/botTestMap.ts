@@ -6,7 +6,7 @@ import { MapBuilder, type MapData } from './mapkit';
  *   z 0..10   CT-Spawn (ganze Breite), Wand bei z=10 mit drei Durchgängen
  *   z 10..25  Spot A (x 0..20) | Tür A | Halle (x 25..55) | Tür B | Spot B (x 60..80)
  *   z 25..70  Lang (x 0..6)  ·  Mitte (x 37..43)  ·  B-Gang (x 74..80), dazwischen Gebäudeblöcke
- *   z 70..80  T-Spawn (ganze Breite)
+ *   z 70..80  T-Spawn (ganze Breite, Wand vor dem Mittelgang)
  *
  * T erreichen A über Lang oder Mitte → Halle → Tür A, B über B-Gang oder Mitte → Halle → Tür B.
  */
@@ -33,6 +33,8 @@ export function buildBotTestMap(opts: { areas?: boolean; hints?: boolean } = {})
   b.block(20, 19, 25, 25, 0, 6, 'concrete', { tag: 'building' });
   b.block(55, 10.2, 60, 14, 0, 6, 'concrete', { tag: 'building' });
   b.block(55, 19, 60, 25, 0, 6, 'concrete', { tag: 'building' });
+  // Spawnwand vor dem Mittelgang (keine Sichtlinie aus der Mitte in den T-Spawn)
+  b.block(33, 71, 47, 72.5, 0, 4, 'concrete', { tag: 'wall' });
   // Deckung
   b.box([7, 0, 15], [9, 1.3, 17], 'crate');
   b.box([13, 0, 21], [15, 1.3, 23], 'crate');

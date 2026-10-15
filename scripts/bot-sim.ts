@@ -4,6 +4,7 @@ import { mapById } from '../src/maps';
 import { compileMap } from '../src/logic/mapcompile';
 import { HeadlessMatch, summarize } from '../src/logic/botSim';
 import { nearestNode } from '../src/logic/nav';
+import { buildBotTestMap } from '../src/logic/botTestMap';
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const flags = new Set(process.argv.slice(2).filter((a) => a.startsWith('--')));
@@ -14,7 +15,8 @@ const skill = Number(args[3] ?? 0.6);
 const seed = Number(args[4] ?? 1);
 
 const t0 = performance.now();
-const map = compileMap(mapById(id).build());
+// 'bottest' / 'bottest-noareas' = synthetische Testkarte der Unit-Tests
+const map = compileMap(id.startsWith('bottest') ? buildBotTestMap({ areas: id !== 'bottest-noareas' }) : mapById(id).build());
 const sim = new HeadlessMatch(map, { perTeam, skill, seed });
 const t1 = performance.now();
 const traceArg = process.argv.find((a) => a.startsWith('--trace='));
