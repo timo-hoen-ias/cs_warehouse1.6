@@ -21,11 +21,13 @@ const OUT: Record<Facing, [number, number]> = { pz: [0, 1], nz: [0, -1], px: [1,
 
 /**
  * Seilwinden-Erker (Speicherluken) entlang einer Fassade: `wall` = Koordinate der Gebäudekante
- * (z für Wände entlang X, x für Wände entlang Z), `a0..a1` = Strecke, `y` = Höhe der Luken-Schwelle.
+ * (z für Wände entlang X, x für Wände entlang Z), `a0..a1` = Strecke, `floorY` = Boden vor der Fassade,
+ * `row` = Geschoss (1–3; die Luke sitzt zwischen den Fensterreihen der Backsteinfassade).
  * `face` = Richtung, in die die Fassade schaut (zur Gasse).
  */
-export function hoists(b: B, face: Facing, wall: number, a0: number, a1: number, y: number, every: number, o: { h?: number; len?: number; load?: number; tint?: number; first?: number } = {}): void {
+export function hoists(b: B, face: Facing, wall: number, a0: number, a1: number, floorY: number, row: 1 | 2 | 3, every: number, o: { h?: number; len?: number; load?: number; tint?: number; first?: number } = {}): void {
   const [nx] = OUT[face];
+  const y = floorY + [4.45, 8.45, 12.45][row - 1]!;
   const alongZ = nx !== 0;
   const n = Math.max(1, Math.floor((a1 - a0) / every));
   const pad = (a1 - a0 - (n - 1) * every) / 2;
@@ -34,7 +36,7 @@ export function hoists(b: B, face: Facing, wall: number, a0: number, a1: number,
     const out = F * 0.6;
     const wx = alongZ ? wall + OUT[face][0] * out : a;
     const wz = alongZ ? a : wall + OUT[face][1] * out;
-    prop(b, 'hoist', wx, y, wz, { rot: ROT[face], h: o.h, len: o.len, n: (o.load ?? 3) > 0 && i % (o.load ?? 3) === 0 ? 1 : 0, tint: o.tint });
+    prop(b, 'hoist', wx, y, wz, { rot: ROT[face], h: o.h ?? 1.9, len: o.len, n: (o.load ?? 3) > 0 && i % (o.load ?? 3) === 0 ? 1 : 0, tint: o.tint });
   }
 }
 

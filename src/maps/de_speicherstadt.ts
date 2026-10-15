@@ -1,5 +1,11 @@
 import { MapBuilder, type MapData } from '../logic/mapkit';
 import { CellPlan, type CellKind, type FacadeStyle } from '../logic/mapplan';
+import { dressTerrace, dressLane, dressMitte, dressAlley, dressKurz } from './speicherstadt/tspawn';
+import { dressBanana } from './speicherstadt/banana';
+import { dressSiteB, dressBaustelle } from './speicherstadt/siteB';
+import { dressSiteA, dressPit, dressLongHall, dressBogen, dressLibrary, dressKessel } from './speicherstadt/siteA';
+import { dressLoft } from './speicherstadt/loft';
+import { dressCT } from './speicherstadt/ct';
 
 /**
  * de_speicherstadt — „Speicherstadt“: der Klassiker de_inferno als Hamburger Hafen-Speicherviertel.
@@ -39,12 +45,12 @@ export function buildSpeicherstadt(): MapData {
   P.rect('H', -86, -92, -46, -62)
     .rect('H', -86, -62, -76, 92)
     .rect('H', -54, 8, -12, 60)
-    .rect('H', 28, -36, 58, -6)
+    .rect('Y', 28, -36, 58, -6)
     .rect('H', 20, 4, 58, 62)
     .rect('H', 74, -92, 86, 92)
-    .rect('G', -36, 8, -12, 58)
+    .rect('G', -36, 8, -10, 58)
     .rect('G', 34, -92, 74, -84)
-    .rect('G', -32, -60, -10, -46);
+    .rect('Y', -32, -60, -10, -46);
   // Kanäle (Fleet) und Hafenbecken; Brücken entstehen durch spätere Straßenzellen
   P.rect('C', -86, 84, 86, 92) // Hafenbecken
     .rect('C', -38, -46, 34, -40) // Fleet vor der Oberen Mitte
@@ -67,7 +73,7 @@ export function buildSpeicherstadt(): MapData {
     .rect('.', 10, -4, 62, 4) // Zweite Mitte (Gasse)
     .rect('.', 14, -34, 26, -4) // Kurz
     .rect('.', 10, -18, 14, -8) // Kurz-Tor (Durchgang Mitte → Kurz)
-    .rect('.', 60, -38, 72, 4); // Lange Halle
+    .rect('X', 62, -38, 72, 4); // Lange Halle (überdacht)
   // Hochkai +1.6: T-Terrasse, CT-Hof, Bogen, Passage, Baustelle, Dock, A-Hof
   P.rect('T', -34, 60, 16, 82)
     .rect('V', -34, 82, 16, 84)
@@ -113,11 +119,12 @@ export function buildSpeicherstadt(): MapData {
     .rect('s', 38, -46, 46, -38); // Balkontreppe (Hof A)
 
   const legend: Record<string, CellKind> = {
-    '#': { building: { h: 13, mat: 'brick', tint: 0xd9b8a4 } },
-    H: { building: { h: 18, mat: 'brick', tint: 0xc9a08c } },
+    '#': { building: { h: 13, mat: 'brick', tint: 0xcdb09c } },
+    H: { building: { h: 18, mat: 'brick', tint: 0xb8998a } },
+    Y: { building: { h: 15, mat: 'brick', tint: 0xd9c496 } },
     G: { building: { h: 9.5, mat: 'plaster', tint: 0xe8d29c } },
-    W: { building: { h: 1.2, mat: 'brick', tint: 0xcaa890 } },
-    V: { building: { h: 2.8, mat: 'brick', tint: 0xcaa890 } },
+    W: { building: { h: 1.7, mat: 'brick', tint: 0xcaa890 } },
+    V: { building: { h: 3.6, mat: 'brick', tint: 0xcaa890 } },
     p: { building: { h: 10.1, mat: 'plaster', tint: 0xe0d2b4 } },
     C: { building: { h: -1.2, mat: 'brick', tint: 0x7a6a60, top: 'water' } },
     '.': { floor: 0, mat: 'brick', tint: 0xb89c88, top: 'cobble', room: 'outdoor' },
@@ -128,22 +135,23 @@ export function buildSpeicherstadt(): MapData {
     h: { floor: 1.6, mat: 'brick', tint: 0xb89c88, top: 'cobble', room: 'outdoor' },
     w: { floor: 1.6, mat: 'brick', tint: 0xb89c88, top: 'cobble', room: 'outdoor' },
     s: { floor: 1.6, mat: 'brick', tint: 0xb89c88, top: 'cobble', ramp: true, room: 'outdoor' },
-    b: { floor: 1.6, mat: 'brick', tint: 0xa8907c, top: 'paving', roof: 5.4, roofTop: 5.9, roofMat: 'roof', room: 'tunnel' },
-    l: { floor: 1.6, mat: 'wood', tint: 0xa88a6a, roof: 5.2, roofTop: 5.7, roofMat: 'roof', room: 'room' },
-    k: { floor: 1.6, mat: 'concrete', tint: 0x9a948a, top: 'paving', roof: 6.6, roofTop: 7.1, roofMat: 'roof', room: 'hall' },
-    o: { floor: 1.6, mat: 'wood', tint: 0xb89a74, roof: 4.4, roofTop: 4.9, roofMat: 'roof', room: 'room' },
-    n: { floor: 0, mat: 'concreteDark', tint: 0x8a8278, top: 'wood', roof: 4.2, roofTop: 4.7, roofMat: 'roof', room: 'room' },
-    q: { floor: 1.6, mat: 'wood', tint: 0xa88a6a, roof: 4.6, roofTop: 5.1, roofMat: 'roof', room: 'room' },
-    Q: { floor: 0, mat: 'wood', tint: 0xa88a6a, roof: 3.4, roofTop: 3.9, roofMat: 'roof', room: 'room' },
-    e: { floor: 1.6, mat: 'brick', tint: 0xa8907c, top: 'wood', roof: 7.2, roofTop: 7.7, roofMat: 'roof', room: 'hall' },
-    z: { floor: 1.6, mat: 'brick', tint: 0xa8907c, top: 'wood', ramp: true, roof: 7.2, roofTop: 7.7, roofMat: 'roof', room: 'hall' },
-    L: { floor: 4.4, mat: 'wood', tint: 0xa88a6a, roof: 9.6, roofTop: 10.1, roofMat: 'roof', room: 'hall' },
-    B: { floor: 4.4, mat: 'wood', tint: 0xa88a6a, roof: 7.6, roofTop: 8.1, roofMat: 'roof', room: 'room' },
-    f: { floor: 4.4, mat: 'wood', tint: 0xa88a6a, roof: 7.6, roofTop: 8.1, roofMat: 'roof', room: 'room' },
+    b: { floor: 1.6, mat: 'brick', tint: 0xa8907c, top: 'paving', roof: 5.4, roofTop: 5.9, roofMat: 'wood', room: 'tunnel' },
+    l: { floor: 1.6, mat: 'wood', tint: 0xa88a6a, roof: 5.2, roofTop: 5.7, roofMat: 'wood', room: 'room' },
+    k: { floor: 1.6, mat: 'concrete', tint: 0x9a948a, top: 'paving', roof: 6.6, roofTop: 7.1, roofMat: 'wood', room: 'hall' },
+    o: { floor: 1.6, mat: 'wood', tint: 0xb89a74, roof: 4.4, roofTop: 4.9, roofMat: 'wood', room: 'room' },
+    n: { floor: 0, mat: 'concreteDark', tint: 0x8a8278, top: 'wood', roof: 4.2, roofTop: 4.7, roofMat: 'wood', room: 'room' },
+    q: { floor: 1.6, mat: 'wood', tint: 0xa88a6a, roof: 4.6, roofTop: 5.1, roofMat: 'wood', room: 'room' },
+    Q: { floor: 0, mat: 'wood', tint: 0xa88a6a, roof: 3.4, roofTop: 3.9, roofMat: 'wood', room: 'room' },
+    e: { floor: 1.6, mat: 'brick', tint: 0xa8907c, top: 'wood', roof: 7.2, roofTop: 7.7, roofMat: 'wood', room: 'hall' },
+    z: { floor: 1.6, mat: 'brick', tint: 0xa8907c, top: 'wood', ramp: true, roof: 7.2, roofTop: 7.7, roofMat: 'wood', room: 'hall' },
+    X: { floor: 0, mat: 'brick', tint: 0xa8907c, top: 'paving', roof: 9, roofTop: 9.5, roofMat: 'wood', room: 'hall' },
+    L: { floor: 4.4, mat: 'wood', tint: 0xa88a6a, roof: 9.6, roofTop: 10.1, roofMat: 'wood', room: 'hall' },
+    B: { floor: 4.4, mat: 'wood', tint: 0xa88a6a, roof: 7.6, roofTop: 8.1, roofMat: 'wood', room: 'room' },
+    f: { floor: 4.4, mat: 'wood', tint: 0xa88a6a, roof: 7.6, roofTop: 8.1, roofMat: 'wood', room: 'room' },
     y: { floor: 4.4, mat: 'wood', tint: 0xa88a6a, room: 'outdoor' },
   };
   const brickFacade: FacadeStyle = {
-    mat: 'brick', tint: 0xd9b8a4, plinth: { h: 1.1, mat: 'concreteDark', tint: 0x8a7e74 },
+    mat: 'brick', tint: 0xcdb09c, plinth: { h: 1.1, mat: 'concreteDark', tint: 0x8a7e74 },
     cornice: { h: 0.45, mat: 'brick', tint: 0x9a7868 },
     pilasters: { every: 6, w: 0.5, mat: 'brick', tint: 0xb89080 },
     windows: [
@@ -155,7 +163,9 @@ export function buildSpeicherstadt(): MapData {
   };
   const facades: Record<string, FacadeStyle> = {
     '@#': brickFacade,
-    '@H': { ...brickFacade, tint: 0xc9a08c, band: { y: 8.2, h: 0.35, mat: 'concrete', tint: 0xb8a898 } },
+    '@H': { ...brickFacade, tint: 0xb8998a, band: { y: 8.2, h: 0.35, mat: 'concrete', tint: 0xb8a898 } },
+    '@Y': { ...brickFacade, tint: 0xd9c496, band: { y: 4.4, h: 0.3, mat: 'brick', tint: 0xb08a70 } },
+    X: { mat: 'brick', tint: 0xc0a290, plinth: { h: 1.2, mat: 'concreteDark', tint: 0x7a6e64 }, pilasters: { every: 8, w: 0.5, mat: 'wood', tint: 0x6a4a30 } },
     '@G': { mat: 'plaster', tint: 0xe8d29c, plinth: { h: 1.0, mat: 'brick', tint: 0x9a7868 }, cornice: { h: 0.4, mat: 'plaster', tint: 0xc4ac78 }, windows: { y: 2.6, h: 2.0, w: 1.4, every: 3.6, mat: 'window' }, pipes: 12 },
     '@W': { mat: 'brick', tint: 0xcaa890, cornice: { h: 0.2, mat: 'concrete', tint: 0xb4a898 } },
     '@V': { mat: 'brick', tint: 0xcaa890, cornice: { h: 0.2, mat: 'concrete', tint: 0xb4a898 } },
@@ -207,7 +217,7 @@ export function buildSpeicherstadt(): MapData {
   b.area('Kurz', 14, -34, 26, -4);
   b.area('Kurz-Rampe', 14, -42, 26, -34);
   b.area('Kessel', 14, -52, 34, -42, 0.5, 8);
-  b.area('Lange Halle', 60, -38, 72, 4);
+  b.area('Lange Halle', 62, -38, 72, 4);
   b.area('Grube', 56, -52, 72, -38, -1, 1);
   b.area('Grubenrampe', 48, -52, 56, -42, -1, 3);
   b.area('Spot A', 38, -76, 66, -52, 0.5, 8);
@@ -234,11 +244,28 @@ export function buildSpeicherstadt(): MapData {
 
   // ------------------------------------------------------------------ Spots, Spawns, Kaufzonen
   b.site('A', 'Serverschrank A', [38, 1.0, -76], [66, 8, -52], [46, 1.6, -60]);
-  b.site('B', 'Serverschrank B', [-72, -1, -52], [-40, 4, -30], [-54, 0, -38]);
+  b.site('B', 'Serverschrank B', [-72, -1, -52], [-40, 4, -30], [-54, 0, -41]);
   b.spawnGrid('T', -6, 1.6, 67, 8, 2, 3, 0);
   b.spawnGrid('CT', 0, 1.6, -81, 8, 2, 3, Math.PI);
   b.buy('T', -34, 60, 16, 82);
   b.buy('CT', -16, -90, 16, -70);
+
+  dressTerrace(b);
+  dressLane(b);
+  dressMitte(b);
+  dressAlley(b);
+  dressKurz(b);
+  dressBanana(b);
+  dressSiteB(b);
+  dressBaustelle(b);
+  dressSiteA(b);
+  dressPit(b);
+  dressLongHall(b);
+  dressBogen(b);
+  dressLibrary(b);
+  dressKessel(b);
+  dressLoft(b);
+  dressCT(b);
 
   return b.data;
 }

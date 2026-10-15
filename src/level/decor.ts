@@ -177,7 +177,16 @@ export function decorGeometry(kind: DecorKind, low = false): THREE.BufferGeometr
     case 'sack': {
       // Jutesack (liegend, 0.9 × 0.3 × 0.5): abgeflachtes Ellipsoid mit gebundener Ecke
       const seg = low ? 8 : 12;
-      const body = new THREE.SphereGeometry(1, seg, Math.max(5, seg / 2)).scale(0.46, 0.15, 0.26).translate(0, 0.15, 0);
+      const sph = new THREE.SphereGeometry(1, seg, Math.max(6, seg / 2));
+      // Kugel → Superellipsoid (Exponent 4): kissenförmig statt spitz
+      const pos = sph.getAttribute('position');
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const k = Math.pow(x ** 4 + y ** 4 + z ** 4, 0.25) || 1;
+        pos.setXYZ(i, x / k, y / k, z / k);
+      }
+      sph.computeVertexNormals();
+      const body = sph.scale(0.46, 0.15, 0.26).translate(0, 0.15, 0);
       g = build([{ geo: body, color: 0xffffff }, cyl(0.05, 0.1, 0.45, 0.17, 0.02, 0xd8c8a0, 'x', 6)]);
       break;
     }

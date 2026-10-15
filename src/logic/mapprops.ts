@@ -494,7 +494,7 @@ export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: num
 const SACK_L = 0.9;
 const SACK_W = 0.5;
 const SACK_H = 0.28;
-const SACK_TINTS = [0xc9ad7c, 0xbf9f6c, 0xd2b88a, 0xb8996a, 0xcdb890];
+const SACK_TINTS = [0xb9a98a, 0xa8997a, 0xc4b496, 0xb0a07e, 0xbdb08f];
 const ARCHIVE_TINTS = [0x8a3a30, 0x3a5a7a, 0x6a6a40, 0x7a5a3a, 0xc0a878, 0x4a6a50, 0x9a8a6a];
 const LOG_R = 0.27;
 const LOG_D = 0.54;
