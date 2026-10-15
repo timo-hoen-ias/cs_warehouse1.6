@@ -96,7 +96,7 @@ export function buildSpeicherstadt(): MapData {
     .rect('k', 14, -52, 34, -42); // Kessel
   // Hof B, Dunkel, Grube
   P.rect('j', -76, -54, -36, -28)
-    .rect('n', -86, -48, -78, -20) // Dunkel (dunkles Lager, zwei Türen: zum Hof und zur Banane)
+    .rect('n', -84, -48, -78, -20) // Dunkel (dunkles Lager, zwei Türen: zum Hof und zur Banane)
     .rect('Q', -78, -44, -76, -36)
     .rect('Q', -78, -26, -76, -22)
     .rect('g', 56, -52, 72, -38); // Grube
@@ -131,7 +131,7 @@ export function buildSpeicherstadt(): MapData {
     W: { building: { h: 1.7, mat: 'brick', tint: 0xcaa890 } },
     M: { building: { h: 7.6, mat: 'brick', tint: 0xd9c496 } },
     K: { building: { h: 5.2, mat: 'plaster', tint: 0xe8d29c } },
-    V: { building: { h: 3.6, mat: 'brick', tint: 0xcaa890 } },
+    V: { building: { h: 3.2, mat: 'brick', tint: 0xcaa890 } },
     p: { building: { h: 10.1, mat: 'plaster', tint: 0xe0d2b4 } },
     C: { building: { h: -1.2, mat: 'brick', tint: 0x7a6a60, top: 'water' } },
     '.': { floor: 0, mat: 'brick', tint: 0xb89c88, top: 'cobble', room: 'outdoor' },
@@ -246,7 +246,7 @@ export function buildSpeicherstadt(): MapData {
   b.area('Banane-Brücke', -76, -14, -64, 16);
   b.area('Spot B', -76, -54, -36, -28, -1, 3);
   b.area('B-Eingang', -76, -30, -64, -14);
-  b.area('Dunkel', -86, -48, -76, -20);
+  b.area('Dunkel', -84, -48, -76, -20);
   b.area('Baustelle', -46, -84, -34, -54);
   b.area('CT-Passage', -34, -84, -16, -74);
   b.area('Verladerampe', -80, -62, -46, -54);

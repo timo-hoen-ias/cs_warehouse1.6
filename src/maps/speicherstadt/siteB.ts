@@ -61,20 +61,20 @@ export function dressSiteB(b: B): void {
   prop(b, 'desk', -56, Y, -66.2, { rot: 0 });
   prop(b, 'archive', -50, Y, -71.4, { len: 2.4, rot: 2 });
   prop(b, 'locker', -57.2, Y, -69);
-  b.hallLamp(-53, Y + 3.7, -68, { color: 0xffd9a0, intensity: 0.9, range: 9 });
+  b.hallLamp(-53, Y + 2.7, -68, { color: 0xffd9a0, intensity: 0.9, range: 9 });
   shop(b, 'BÜRO', -52, Y + 3.2, -62 + F, 'pz', 'HAFENVERWALTUNG', 2.4);
 
   // Dunkel: dunkler Lagerraum, ein einsames Licht
-  prop(b, 'shelf', -84.9, 0, -44, { len: 2.4, rot: 1 });
-  prop(b, 'shelf', -84.9, 0, -40, { len: 2.4, rot: 1 });
+  prop(b, 'shelf', -83.4, 0, -44, { len: 2.4, rot: 1 });
+  prop(b, 'shelf', -83.4, 0, -40, { len: 2.4, rot: 1 });
   prop(b, 'crate', -81, 0, -46.4, { h: 1.2 });
   prop(b, 'barrel', -80.6, 0, -33.2);
   prop(b, 'barrel', -81.5, 0, -33.6);
   prop(b, 'sacks', -82, 0, -36, { len: 1.8, n: 2, rot: 1 });
-  prop(b, 'shelf', -84.9, 0, -30, { len: 2.4, rot: 1 });
+  prop(b, 'shelf', -83.4, 0, -30, { len: 2.4, rot: 1 });
   prop(b, 'crate', -81.2, 0, -26.2, { h: 1.2 });
   prop(b, 'crate', -82.5, 0, -22.6, { h: 1.2 });
-  prop(b, 'palletStack', -84.8, 0, -23.4, { n: 5, rot: 1 });
+  prop(b, 'palletStack', -83.2, 0, -23.4, { n: 5, rot: 1 });
   b.hallLamp(-82, 3.4, -26, { color: 0xffa860, intensity: 0.4, range: 7 });
   b.hallLamp(-82, 3.4, -40, { color: 0xffa860, intensity: 0.45, range: 7 });
   plate(b, 'DUNKEL', -75.7, 3.4, -45, 'px', 'LAGER · KEIN LICHT', 3.2);

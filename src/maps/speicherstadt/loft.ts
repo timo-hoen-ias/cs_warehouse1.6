@@ -9,7 +9,7 @@ export function dressLoft(b: B): void {
   prop(b, 'crate', 21.2, 1.6, 68.6, { h: 1.2 });
   prop(b, 'barrelGroup', 28.6, 1.6, 58.4, {});
   b.hallLamp(25, 1.6 + 4.9, 63, { color: 0xffbf78, intensity: 1.1, range: 12 });
-  b.hallLamp(24, 1.6 + 5.6, 50, { color: 0xffbf78, intensity: 1.0, range: 11 });
+  b.hallLamp(24, 1.6 + 5.4, 50, { color: 0xffbf78, intensity: 1.0, range: 11 });
   plate(b, 'WOHNUNGEN', 20.3, 1.6 + 2.6, 62, 'px', 'SPEICHERBODEN · 2. OG', 3.2);
   b.rail(28.05, 44, 28.05, 56, 3.0, 1.05, 0x6a4a2e);
 

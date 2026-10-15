@@ -108,7 +108,7 @@ export function dressBogen(b: B): void {
   const Y = 1.6;
   // Rundbogen-Tor im Mittelgang
   prop(b, 'archGate', 26, Y, -79, { rot: 1, len: 6, h: 4.4, n: 2, tint: 0xc4a08c });
-  for (const x of [19, 31]) b.hallLamp(x, Y + 3.9, -79, { color: 0xffbf78, intensity: 1.1, range: 11 });
+  for (const x of [19, 31]) b.hallLamp(x, Y + 3.6, -79, { color: 0xffbf78, intensity: 1.1, range: 11 });
   prop(b, 'sacks', 19.2, Y, -83, { len: 1.8, n: 2, rot: 1 });
   prop(b, 'barrelGroup', 32.2, Y, -75.4, {});
   prop(b, 'crate', 18.6, Y, -75.2, { h: 1.2 });
@@ -152,7 +152,7 @@ export function dressKessel(b: B): void {
   b.box([26.4, Y, -52], [29.6, Y + 1.3, -50.2], 'concreteDark', { tint: 0x2a2a2a, top: 'black' });
   prop(b, 'crate', 15.4, Y, -45.6, { h: 1.2 });
   prop(b, 'gasLamp', 32.5, Y, -43.6);
-  for (const x of [20, 29]) b.hallLamp(x, Y + 5.2, -46, { color: 0xffb070, intensity: 1.2, range: 13 });
+  for (const x of [20, 29]) b.hallLamp(x, Y + 4.9, -46, { color: 0xffb070, intensity: 1.2, range: 13 });
   b.light({ kind: 'lamp', pos: [18, Y + 3.6, -46.2], color: 0xff9a50, intensity: 1.2, range: 9 });
   b.light({ kind: 'lamp', pos: [18, Y + 1.0, -46.4], color: 0xff7a30, intensity: 0.8, range: 6 });
   plate(b, 'KESSEL', 14.3, Y + 3.0, -44, 'px', 'KESSELHAUS', 2.6);
