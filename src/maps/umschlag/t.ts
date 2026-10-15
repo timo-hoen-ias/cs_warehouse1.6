@@ -18,12 +18,12 @@ function ladehof(b: B): void {
   for (const x of [-80, -68, 8, 20, 32, 44, 56, 68, 80]) prop(b, 'trailer', x, 0, 80.5, { rot: 3, tint: [0xe8e8e8, 0xd0d8e0, 0xe4d8c0, 0xc8d4dc][Math.abs(x) % 4] });
   for (const x of [-56, 14, 50]) prop(b, 'truck', x, 0, 66, { rot: (x % 2 === 0 ? 0 : 2) as 0 | 2, tint: x === 14 ? 0x2f78c0 : 0xc23a2a });
   // Spawn-Bereich (Kaufzone): Rollfeld mit Markierungen, Spind-Container, Paletten als Deckung am Rand
-  b.decal({ kind: 'letter', pos: [-30, 0.02, 69], size: [5, 5], text: 'T', color: 0xffb13a });
-  b.decal({ kind: 'grid', pos: [-30, 0.02, 78], size: [26, 8] });
-  stripe(b, -52, 60, -2, 60, 0, 0xe8e8e8, 0.2);
-  stripe(b, -52, 60, -52, 88, 0, 0xe8e8e8, 0.2);
-  stripe(b, -2, 60, -2, 88, 0, 0xe8e8e8, 0.2);
-  b.decal({ kind: 'stripes', pos: [-27, 0.02, 60], size: [50, 1.2] });
+  b.decal({ kind: 'letter', pos: [-34, 0.02, 72.5], size: [5, 5], text: 'T', color: 0xffb13a });
+  b.decal({ kind: 'grid', pos: [-34, 0.02, 66], size: [26, 8] });
+  stripe(b, -56, 56, -6, 56, 0, 0xe8e8e8, 0.2);
+  stripe(b, -56, 56, -56, 82, 0, 0xe8e8e8, 0.2);
+  stripe(b, -6, 56, -6, 82, 0, 0xe8e8e8, 0.2);
+  b.decal({ kind: 'stripes', pos: [-31, 0.02, 56], size: [50, 1.2] });
   b.sign('T-SPAWN', [-30, 6.2, 88 - F - 0.02], 'nz', 8, 1.4, { color: 0xffe2b0, bg: 0x6a3a1c, sub: 'LADEHOF · KAUFZONE · SICHERHEITSWESTE TRAGEN' });
   prop(b, 'cargoContainer', -56, 0, 83, { rot: 0, tint: 0xb7791f });
   prop(b, 'cargoContainer', -56, 2.59, 83, { rot: 0, tint: 0x2b5f9e });
@@ -45,6 +45,14 @@ function ladehof(b: B): void {
   prop(b, 'forklift', 62, 0, 84, { rot: 3, tint: 0x2f78c0 });
   line(b, 'cones', -83, 0, 52, -83, 60, 3, {});
   line(b, 'bumper', -20, 0, 87.5, 12, 87.5, 5, {});
+  // Lagergebäude an der Nordkante des Hofs (Fassaden nach Süden): Dockreihen mit Nummern, Hallenschilder, Wandlampen
+  dockRow(b, 'z', 48 + 0.12, -54, -28, 'pz', { step: 6, n0: 11, h: 4.0, len: 3.6 });
+  dockRow(b, 'z', 48 + 0.12, 18, 30, 'pz', { step: 6, n0: 21, h: 4.0, len: 3.6 });
+  dockRow(b, 'z', 48 + 0.12, 50, 64, 'pz', { step: 7, n0: 24, h: 4.0, len: 3.6 });
+  b.sign('LAGER 1', [-41, 8.4, 48 + F + 0.02], 'pz', 7, 1.4, { color: 0xf0f0f0, bg: 0x2f6fb0, sub: 'STÜCKGUT · DOCKS 11 – 15' });
+  b.sign('LAGER 2', [24, 8.4, 48 + F + 0.02], 'pz', 7, 1.4, { color: 0xf0f0f0, bg: 0x2f7d6f, sub: 'PAKETE · DOCKS 21 – 23' });
+  b.sign('LAGER 3', [57, 8.4, 48 + F + 0.02], 'pz', 7, 1.4, { color: 0xf0f0f0, bg: 0x6a3a1c, sub: 'SPERRGUT · DOCKS 24 – 26' });
+  for (const x of [-52, -40, -30, 20, 28, 52, 62]) b.wallLamp(x, 6.4, 48 + F + 0.05, 'pz', { intensity: 1.1, range: 14, color: 0xffd9a0 });
   // Licht: Mastleuchten im warmen Natriumlicht
   for (const [x, z] of [[-76, 62], [-46, 66], [-14, 62], [18, 64], [52, 64], [80, 58], [-12, 84], [30, 84]] as const) prop(b, 'lampPost', x, 0, z);
   b.ambient('traffic', [0, 6, 80], 60, 0.4);
@@ -116,6 +124,17 @@ function wohnungen(b: B): void {
   hazardEdge(b, -70, 25.7, -64, 26, Y);
   b.sign('WOHNUNGEN', [-69.88, Y + 2.2, 24], 'px', 2.6, 0.8, { color: 0xffb13a, sub: '↓ T-SEITE · ↑ B' });
   b.sign('WOHNUNGEN', [-64.12, Y + 2.2, -12], 'nx', 2.6, 0.8, { color: 0xffb13a, sub: '↑ B · PAKETSORTIERUNG' });
+  // Brandschutz-Trennwände wechselseitig (Zickzack, 2 m Durchgang): brechen die 40-m-Sichtlinie des Gangs
+  for (const [side, z] of [['e', 22], ['w', 8], ['e', -2], ['w', -10]] as const) {
+    const x0 = side === 'w' ? -70 : -67.4;
+    const x1 = side === 'w' ? -66.6 : -64;
+    b.box([x0, Y, z - 0.3], [x1, 7.8, z + 0.3], 'plaster', { tint: 0xdcd2bc, tag: 'wall' });
+    b.box([x0, Y, z - 0.34], [x1, Y + 1.1, z + 0.34], 'wallTile', { collide: 'none', tint: 0x3f7f78, noNav: true, occlude: false });
+    const gx = side === 'w' ? x1 : x0;
+    b.box([gx - 0.08, Y, z - 0.36], [gx + 0.08, 7.8, z + 0.36], 'hazard', { collide: 'none', noNav: true, occlude: false, uv: 1 });
+    b.sign('BRANDSCHUTZTÜR', [(x0 + x1) / 2, Y + 2.5, z + 0.32], 'pz', 2.4, 0.55, { color: 0xf0f0f0, bg: 0xc0301e });
+    b.sign('BRANDSCHUTZTÜR', [(x0 + x1) / 2, Y + 2.5, z - 0.32], 'nz', 2.4, 0.55, { color: 0xf0f0f0, bg: 0xc0301e });
+  }
   // Deckung im Gang (3 m Gasse bleibt frei): Rollcontainer, Handwagen, Pflanze, Bank
   prop(b, 'rollCage', -69.2, Y, 18, { h: 1.2 });
   prop(b, 'rollCage', -68.3, Y, 18, { h: 0.9 });
@@ -125,8 +144,8 @@ function wohnungen(b: B): void {
   prop(b, 'bench', -64.6, Y, -4, { rot: 1, len: 2.4 });
   prop(b, 'cartons', -69.2, Y, -9, { seed: 2 });
   prop(b, 'rollCage', -69.2, Y, 13, { h: 1.1 });
-  prop(b, 'locker', -64.5, Y, 21, { rot: 3 });
-  prop(b, 'locker', -64.5, Y, 22.1, { rot: 3 });
+  prop(b, 'locker', -64.5, Y, 24.2, { rot: 3 });
+  prop(b, 'locker', -64.5, Y, 25.3, { rot: 3 });
   prop(b, 'electricBox', -64.12, Y, -1, { rot: 3 });
   b.decor('extinguisher', [-64.4, Y + 1.2, 14], 0);
   b.decor('extinguisher', [-69.6, Y + 1.2, -12], 0);

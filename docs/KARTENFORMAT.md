@@ -7,7 +7,7 @@ Akustik; die Darstellung (`src/level/LevelView.ts`) baut Geometrie mit gebackene
 **keinen Bake-Schritt**: alle Clients rechnen aus demselben Code dasselbe Ergebnis (der Host
 wählt nur die Karten-ID).
 
-Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`).
+Referenzkarten: `src/maps/de_lagerstaub.ts` (Grundriss nach dem Klassiker, Logistik-Optik) und `src/maps/de_kuehlhaus.ts` (mehrstöckig: B unter A, Kühlhaus-Optik; Ausstattung je Bereich in `src/maps/kuehlhaus/*.ts`), `src/maps/de_gueterbahnhof.ts` (Bahn-Requisiten) und `src/maps/de_umschlag.ts` (drei Ebenen übereinander: Unterführung −3.6 m, Erdgeschoss, Obergeschoss +4.4/+5.6 m; Ausstattung in `src/maps/umschlag/*.ts`).
 
 ## Koordinaten und Maße
 
@@ -97,6 +97,26 @@ höher als 1.9 m sind automatisch kein Navigationsboden.
 `MapBuilder.walkway(x0, z0, x1, z1, y, { rails })` baut einen Gitterrost-Laufsteg mit Geländer.
 Hinweise: Rampen/Treppen auf eine höhere Fläche 1 m auf dieser enden lassen und ≤ 0.5 m Anstieg je Meter
 (sonst reißt die Navigation ab); `occlude: false` für dünne Plattenaufsätze; Deko-Farbtöne hell wählen.
+
+#### Umschlag-Requisiten (`src/logic/hubprops.ts`, Referenz: `de_umschlag`)
+
+Generisch für Logistik-/Büro-/Kantinen-Szenen: `van` (Lieferwagen 5.6 × 2.1 × 2.7 m, Nase bei +X, Hecktüren, 4 Räder), `dockBay`
+(Rolltor-Bucht an einer Fassade, Rückseite bei lokal z = 0, Tor halb offen mit Dunkelheit dahinter, Puffer, Warnleuchte, Nummernschild
+aus `n`, `len`/`h`), `plant` (Topfpflanze; nur der Topf kollidiert, `h` = Gesamthöhe), `chairStack` (Stuhlstapel, `n`), `table`
+(Kantinentisch mit Bänken, `len`), `bench` (Bank, Sitzhöhe 0.5 m), `counter` (Edelstahl-Arbeitstisch/Küchenzeile, `len`), `stove`
+(Großküchenherd mit Haube), `gantryConveyor` (aufgeständerter Sortierförderer, Band auf `h` = 3 m, darunter frei begehbar, Stützen alle 4 m,
+Pakete obendrauf, `len`), `gatehouse` (Pförtnerhaus/Ticket-Häuschen 4 × 3 m mit Fenster nach +Z), `console` (Leitstand-Pult mit Monitoren).
+`dockRow(b, axis, wall, from, to, facing, …)` (in `src/maps/umschlag/common.ts`) setzt eine Reihe nummerierter Buchten entlang einer Fassade.
+
+#### Obergeschosse auf Sockeln und dünne Fensterwände (Referenz: `de_umschlag`)
+
+Zusätzlich zum Keller-Muster (Kühlhaus) lassen sich **Obergeschosse** als eigener `CellPlan` bauen (Fülltyp `.` = leer, Vorbild
+`de_umschlag.ts`, Plan `O`): Räume stehen auf **massiven Sockeln** (Erdgeschoss-Gebäudezellen mit `h` = Unterkante des Obergeschosses, z. B.
+4.0 m für Boden +4.4 m); die Obergeschoss-Zellen setzen `bottom: Boden − 0.4`, Wände sind Gebäudezellen mit `bottom`, Laufstege/Brücken
+frei schwebende Plattenzellen (`floor` + `bottom`, ohne `roof`). Brücken über niedrige Anbauten stehen auf deren Dach (Sockelhöhe = `bottom`).
+Durchgänge durch dicke Wände in der Höhe: Gebäudezelle mit `window: { sill: Obergeschoss-Boden, lintel: +3.2 }`. **Dünne Fensterwände**
+(offene Scheibenöffnung mit 1 m Brüstung, 0.4 m dick) baut man besser mit `b.wallX/wallZ(…, openings)` als mit 2-m-Zellen — sonst verdeckt die
+2 m tiefe Brüstung den Blick nach unten.
 
 ### Deko, Licht, Schilder, Markierungen
 

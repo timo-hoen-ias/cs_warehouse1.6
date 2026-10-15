@@ -105,6 +105,17 @@ function spotB(b: B): void {
   prop(b, 'crateStack', -41.6, 0, -35.6);
   prop(b, 'palletStack', -44.4, 0, -36.6, { n: 5 });
   b.decor('extinguisher', [-58.1, 1.2, -46], 0);
+  // Deckung gegen Blicke aus Markt-Tür, Markt-Fenster und Küchentür (Nordwand): Kistenstapel, Käfige, Paletten im Sichtfeld
+  prop(b, 'crateStack', -55.4, 0, -55.4);
+  prop(b, 'gitterbox', -50.6, 0, -54.4, { n: 2 });
+  prop(b, 'gitterbox', -50.6, 0, -53.1, { n: 1 });
+  prop(b, 'crateStack', -45.6, 0, -55);
+  prop(b, 'crateStack', -32.4, 0, -54.6);
+  prop(b, 'palletStack', -36.6, 0, -53.4, { n: 7 });
+  prop(b, 'rollCage', -49.2, 0, -39.4, { h: 1.2 });
+  prop(b, 'rollCage', -48.3, 0, -39.4, { h: 1.0 });
+  prop(b, 'palletGoods', -42.6, 0, -40.6, { seed: 5 });
+  prop(b, 'palletGoods', -42.6, 0, -39.4, { seed: 6 });
 }
 
 function markt(b: B): void {

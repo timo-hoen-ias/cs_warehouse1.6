@@ -242,7 +242,7 @@ export function buildUmschlag(): MapData {
   railedStairs(b, 6, -50, 10, -38, 0, LV.up, 'pz', {}); // Leitstand-Treppe
 
   // ------------------------------------------------------------------ Callouts
-  b.area('T-Spawn', -52, 60, -2, 88);
+  b.area('T-Spawn', -56, 56, -6, 82);
   b.area('Ladehof', -86, 48, 90, 88);
   b.area('Wohnungs-Aufgang', -86, 26, -58, 48, -1, 6);
   b.area('Vorplatz Süd', -24, 30, 14, 48);
@@ -286,10 +286,17 @@ export function buildUmschlag(): MapData {
   // ------------------------------------------------------------------ Spots, Spawns, Kaufzonen
   b.site('A', 'Serverschrank A', [36, 1.6, 4], [56, 7, 20], [46, LV.apron, 10]);
   b.site('B', 'Serverschrank B', [-60, -0.4, -52], [-36, 6, -34], [-48, 0, -42]);
-  b.spawnGrid('T', -30, 0, 78, 8, 2, 3, 0);
+  b.spawnGrid('T', -34, 0, 66, 8, 2, 3, 0);
   b.spawnGrid('CT', 22, 0, -54, 8, 2, 3, Math.PI);
-  b.buy('T', -52, 60, -2, 88);
+  b.buy('T', -56, 56, -6, 82);
   b.buy('CT', -8, -72, 40, -40);
+
+  // Bot-Hinweise (optional): Scharfschütze am Fenster, Halte-Positionen und Pflanzplätze hinter den Serverreihen
+  b.botHint({ kind: 'sniper', pos: [5, LV.up, -24.5], team: 'CT' }); // Fenster: Blick über Obere Mitte und Mitte
+  b.botHint({ kind: 'hold', pos: [36, LV.apron, 12], team: 'CT', site: 'A' }); // westlich der Dreierkiste, Blick zur T-Rampe
+  b.botHint({ kind: 'hold', pos: [-56.5, 0, -40], team: 'CT', site: 'B' }); // vor dem Lieferwagen, Blick zur Treppe der Wohnungen
+  b.botHint({ kind: 'plant', pos: [52.5, LV.apron, 12], site: 'A' }); // östlich der Gitterboxen
+  b.botHint({ kind: 'plant', pos: [-44, 0, -51.5], site: 'B' }); // hinter den Serverschränken, aus Kurz verdeckt
 
   dressT(b);
   dressMid(b);
