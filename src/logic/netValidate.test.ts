@@ -192,6 +192,14 @@ describe('Snapshot', () => {
     expect((p.lobby as Record<string, unknown>).pw).toBeUndefined();
   });
 
+  it('Friendly Fire im Snapshot: nur ein echtes true gilt (Zahlen/Strings/fehlend = aus)', () => {
+    const s = realSnap();
+    expect(parseSnapshot({ ...s, ff: true })!.ff).toBe(true);
+    for (const ff of [false, 1, 'true', null, undefined, {}]) expect(parseSnapshot({ ...s, ff })!.ff).toBe(false);
+    expect(parseSnapshot({ ...s, lobby: { ...s.lobby, friendlyFire: true } })!.lobby!.friendlyFire).toBe(true);
+    expect(parseSnapshot({ ...s, lobby: { ...s.lobby, friendlyFire: 'ja' } })!.lobby!.friendlyFire).toBe(false);
+  });
+
   it('Spieler-Einträge: Grenzen und Booleans', () => {
     const p = parsePlayerSnap({ id: 'a', name: 5, team: 'CT', bot: 'yes', hp: 1e9, alive: 1, money: -5, kills: 1e9, deaths: -3, weapon: 'm4a1', armor: 999, helmet: 'x', bomb: 1, kit: true, primary: 'm4a1', secondary: 'usp', nades: 'x', ping: NaN })!;
     expect(p).toMatchObject({ name: 'Spieler', bot: false, hp: 100, alive: false, money: 0, kills: 9999, deaths: 0, armor: 100, helmet: false, bomb: false, kit: true, primary: 'm4a1', secondary: 'usp', nades: [0, 0, 0], ping: -1 });

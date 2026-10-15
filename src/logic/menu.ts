@@ -1,4 +1,5 @@
 import type { Team } from './economy';
+import { DEFAULT_FRIENDLY_FIRE } from './friendlyFire';
 import { MAX_PLAYERS_MAX, MAX_PLAYERS_MIN } from './lobby';
 import { normalizeRoomCode, validRoomCode } from './serverList';
 
@@ -30,6 +31,8 @@ export type GameSetup = {
   listed: boolean;
   /** Online-Host: Serverlobby (Aufwärmen bis „Spiel starten“). */
   lobby: boolean;
+  /** Friendly Fire (Teamschaden) — nur der Host/Einzelspieler entscheidet; Standard aus wie bei öffentlichen CS-Servern. */
+  friendlyFire: boolean;
 };
 
 export type MenuScreen = 'main' | 'single' | 'browser' | 'create' | 'settings' | 'help' | 'credits' | 'quit';
@@ -127,7 +130,7 @@ export function clampMaxPlayers(n: number): number {
 export function defaultSetup(mapId: string): GameSetup {
   return {
     name: 'Spieler', mapId, team: 'auto', mode: 'offline', room: '', fillTo: 6, botSkill: 0.6, server: '',
-    serverName: 'Lagerserver', maxPlayers: 10, password: '', listed: true, lobby: true,
+    serverName: 'Lagerserver', maxPlayers: 10, password: '', listed: true, lobby: true, friendlyFire: DEFAULT_FRIENDLY_FIRE,
   };
 }
 
@@ -188,6 +191,7 @@ export function parseLaunch(search: string, defaultMap: string): LaunchInfo {
       listed: p.get('listed') !== '0',
       // Automatisierte Starts warten nicht auf „Spiel starten“, außer explizit verlangt
       lobby: p.get('lobby') === '1',
+      friendlyFire: p.get('ff') === '1',
     };
   }
   return { auto, room, map, server, screen };
@@ -200,7 +204,7 @@ export function roomLink(href: string, room: string, mapId: string, server = '')
   url.searchParams.set('map', mapId);
   if (server) url.searchParams.set('server', server);
   else url.searchParams.delete('server');
-  for (const k of ['auto', 'host', 'pw', 'menu', 'sname', 'max', 'listed', 'lobby', 'fill', 'name', 'team']) url.searchParams.delete(k);
+  for (const k of ['auto', 'host', 'pw', 'menu', 'sname', 'max', 'listed', 'lobby', 'fill', 'name', 'team', 'ff']) url.searchParams.delete(k);
   return url.href;
 }
 
@@ -224,5 +228,6 @@ export function sanitizeSavedSetup(raw: unknown, defaultMap: string, knownMaps: 
     maxPlayers: clampMaxPlayers(num(r.maxPlayers, d.maxPlayers, 2, 16)),
     listed: typeof r.listed === 'boolean' ? r.listed : d.listed,
     lobby: typeof r.lobby === 'boolean' ? r.lobby : d.lobby,
+    friendlyFire: typeof r.friendlyFire === 'boolean' ? r.friendlyFire : d.friendlyFire,
   };
 }

@@ -119,14 +119,14 @@ describe('publicLobby / sanitizePublicLobby / lobbyFromPublic', () => {
   it('der Snapshot-Teil enthält nie die Prüfsumme', () => {
     const c = cfg({ pw: passwordDigest('ABCDE', 'x'), hold: true, map: 'de_lager', fillTo: 8, botSkill: 0.85 });
     const pub = publicLobby(c);
-    expect(pub).toEqual({ name: 'Test', maxPlayers: 4, hasPassword: true, listed: true, hold: true, map: 'de_lager', fillTo: 8, botSkill: 0.85 });
+    expect(pub).toEqual({ name: 'Test', maxPlayers: 4, hasPassword: true, listed: true, hold: true, map: 'de_lager', fillTo: 8, botSkill: 0.85, friendlyFire: false });
     expect(JSON.stringify(pub)).not.toContain(c.pw!);
     expect(sanitizePublicLobby(pub)).toEqual(pub);
   });
 
   it('bereinigt Namen, klemmt Zahlen, verwirft kaputte Karten und Typen', () => {
     expect(sanitizePublicLobby({ name: '<b>x</b>', maxPlayers: 99, hasPassword: 'ja', hold: 'ja', map: '../x', fillTo: 1e9, botSkill: NaN })).toEqual({
-      name: 'bx/b', maxPlayers: 16, hasPassword: false, listed: true, hold: false, map: null, fillTo: 32, botSkill: null,
+      name: 'bx/b', maxPlayers: 16, hasPassword: false, listed: true, hold: false, map: null, fillTo: 32, botSkill: null, friendlyFire: false,
     });
     expect(sanitizePublicLobby({ maxPlayers: 0 })?.maxPlayers).toBe(2);
     expect(sanitizePublicLobby({ maxPlayers: Infinity })?.maxPlayers).toBe(10);
@@ -137,14 +137,25 @@ describe('publicLobby / sanitizePublicLobby / lobbyFromPublic', () => {
     expect(sanitizePublicLobby({ botSkill: -3 })?.botSkill).toBe(0);
   });
 
+  it('Friendly Fire: Standard aus, nur ein echtes true schaltet es ein, wandert durch Host-Migration', () => {
+    expect(publicLobby(cfg()).friendlyFire).toBe(false);
+    expect(publicLobby(cfg({ friendlyFire: true })).friendlyFire).toBe(true);
+    expect(sanitizePublicLobby({})?.friendlyFire).toBe(false);
+    expect(sanitizePublicLobby({ friendlyFire: 'ja' })?.friendlyFire).toBe(false);
+    expect(sanitizePublicLobby({ friendlyFire: 1 })?.friendlyFire).toBe(false);
+    expect(sanitizePublicLobby({ friendlyFire: true })?.friendlyFire).toBe(true);
+    expect(lobbyFromPublic(publicLobby(cfg({ friendlyFire: true })), null).friendlyFire).toBe(true);
+    expect(lobbyFromPublic(publicLobby(cfg()), null).friendlyFire).toBe(false);
+  });
+
   it('Host-Migration: neuer Host übernimmt Regeln und nutzt die eigene Prüfsumme', () => {
     const pw = passwordDigest('ABCDE', 'x');
     const pub = publicLobby(cfg({ pw, map: 'de_lager', fillTo: 8, botSkill: 0.3 }));
-    expect(lobbyFromPublic(pub, pw)).toEqual(cfg({ pw, map: 'de_lager', fillTo: 8, botSkill: 0.3 }));
+    expect(lobbyFromPublic(pub, pw)).toEqual(cfg({ pw, map: 'de_lager', fillTo: 8, botSkill: 0.3, friendlyFire: false }));
     // Ohne eigene Prüfsumme bleibt der Server offen (die alte wird nie verteilt)
     expect(lobbyFromPublic(pub, null).pw).toBeNull();
     // Offener Server bleibt offen, auch wenn der neue Host eine Prüfsumme hätte
     expect(lobbyFromPublic(publicLobby(cfg()), pw).pw).toBeNull();
-    expect(lobbyFromPublic(publicLobby(cfg()), null)).toEqual(cfg());
+    expect(lobbyFromPublic(publicLobby(cfg()), null)).toEqual(cfg({ friendlyFire: false }));
   });
 });

@@ -3,6 +3,7 @@ import { BotBrain, type BrainInput, type Intent, type SeenEnemy } from './botBra
 import { applyBuy, botBuyList, teamBuyKind, type BotRole, type BuyKind } from './botBuy';
 import { CTCoach, TCoach, type CoachBot, type CoachCtx } from './botCoach';
 import { aimError } from './botDecide';
+import { FRIENDLY, mateInLineOfFire, shotSpread } from './botFriendly';
 import { decay, markDead, newKnowledge, report, resetKnowledge, sighting, type TeamKnowledge } from './botKnowledge';
 import { enemyOf, zoneAt, type BotMapInfo, type SiteId } from './botMap';
 import { SENSE, canSeePlayer, footstepRange, heardPosition, shotRange } from './botPerception';
@@ -69,6 +70,8 @@ type Unit = {
   lastShot: number;
   intent: Intent | null;
   role: BotRole;
+  /** Kameraden, die wegen mir das Feuer halten (Schütze → Schusslinie, bis wann): ich trete aus der Linie. */
+  blocking: Map<string, { line: { from: XYZ; to: XYZ }; until: number }>;
 };
 
 export type BotSystemOpts = { skill: number; seed?: number };
@@ -125,7 +128,7 @@ export class BotSystem {
     const rnd = mulberry32(seed * 7919 + 17);
     this.units.set(p.id, {
       id: p.id, team: p.team, brain: new BotBrain(p.id, p.team, botSkill(this.baseSkill, p.id), rnd), body: new BotBody(p.pose), rnd,
-      seeT: (seed % 7) * 0.014, hearT: (seed % 5) * 0.06, visible: [], blind: 0, weapon: p.weapon, switchT: 0, eHeld: false, lastShot: -10, intent: null, role: 'support',
+      seeT: (seed % 7) * 0.014, hearT: (seed % 5) * 0.06, visible: [], blind: 0, weapon: p.weapon, switchT: 0, eHeld: false, lastShot: -10, intent: null, role: 'support', blocking: new Map(),
     });
   }
 
@@ -379,7 +382,17 @@ export class BotSystem {
     const coach = team === 'T' ? this.coachT : this.coachCT;
     const task = live ? coach?.tasks.get(u.id) ?? null : null;
     const mates: XYZ[] = [];
-    for (const q of Object.values(m.players)) if (q.alive && q.team === team && q.id !== u.id) mates.push(this.units.get(q.id)?.body.pose ?? q.pose);
+    const mateIds: string[] = [];
+    for (const q of Object.values(m.players)) {
+      if (!q.alive || q.team !== team || q.id === u.id) continue;
+      mates.push(this.units.get(q.id)?.body.pose ?? q.pose);
+      mateIds.push(q.id);
+    }
+    const blocking: { from: XYZ; to: XYZ }[] = [];
+    for (const [id, b] of u.blocking) {
+      if (b.until > now) blocking.push(b.line);
+      else u.blocking.delete(id);
+    }
     const gun = p.loadout.guns[u.weapon];
     const input: BrainInput = {
       now, elapsed: this.liveAt >= 0 ? now - this.liveAt : 0, dt, phase: m.round.phase, info, col: info.col, smokes: w.smokes,
@@ -389,12 +402,16 @@ export class BotSystem {
       },
       visible: u.blind > 0.6 ? [] : u.visible,
       mates,
+      blocking,
       know: this.know[team],
       task,
       bomb: { phase: m.round.bomb.phase, pos: w.bombPos, fuseLeft: m.round.bomb.fuseLeft, progress: m.round.bomb.progress },
     };
     const it = u.brain.think(input);
     u.intent = it;
+    // Wer wegen eines Kameraden das Feuer hält, bittet ihn, aus der Schusslinie zu treten
+    const held = it.held && mateIds[it.held.mate] ? this.units.get(mateIds[it.held.mate]!) : undefined;
+    if (it.held && held) held.blocking.set(u.id, { line: { from: it.held.from, to: it.held.to }, until: now + FRIENDLY.sideHold + 0.25 });
     // Waffe wechseln (Ziehzeit), Bombe/Granate nur, wenn vorhanden
     let want = it.weapon;
     if (want === 'c4' && !p.loadout.bomb) want = bestWeapon(p.loadout);
@@ -422,11 +439,11 @@ export class BotSystem {
       act.throwNade(u.id, it.throwNade.kind, u.body.eye, it.throwNade.dir, it.throwNade.strength);
     }
     // Schießen
-    if (it.fire && live && u.switchT <= 0 && (def.mode === 'hit' || def.mode === 'melee')) this.shoot(u, p, it.fire, def, w, act);
+    if (it.fire && live && u.switchT <= 0 && (def.mode === 'hit' || def.mode === 'melee')) this.shoot(u, p, it.fire, def, w, act, mates);
     if (it.radio) this.sendRadio(u.id, team, it.radio, now);
   }
 
-  private shoot(u: Unit, p: MatchPlayer, fire: { target: string; aim: XYZ }, def: (typeof WEAPONS)[string], w: BotWorldView, act: BotActions): void {
+  private shoot(u: Unit, p: MatchPlayer, fire: { target: string; aim: XYZ }, def: (typeof WEAPONS)[string], w: BotWorldView, act: BotActions, mates: readonly XYZ[]): void {
     const m = w.match;
     const target = m.players[fire.target];
     if (!target?.alive) return;
@@ -434,7 +451,12 @@ export class BotSystem {
     const dist = Math.hypot(fire.aim.x - eye.x, fire.aim.y - eye.y, fire.aim.z - eye.z);
     // Erst schießen, wenn das Fadenkreuz ungefähr drauf ist (Drehen braucht Zeit)
     if (u.body.aimOff(fire.aim) > Math.max(0.06, 0.9 / Math.max(1, dist))) return;
+    // Sicherheitsnetz: nie durch einen Kameraden schießen (das Gehirn hält das Feuer schon; hier zählt der echte Zielfehler)
+    const err = aimError(u.brain.sightTime, u.brain.skill) * (u.blind > 0 ? 3 : 1);
     const gun = p.loadout.guns[u.weapon];
+    const moving = u.body.speed > 0.6;
+    const scoped = def.type === 'sniper' && u.body.stillFor > 0.25;
+    if (mates.length && mateInLineOfFire(eye, fire.aim, mates, { spread: shotSpread(err, gun ? fireSpread(def, gun, moving, u.body.crouch, scoped) : def.spreadBase) })) return;
     if (gun) {
       if (gun.mag <= 0) {
         startReload(gun, def);
@@ -448,10 +470,7 @@ export class BotSystem {
     u.lastShot = m.time;
     const dx = fire.aim.x - eye.x, dy = fire.aim.y - eye.y, dz = fire.aim.z - eye.z;
     const l = Math.hypot(dx, dy, dz) || 1;
-    const err = aimError(u.brain.sightTime, u.brain.skill) * (u.blind > 0 ? 3 : 1);
     const base = spreadDir({ x: dx / l, y: dy / l, z: dz / l }, err, u.rnd);
-    const moving = u.body.speed > 0.6;
-    const scoped = def.type === 'sniper' && u.body.stillFor > 0.25;
     const spread = gun ? fireSpread(def, gun, moving, u.body.crouch, scoped) : def.spreadBase;
     act.fire(u.id, def.id, eye, shotDirs(def, base, spread, u.rnd));
     u.brain.onShot(dist, u.weapon);

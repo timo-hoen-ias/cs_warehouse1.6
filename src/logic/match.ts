@@ -1,5 +1,6 @@
 import { ECONOMY, addMoney, lossBonus, newMoney, type Money, type Team } from './economy';
 import { armoredDamage } from './damage';
+import { DEFAULT_FRIENDLY_FIRE, teamDamageBlocked } from './friendlyFire';
 import { carryOver, defaultLoadout, giveWeapon, type Loadout } from './loadout';
 import { ROUND, newRoundState, type RoundState } from './round';
 import { hitDamage, rangeFalloff, type WeaponDef } from './weapons';
@@ -54,6 +55,11 @@ export type MatchState = {
   matchEndTimer: number;
   /** Laufende Spielzeit (s). */
   time: number;
+  /**
+   * Friendly Fire (Server-Option, Host-autoritativ; Standard aus): aus = Kugeln, Messer und HE
+   * verletzen keine Teamkameraden (`applyHit`/`applyExplosion` liefern null), an = Teamschaden mit Strafe.
+   */
+  friendlyFire: boolean;
 };
 
 export const MATCH = {
@@ -77,6 +83,7 @@ export function newMatch(): MatchState {
     winner: null,
     matchEndTimer: 0,
     time: 0,
+    friendlyFire: DEFAULT_FRIENDLY_FIRE,
   };
 }
 
@@ -178,11 +185,13 @@ export type HitResult = { dmg: number; killed: boolean; armorLeft: number };
 
 /**
  * Treffer verrechnen: Distanz-Abfall, Rüstung, HP; bei Tod Statistik, Geld
- * (Kill-Belohnung, Teamkill-Strafe) und Kill-Feed. Liefert null, wenn Opfer tot/unbekannt.
+ * (Kill-Belohnung, Teamkill-Strafe) und Kill-Feed. Liefert null, wenn Opfer tot/unbekannt
+ * oder der Schaden unter Teamkameraden wegen ausgeschaltetem Friendly Fire wirkungslos ist.
  */
 export function applyHit(m: MatchState, victimId: PlayerId, attackerId: PlayerId | null, def: WeaponDef, part: 'head' | 'body', dist = 0): HitResult | null {
   const v = m.players[victimId];
   if (!v || !v.alive) return null;
+  if (blockedByFriendlyFire(m, v, attackerId)) return null;
   const raw0 = hitDamage(def, part) * rangeFalloff(def, dist);
   const raw = Number.isFinite(raw0) ? raw0 : 0;
   const a = armoredDamage(raw, def.armorPen, part, { armor: v.loadout.armor, helmet: v.loadout.helmet });
@@ -190,11 +199,17 @@ export function applyHit(m: MatchState, victimId: PlayerId, attackerId: PlayerId
   return applyRawDamage(m, v, a.dmg, attackerId, def.id, part === 'head');
 }
 
+function blockedByFriendlyFire(m: MatchState, victim: MatchPlayer, attackerId: PlayerId | null): boolean {
+  const a = attackerId ? m.players[attackerId] : undefined;
+  return teamDamageBlocked(m.friendlyFire, a, victim);
+}
+
 /** Rohschaden (z. B. HE-Granate: Rüstung dämpft mit armorPen 0.57, kein Kopfschuss). */
 export function applyExplosion(m: MatchState, victimId: PlayerId, attackerId: PlayerId | null, dmg: number, armorPen = 0.57): HitResult | null {
   const v = m.players[victimId];
   // `!(dmg > 0)` verwirft auch NaN (z. B. aus kaputten Netz-Koordinaten)
   if (!v || !v.alive || !(dmg > 0)) return null;
+  if (blockedByFriendlyFire(m, v, attackerId)) return null;
   const a = armoredDamage(dmg, armorPen, 'body', { armor: v.loadout.armor, helmet: v.loadout.helmet });
   v.loadout.armor = a.armorLeft;
   return applyRawDamage(m, v, a.dmg, attackerId, 'hegrenade', false);

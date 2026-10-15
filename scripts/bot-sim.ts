@@ -1,5 +1,6 @@
 // Headless-Bot-Simulation: spielt Bot-gegen-Bot-Runden im Zeitraffer und druckt Statistik.
-// Aufruf: bun scripts/bot-sim.ts [karten-id] [runden] [je-team] [skill] [seed] [--rounds]
+// Aufruf: bun scripts/bot-sim.ts [karten-id] [runden] [je-team] [skill] [seed] [--rounds] [--deaths] [--ff]
+// --ff = Friendly Fire an (Standard wie im Spiel: aus); --deaths zeigt auch die Teamkill-Anteile.
 import { mapById } from '../src/maps';
 import { compileMap } from '../src/logic/mapcompile';
 import { HeadlessMatch, summarize } from '../src/logic/botSim';
@@ -17,7 +18,7 @@ const seed = Number(args[4] ?? 1);
 const t0 = performance.now();
 // 'bottest' / 'bottest-noareas' = synthetische Testkarte der Unit-Tests
 const map = compileMap(id.startsWith('bottest') ? buildBotTestMap({ areas: id !== 'bottest-noareas' }) : mapById(id).build());
-const sim = new HeadlessMatch(map, { perTeam, skill, seed });
+const sim = new HeadlessMatch(map, { perTeam, skill, seed, friendlyFire: flags.has('--ff') });
 const t1 = performance.now();
 const traceArg = process.argv.find((a) => a.startsWith('--trace='));
 const traceRound = traceArg ? Number(traceArg.split('=')[1]) : -1;
@@ -41,7 +42,7 @@ if (traceRound > 0) {
 }
 sim.runRounds(rounds);
 const t2 = performance.now();
-console.log(`${id}: ${perTeam}v${perTeam}, Skill ${skill}, Seed ${seed} — Aufbau ${(t1 - t0).toFixed(0)} ms, ${sim.stats.length} Runden in ${((t2 - t1) / 1000).toFixed(1)} s (Spielzeit ${sim.match.time.toFixed(0)} s)`);
+console.log(`${id}: ${perTeam}v${perTeam}, Skill ${skill}, Seed ${seed}, Friendly Fire ${sim.match.friendlyFire ? 'an' : 'aus'} — Aufbau ${(t1 - t0).toFixed(0)} ms, ${sim.stats.length} Runden in ${((t2 - t1) / 1000).toFixed(1)} s (Spielzeit ${sim.match.time.toFixed(0)} s)`);
 if (flags.has('--rounds')) {
   for (const s of sim.stats) {
     console.log(`  R${String(s.round).padStart(2)} ${s.outcome.padEnd(14)} ${s.duration.toFixed(0).padStart(4)} s  Plan ${s.tPlan}/${s.tSite}  ${s.planted ? `Plant ${s.plantSite} @${s.plantAt.toFixed(0)}s` : 'kein Plant'}${s.defused ? ' entschärft' : ''}  Kills ${s.kills}  Eingänge [${s.entries.join(', ')}]  Stuck ${s.maxStuck.toFixed(1)} ${s.maxStuck > 3 ? `(${s.stuckAt}) ` : ''}Idle ${s.maxIdle.toFixed(1)} (${s.idleState})  Wand ${s.wallViolations} Fall ${s.fallViolations} Funk ${s.radio} Gran ${s.nades}`);
@@ -53,6 +54,9 @@ if (flags.has('--deaths')) {
     const by = new Map<string, number>();
     for (const r of sim.stats) for (const d of r.deaths) if (d.team === team) by.set(d.zone, (by.get(d.zone) ?? 0) + 1);
     console.log(`Tode ${team}:`, [...by].sort((a, b) => b[1] - a[1]).map(([z, n]) => `${z} ${n}`).join(', '));
+    const all = sim.stats.flatMap((r) => r.deaths).filter((d) => d.team === team);
+    const tk = all.filter((d) => d.teamKill).length;
+    console.log(`  davon Teamkills: ${tk} von ${all.length} (${((100 * tk) / Math.max(1, all.length)).toFixed(1)} %)`);
   }
 }
 if (flags.has('--radio')) console.log(sim.radioLog.slice(0, 60).join('\n'));

@@ -29,6 +29,8 @@ export type LobbyConfig = {
   fillTo?: number;
   /** Bot-Stärke 0..1 (übersteht Host-Migration). */
   botSkill?: number;
+  /** Friendly Fire (Teamschaden), Standard aus; übersteht Host-Migration. */
+  friendlyFire?: boolean;
 };
 
 /** Öffentlicher Teil der Konfiguration (im Snapshot an alle): statt der Prüfsumme nur „hat Passwort“. */
@@ -41,6 +43,7 @@ export type PublicLobby = {
   map: string | null;
   fillTo: number | null;
   botSkill: number | null;
+  friendlyFire: boolean;
 };
 
 export type KickReason = 'password' | 'full' | 'version' | 'map';
@@ -158,6 +161,7 @@ export function publicLobby(cfg: LobbyConfig): PublicLobby {
     map: cfg.map ?? null,
     fillTo: cfg.fillTo ?? null,
     botSkill: cfg.botSkill ?? null,
+    friendlyFire: cfg.friendlyFire === true,
   };
 }
 
@@ -174,6 +178,7 @@ export function sanitizePublicLobby(raw: unknown): PublicLobby | null {
     map: typeof r.map === 'string' && MAP_ID.test(r.map) ? r.map : null,
     fillTo: finiteOr(r.fillTo, 0, 32, true),
     botSkill: finiteOr(r.botSkill, 0, 1, false),
+    friendlyFire: r.friendlyFire === true,
   };
 }
 
@@ -189,6 +194,7 @@ export function lobbyFromPublic(pub: PublicLobby, ownDigest: string | null | und
     pw: pub.hasPassword && ownDigest ? ownDigest : null,
     listed: pub.listed,
     hold: pub.hold,
+    friendlyFire: pub.friendlyFire,
   };
   if (pub.map) cfg.map = pub.map;
   if (pub.fillTo !== null) cfg.fillTo = pub.fillTo;

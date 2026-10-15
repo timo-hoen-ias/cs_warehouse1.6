@@ -40,6 +40,18 @@ describe('Granatenwürfe der Bots', () => {
     expect(hidden).toBeNull();
   });
 
+  it('reject: Zündpunkte werden aussortiert; ohne erlaubten Wurf → null', () => {
+    const target = { x: 0, y: 0, z: -10 };
+    const free = solveThrow(col, 'he', eye, target)!;
+    expect(free).not.toBeNull();
+    const seen: number[] = [];
+    // Alles zwischen Wurfpunkt und Ziel ist „besetzt“, was nahe am freien Wurf liegt → anderer Wurf
+    const alt = solveThrow(col, 'he', eye, target, { reject: (at) => { seen.push(at.z); return Math.hypot(at.x - free.land.x, at.z - free.land.z) < 0.4; } });
+    expect(seen.length).toBeGreaterThan(0);
+    if (alt) expect(Math.hypot(alt.land.x - free.land.x, alt.land.z - free.land.z)).toBeGreaterThanOrEqual(0.4);
+    expect(solveThrow(col, 'he', eye, target, { reject: () => true })).toBeNull();
+  });
+
   it('unerreichbares Ziel hinter einer hohen Wand → null; zu nah → null', () => {
     expect(solveThrow(col, 'smoke', eye, { x: 26, y: 0, z: 0 })).toBeNull();
     expect(solveThrow(col, 'smoke', eye, { x: 0.3, y: 0, z: 0.2 })).toBeNull();

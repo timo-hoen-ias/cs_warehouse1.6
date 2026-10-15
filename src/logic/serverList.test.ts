@@ -6,7 +6,7 @@ import {
 
 const hb = (o: Partial<Heartbeat> = {}): Heartbeat => ({
   room: 'ABCDE', name: 'Lagerhalle 1', map: 'de_lagerstaub', players: 2, maxPlayers: 10, bots: 4,
-  phase: 'live', round: 3, score: [2, 1], hasPassword: false, version: GAME_VERSION, ...o,
+  phase: 'live', round: 3, score: [2, 1], hasPassword: false, friendlyFire: false, version: GAME_VERSION, ...o,
 });
 
 describe('sanitizeHeartbeat', () => {
@@ -43,6 +43,9 @@ describe('sanitizeHeartbeat', () => {
     expect(sanitizeHeartbeat({ ...hb(), phase: 'hack' })?.phase).toBe('live');
     expect(sanitizeHeartbeat({ ...hb(), hasPassword: 'yes' })?.hasPassword).toBe(false);
     expect(sanitizeHeartbeat({ ...hb(), hasPassword: true })?.hasPassword).toBe(true);
+    expect(sanitizeHeartbeat({ ...hb(), friendlyFire: 'yes' })?.friendlyFire).toBe(false);
+    expect(sanitizeHeartbeat({ ...hb(), friendlyFire: undefined })?.friendlyFire).toBe(false);
+    expect(sanitizeHeartbeat({ ...hb(), friendlyFire: true })?.friendlyFire).toBe(true);
   });
 
   it('übernimmt Echo nur mit gültigen Typen', () => {

@@ -1,6 +1,7 @@
 import type { BombPhase } from './bombs';
 import { BOMB } from './bombs';
-import { reactionTime } from './botDecide';
+import { aimError, reactionTime } from './botDecide';
+import { mateInLineOfFire, nadeHurtsMates, shotSpread, yieldStep } from './botFriendly';
 import {
   aimPoint, chooseWeapon, combatTick, effectiveRange, engage, needsReload, newCombat, onShot as combatOnShot,
   shouldRetreat, type CombatState,
@@ -9,6 +10,7 @@ import type { NadeOrder, Task } from './botCoach';
 import { nearestThreat, type TeamKnowledge } from './botKnowledge';
 import { enemyOf, threatPoints, zoneAt, type BotMapInfo } from './botMap';
 import { inFov } from './botPerception';
+import { fireSpread } from './fire';
 import { solveThrow, type ThrowPlan } from './botThrow';
 import type { Collider } from './collision';
 import type { Team } from './economy';
@@ -34,7 +36,9 @@ import { WEAPONS } from './weapons';
  *   nach einem Kill oder Beschuss die Position wechseln,
  * - **Granaten**: Würfe aus dem Auftrag (Blend/Rauch beim Ausführen, Rauch aufs Entschärfen)
  *   per Wurf-Suche, nach eigener Blendgranate wegdrehen,
- * - **Bombe**: Pflanzen/Entschärfen (bei Feindkontakt abbrechen, außer es ist zu spät dafür).
+ * - **Bombe**: Pflanzen/Entschärfen (bei Feindkontakt abbrechen, außer es ist zu spät dafür),
+ * - **Rücksicht** (`botFriendly`): kein Schuss durch Teamkameraden (Feuer halten, seitlich treten),
+ *   nicht vor zielenden Kameraden stehen, HE/Blend nicht zu Kameraden.
  */
 export type MoveSpeed = 'run' | 'walk' | 'sneak' | 'stop';
 
@@ -60,6 +64,8 @@ export type Intent = {
   radio: BotRadioKey | null;
   /** Zustand fürs Debug/HUD. */
   state: string;
+  /** Feuer gehalten, weil Kamerad Nr. `mate` (Index in `BrainInput.mates`) in der Schusslinie `from → to` steht. */
+  held?: { mate: number; from: XYZ; to: XYZ };
 };
 
 export type SeenEnemy = { id: string; pos: XYZ; crouch: boolean; dist: number };
@@ -91,6 +97,8 @@ export type BrainInput = {
   visible: SeenEnemy[];
   /** Lebende Kameraden (Positionen). */
   mates: readonly XYZ[];
+  /** Schusslinien von Kameraden, die ich gerade am Schießen hindere (sie halten das Feuer): aus der Linie treten. */
+  blocking?: readonly { from: XYZ; to: XYZ }[];
   know: TeamKnowledge;
   task: Task | null;
   bomb: { phase: BombPhase; pos: XYZ | null; fuseLeft: number; progress: number };
@@ -192,6 +200,49 @@ export class BotBrain {
   }
 
   think(v: BrainInput): Intent {
+    const out = this.decide(v);
+    return v.phase === 'live' || v.phase === 'bomb' ? this.keepClear(v, out) : out;
+  }
+
+  /**
+   * Rücksicht auf Kameraden (nach der eigentlichen Entscheidung): liegt einer in der Schusslinie,
+   * wird nicht geschossen und seitlich getreten; wer einen Kameraden so am Schießen hindert und selbst
+   * nicht kämpft, tritt aus dessen Linie (kämpft er selbst, weicht der Schütze aus — Zielen und Laufen vertragen sich nicht).
+   */
+  private keepClear(v: BrainInput, out: Intent): Intent {
+    const s = v.self;
+    if (out.fire && v.mates.length) {
+      const def = WEAPONS[s.weapon];
+      const gun = s.loadout.guns[s.weapon];
+      const weaponSpread = def ? (gun ? fireSpread(def, gun, s.stillFor < 0.15, s.crouch, s.stillFor > 0.25) : def.spreadBase) : 0;
+      const spread = shotSpread(aimError(this.sightTime, this.skill) * (s.blind > 0 ? 3 : 1), weaponSpread);
+      const block = mateInLineOfFire(s.eye, out.fire.aim, v.mates, { spread });
+      if (block) {
+        out.held = { mate: v.mates.indexOf(block.mate), from: { ...s.eye }, to: { ...out.fire.aim } };
+        out.fire = null;
+        this.stepAside(v, out, block.escape);
+        out.state += ' · Kamerad im Schussfeld';
+        return out;
+      }
+    }
+    if (!out.use && !out.throwNade && !this.throwing && !out.fire && !this.engaged && v.blocking?.length) {
+      const esc = yieldStep(s.pos, v.blocking);
+      if (esc && this.stepAside(v, out, esc)) out.state += ' · weicht aus';
+    }
+    return out;
+  }
+
+  /** Seitenschritt (nur auf begehbarem Boden, wie das Strafen im Körper); false = kein Platz. */
+  private stepAside(v: BrainInput, out: Intent, dir: { x: number; z: number }): boolean {
+    const s = v.self;
+    const n = nearestNode(v.info.nav, s.pos.x + dir.x * 0.7, s.pos.y, s.pos.z + dir.z * 0.7, 0.9);
+    if (n < 0 || Math.abs(v.info.nav.y[n]! - s.pos.y) >= 0.6) return false;
+    out.strafe = { x: dir.x, z: dir.z };
+    if (out.speed === 'stop' || out.speed === 'sneak') out.speed = 'walk';
+    return true;
+  }
+
+  private decide(v: BrainInput): Intent {
     const s = v.self;
     const lo = s.loadout;
     const nearestVisible = v.visible.length ? Math.min(...v.visible.map((e) => e.dist)) : null;
@@ -288,7 +339,7 @@ export class BotBrain {
       const lt = this.lastTarget;
       const dd = d3(s.pos, lt.pos);
       if (lo.grenades.he > 0 && dd > 8 && dd < 28 && v.now - this.lastHeAt > 8 && v.now - lt.t > 0.8) {
-        const plan = solveThrow(v.col, 'he', s.eye, lt.pos);
+        const plan = solveThrow(v.col, 'he', s.eye, lt.pos, { reject: this.hurtsMates(v, 'he') });
         if (plan) {
           this.lastHeAt = v.now;
           this.throwing = { plan, t: 0, released: false };
@@ -329,7 +380,7 @@ export class BotBrain {
         this.nadeTries++;
         for (const t of targets) {
           if (d2(s.eye, t) > 27 || d2(s.eye, t) < 3) continue;
-          const plan = solveThrow(v.col, n.kind, s.eye, t, { mustSee: n.mustSee, clear: (a, b) => v.col.clear(a, b) });
+          const plan = solveThrow(v.col, n.kind, s.eye, t, { mustSee: n.mustSee, clear: (a, b) => v.col.clear(a, b), reject: this.hurtsMates(v, n.kind) });
           if (plan) {
             this.nadeQueue.shift();
             this.nadeTries = 0;
@@ -348,7 +399,7 @@ export class BotBrain {
         if (near.length >= 2 && dd > 9 && dd < 30) {
           const kind = lo.grenades.he > 0 ? 'he' : 'flash';
           const tgt = kind === 'flash' ? { x: p.x, y: p.y + 2.2, z: p.z } : near[0]!.pos;
-          const plan = solveThrow(v.col, kind, s.eye, tgt, { clear: (a, b) => v.col.clear(a, b) });
+          const plan = solveThrow(v.col, kind, s.eye, tgt, { clear: (a, b) => v.col.clear(a, b), reject: this.hurtsMates(v, kind) });
           this.lastHeAt = v.now;
           if (plan) {
             this.throwing = { plan, t: 0, released: false };
@@ -501,10 +552,22 @@ export class BotBrain {
 
   // ------------------------------------------------------------------ Granaten
 
+  /** Wurfsuche: Zündpunkte bei Kameraden aussortieren (HE/Blend). */
+  private hurtsMates(v: BrainInput, kind: 'he' | 'flash' | 'smoke'): (at: XYZ) => boolean {
+    return (at) => nadeHurtsMates(kind, at, v.mates, (a, b) => v.col.clear(a, b));
+  }
+
   private continueThrow(v: BrainInput, out: Intent): Intent {
     const th = this.throwing!;
     th.t += v.dt;
     const kind = th.plan.kind;
+    // Kameraden sind inzwischen in die Wurfzone gelaufen → Wurf abbrechen (kurz Pause, dann neue Suche)
+    if (!th.released && th.t >= 0.4 && nadeHurtsMates(kind, th.plan.land, v.mates, (a, b) => v.col.clear(a, b))) {
+      this.throwing = null;
+      this.nadeTryAt = v.now + 1;
+      out.state = 'Wurf abgebrochen (Kamerad im Wirkungsbereich)';
+      return out;
+    }
     out.weapon = GRENADE_ID[kind];
     out.speed = 'stop';
     out.look = { x: v.self.eye.x + th.plan.dir.x * 10, y: v.self.eye.y + th.plan.dir.y * 10, z: v.self.eye.z + th.plan.dir.z * 10 };

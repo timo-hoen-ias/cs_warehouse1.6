@@ -46,6 +46,11 @@ export type DriverOptions = {
   /** Gesamtzahl Spieler inkl. Menschen, die der Host mit Bots auffüllt (0 = keine Bots). */
   fillTo: number;
   botSkill: number;
+  /**
+   * Friendly Fire (Teamschaden) für Einzelspieler/Ersteller; undefined = Stand des bisherigen Hosts
+   * übernehmen (Beitretende). Standard aus; beim Online-Host zählt `lobby.friendlyFire`.
+   */
+  friendlyFire?: boolean;
   /** Online-Host: Server-Konfiguration (Name, Limit, Passwort, Serverlobby). */
   lobby?: LobbyConfig | null;
   /** Client: Passwort-Prüfsumme für den Beitritt (wird nie gesendet, nur Antworten daraus). */
@@ -234,6 +239,9 @@ export class MatchDriver extends Behaviour {
     if (this.lobbyCfg?.fillTo !== undefined) this.options.fillTo = this.lobbyCfg.fillTo;
     if (this.lobbyCfg?.botSkill !== undefined) this.options.botSkill = this.lobbyCfg.botSkill;
     if (this.lobbyCfg && !this.lobbyCfg.map) this.lobbyCfg.map = this.world.data.id;
+    // Friendly Fire: Server-Konfiguration (Ersteller / vom alten Host übernommen) vor der Spieleroption (offline), sonst der gespiegelte Stand
+    this.match.friendlyFire = this.lobbyCfg?.friendlyFire ?? this.options.friendlyFire ?? this.match.friendlyFire;
+    if (this.lobbyCfg) this.lobbyCfg.friendlyFire = this.match.friendlyFire;
     if (this.botSys) this.botSys.skill = this.options.botSkill;
     // Host-Migration: Spiegel wird autoritativ.
     // Snapshot-Zähler über dem bisherigen Host fortsetzen, Rundenzähler übernehmen (kein Doppelstart)
@@ -1442,6 +1450,11 @@ export class MatchDriver extends Behaviour {
     if (b.phase === 'planting' && me.team === 'T') return { kind: 'plant', value: b.progress };
     if (b.phase === 'defusing' && me.team === 'CT') return { kind: 'defuse', value: b.progress };
     return null;
+  }
+
+  /** Friendly Fire aktiv (Host: eigene Regel, Client: Spiegel aus dem Snapshot). */
+  get friendlyFire(): boolean {
+    return this.match.friendlyFire;
   }
 
   /** Öffentliche Server-Konfiguration (Host: eigene, Client: aus dem Snapshot; null = offline/ohne Lobby). */

@@ -59,6 +59,25 @@ describe('Snapshot pack/apply', () => {
     expect(client.players['a']!.loadout.guns['ak47']).toBeUndefined();
   });
 
+  it('Friendly Fire: Snapshot trägt die Host-Option, der Spiegel übernimmt sie (auch wieder aus)', () => {
+    const host = newMatch();
+    addPlayer(host, 'a', 'Anna', { team: 'T' });
+    const client = newMatch();
+    expect(packSnapshot(host, 1, { nades: [], smokes: [], bombPos: null }).ff).toBe(false);
+    host.friendlyFire = true;
+    applySnapshot(client, packSnapshot(host, 2, { nades: [], smokes: [], bombPos: null }));
+    expect(client.friendlyFire).toBe(true);
+    host.friendlyFire = false;
+    applySnapshot(client, packSnapshot(host, 3, { nades: [], smokes: [], bombPos: null }));
+    expect(client.friendlyFire).toBe(false);
+    // Ältere Hosts senden kein Feld: aus
+    client.friendlyFire = true;
+    const old = packSnapshot(host, 4, { nades: [], smokes: [], bombPos: null });
+    delete old.ff;
+    applySnapshot(client, old);
+    expect(client.friendlyFire).toBe(false);
+  });
+
   it('Snapshot ist eine Kopie (Mutation des Hosts ändert den Snapshot nicht)', () => {
     const host = newMatch();
     const snap = packSnapshot(host, 1, { nades: [], smokes: [], bombPos: null });
