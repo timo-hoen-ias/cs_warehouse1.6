@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAPS, loadMapData, mapById } from './index';
 import { compileMap, inBuyZoneBox, siteAt } from '../logic/mapcompile';
-import { astar, nearestNode, reachableFrom, routeLength, type NavGraph } from '../logic/nav';
+import { nearestNode, reachableFrom, routeLength, type NavGraph } from '../logic/nav';
 import { PLAYER } from '../logic/move';
 
 /**
@@ -128,8 +128,10 @@ describe.each(MAPS.map((m) => m.id))('Karte %s', (id) => {
     for (let i = 0; i < g.count; i++) levels.add(Math.round(g.y[i]!));
     expect(levels.size).toBeGreaterThanOrEqual(5);
     const t = nearestNode(g, map.zones.t.x, map.zones.t.y, map.zones.t.z);
+    // erreichbare Knoten ≥ 3.4 m: ein Durchlauf statt eines A* je Knoten (gleiche Aussage, schneller)
+    const reach = reachableFrom(g, t);
     let high = 0;
-    for (let i = 0; i < g.count; i++) if (g.y[i]! >= 3.4 && astar(g, t, i).length) high++;
+    for (let i = 0; i < g.count; i++) if (g.y[i]! >= 3.4 && reach[i]) high++;
     expect(high, 'erreichbare Knoten ≥ 3.4 m').toBeGreaterThan(100);
   });
 

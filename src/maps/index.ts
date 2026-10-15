@@ -1,4 +1,5 @@
 import type { MapData } from '../logic/mapkit';
+import { buildGueterbahnhof } from './de_gueterbahnhof';
 import { buildLagerstaub } from './de_lagerstaub';
 
 /**
@@ -13,6 +14,12 @@ export const MAPS: MapEntry[] = [
     name: 'Lagerstaub',
     description: 'Logistikzentrum im Abendlicht: Lang A durchs Hallentor, Kurz A über den Steg, Tunnel zum Serverraum B.',
     build: buildLagerstaub,
+  },
+  {
+    id: 'de_gueterbahnhof',
+    name: 'Güterbahnhof',
+    description: 'Bahn-Logistikzentrum nach dem Vorbild de_train: Gleisfeld A unter der Kranbahn, Efeu, Z-Verbindung, Serverinsel B zwischen den Gleisen.',
+    build: buildGueterbahnhof,
   },
 ];
 

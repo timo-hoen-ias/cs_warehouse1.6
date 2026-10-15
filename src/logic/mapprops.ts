@@ -1,4 +1,6 @@
 import type { MapBuilder, MaterialId, Vec3 } from './mapkit';
+import { dims, place, type PropOpts } from './propgeom';
+import { isRailKind, railProp, type RailPropKind } from './railprops';
 import { mulberry32 } from './rng';
 
 /**
@@ -10,32 +12,17 @@ export type PropKind =
   | 'pallet' | 'palletStack' | 'palletGoods' | 'crate' | 'crateStack' | 'gitterbox' | 'container' | 'container40'
   | 'trailer' | 'truck' | 'forklift' | 'barrel' | 'barrelGroup' | 'drum' | 'rack' | 'shelf' | 'serverRack'
   | 'serverRow' | 'ups' | 'cooler' | 'conveyor' | 'cartons' | 'ibc' | 'desk' | 'bumper' | 'lampPost' | 'fence'
-  | 'handTruck' | 'cableTray' | 'locker' | 'generator' | 'rollerDoor' | 'acUnit' | 'electricBox' | 'cones' | 'doorSteel';
-
-export type PropOpts = { rot?: 0 | 1 | 2 | 3; tint?: number; h?: number; n?: number; len?: number; seed?: number; levels?: number };
+  | 'handTruck' | 'cableTray' | 'locker' | 'generator' | 'rollerDoor' | 'acUnit' | 'electricBox' | 'cones' | 'doorSteel'
+  | RailPropKind;
 
 const GOODS = [0xc9a26b, 0xb8895a, 0xd8c09a, 0x9fb7c9, 0xc6c6c0, 0xd0a060, 0x8fa86a, 0xc77b5a];
 const CONTAINERS = [0xa8432b, 0x2b5f9e, 0x2f7d4f, 0xb7791f, 0x8a8f96, 0x6b3a7a, 0xc0b8a8];
 
-/** Rechteck (halbe Breiten) nach Vierteldrehung. */
-function dims(w: number, d: number, rot: number): [number, number] {
-  return rot % 2 === 0 ? [w, d] : [d, w];
-}
-
-/** Lokale Box (lx, lz relativ zur Mitte, ungedreht) in Weltkoordinaten. */
-function place(x: number, z: number, rot: number, lx0: number, lz0: number, lx1: number, lz1: number): [number, number, number, number] {
-  const pts: [number, number][] = [[lx0, lz0], [lx1, lz1]].map(([a, b]) => {
-    switch (rot % 4) {
-      case 1: return [-b!, a!];
-      case 2: return [-a!, -b!];
-      case 3: return [b!, -a!];
-      default: return [a!, b!];
-    }
-  });
-  return [x + Math.min(pts[0]![0], pts[1]![0]), z + Math.min(pts[0]![1], pts[1]![1]), x + Math.max(pts[0]![0], pts[1]![0]), z + Math.max(pts[0]![1], pts[1]![1])];
-}
-
 export function prop(b: MapBuilder, kind: PropKind, x: number, y: number, z: number, o: PropOpts = {}): void {
+  if (isRailKind(kind)) {
+    railProp(b, kind, x, y, z, o);
+    return;
+  }
   const rot = o.rot ?? 0;
   const rnd = mulberry32(o.seed ?? Math.floor(Math.abs(x * 73.1 + z * 37.7 + y * 11.3)) + 1);
   const box = (lx0: number, ly0: number, lz0: number, lx1: number, ly1: number, lz1: number, mat: MaterialId, extra: Parameters<MapBuilder['box']>[3] = {}) => {
@@ -312,9 +299,10 @@ export function propFootprint(kind: PropKind, rot = 0): [number, number] {
   const base: Partial<Record<PropKind, [number, number]>> = {
     pallet: [1.2, 0.8], palletGoods: [1.2, 0.8], crate: [1.2, 1.2], crateStack: [1.8, 1.8], container: [6.1, 2.44], container40: [12.2, 2.44],
     trailer: [13.6, 2.6], forklift: [1.2, 2.0], barrel: [0.6, 0.6], gitterbox: [1.24, 0.84], serverRack: [0.6, 1.0],
+    boxcar: [14, 3], tankcar: [14, 3], flatcar: [14, 3], loco: [18, 3], bufferStop: [0.9, 2.6], signal: [0.6, 0.6],
   };
   const [w, d] = base[kind] ?? [1, 1];
   return dims(w, d, rot);
 }
 
-export type { Vec3 };
+export type { Vec3, PropOpts };
