@@ -88,14 +88,22 @@ export function dressLane(b: B): void {
 // ====================================================================== Mitte, Obere Mitte, Ladehof
 export function dressMitte(b: B): void {
   // Zollplatz: Kistenstapel, Sackbarrikade, Handwagen, Laternen
-  prop(b, 'crateStack', -3, 0, -3);
+  prop(b, 'crateStack', -13.6, 0, -9);
   prop(b, 'sacks', 3.4, 0, 3.4, { len: 3.6, n: 4, rot: 1 });
   prop(b, 'palletGoods', -12, 0, 2, { tint: 0xc9ad7c });
   prop(b, 'palletGoods', -12, 0, 3.4, { tint: 0xb8996a });
   prop(b, 'barrelGroup', -15, 0, -16, {});
   prop(b, 'crate', 6.4, 0, -15.6, { h: 1.2 });
   prop(b, 'crate', 7.7, 0, -15.6, { h: 1.2 });
-  prop(b, 'handTruck', -8, 0, -9, { rot: 1 });
+  prop(b, 'handTruck', 7, 0, -9.4, { rot: 1 });
+  // Zollwaage (Gebäude in der Mitte): Luken, Schilder, Markise
+  hoists(b, 'pz', 2, -8, 4, 0, 1, 6, { len: 1.5 });
+  hoists(b, 'nz', -12, -8, 4, 0, 1, 6, { len: 1.5, first: 1, load: 1 });
+  shop(b, 'ZOLLWAAGE', -2, 3.6, -2 + F, 'pz', 'HAFENAMT · WIEGEN & VERZOLLEN', 4.6);
+  plate(b, 'MITTE', -2, 3.2, -12 - F, 'nz', undefined, 2.4);
+  awning(b, 'nz', -12, -6, 2, 2.6, [0x2f4a6a, 0xe8dcc0]);
+  prop(b, 'gasLamp', -9, 0, -3);
+  prop(b, 'gasLamp', 5.4, 0, -13);
   prop(b, 'cartons', -16, 0, 6);
   prop(b, 'palletStack', 8.8, 0, 6.6, { n: 6 });
   for (const [x, z] of [[-14.5, -17.5], [6.5, -17.5], [-14.5, 5], [7, 6]] as const) prop(b, 'gasLamp', x, 0, z);
@@ -134,6 +142,17 @@ export function dressMitte(b: B): void {
   prop(b, 'crate', -14.6, 0, -33, { h: 1.2 });
   prop(b, 'gasLamp', -15.4, 0, -26.8);
   shop(b, 'LADEHOF', -15.68, 3.0, -31, 'px', 'NUR ANLIEFERUNG', 2.8);
+  // Brückengasse: schmale Verbindung zum Hof B, Sackbarrikade und Laternen
+  prop(b, 'sacks', -26, 0, -34.4, { len: 3.6, n: 3 });
+  prop(b, 'palletStack', -20.5, 0, -29.2, { n: 5 });
+  prop(b, 'crate', -31.5, 0, -29.2, { h: 1.2 });
+  prop(b, 'barrelGroup', -34.6, 0, -34.6, {});
+  prop(b, 'gasLamp', -24, 0, -28.6);
+  prop(b, 'gasLamp', -34.6, 0, -29);
+  hoists(b, 'pz', -36, -34, -18, 0, 1, 6, { len: 1.5 });
+  hoists(b, 'nz', -28, -34, -18, 0, 1, 6, { len: 1.5, first: 2 });
+  hoists(b, 'nz', -28, -33, -19, 0, 2, 6, { len: 1.5, first: 1, load: 1 });
+  plate(b, 'BRÜCKENGASSE', -26, 3.0, -28 - F, 'nz', 'ZUM HOF B', 3.6);
 }
 
 // ====================================================================== Zweite Mitte (Gasse unter der Speicherbrücke)

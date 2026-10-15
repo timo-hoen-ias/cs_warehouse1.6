@@ -56,20 +56,24 @@ export function buildSpeicherstadt(): MapData {
     .rect('C', -38, -46, 34, -40) // Fleet vor der Oberen Mitte
     .rect('C', -86, -4, -40, 4); // Fleet an der Banane
   // Straßen und Plätze (Erdgeschoss, 0 m)
-  P.rect('.', -60, 58, -46, 82) // Banane: T-Ausgang
-    .rect('.', -66, 30, -52, 58)
-    .rect('.', -70, 6, -54, 30) // Lieferwagen-Aufweitung
-    .rect('.', -64, -14, -50, 6) // Brücke
+  // Banane: vier gegeneinander versetzte Abschnitte (je 6 m nach Westen) → keine durchgehende Sichtlinie
+  P.rect('.', -58, 58, -46, 82) // Banane-Anfang (T-Ausgang)
+    .rect('.', -64, 36, -52, 60) // Banane
+    .rect('.', -70, 14, -58, 38) // Lieferwagen
+    .rect('.', -76, -30, -64, 16) // Banane-Brücke → B-Eingang
+    .rect('W', -78, -4, -76, 4)
     .rect('W', -64, -4, -62, 4)
-    .rect('W', -52, -4, -50, 4)
-    .rect('.', -58, -30, -44, -14) // Banane → B
+    .rect('K', -76, 6, -70, 12) // Pförtnerhaus (Schikane)
+    .rect('K', -70, -18, -64, -12) // Pumpenhaus (Schikane)
     .rect('.', -10, 8, 4, 48) // Untere Mitte (Lane unter der T-Rampe)
     .rect('.', 4, 22, 18, 46) // Kistenhof
     .rect('.', -18, -20, 10, 8) // Mitte
+    .rect('M', -8, -12, 4, -2) // Zollwaage (Gebäude in der Mitte: bricht die Sichtachse T-Rampe → Obere Mitte)
     .rect('.', -6, -58, 6, -20) // Obere Mitte
     .rect('W', -8, -46, -6, -40)
     .rect('W', 6, -46, 8, -40)
     .rect('.', -16, -36, -6, -26) // Ladehof (Nische westlich der Oberen Mitte)
+    .rect('.', -36, -36, -16, -28) // Brückengasse (Ladehof → Hof B, zweite Route der T nach B)
     .rect('.', 10, -4, 62, 4) // Zweite Mitte (Gasse)
     .rect('.', 14, -34, 26, -4) // Kurz
     .rect('.', 10, -18, 14, -8) // Kurz-Tor (Durchgang Mitte → Kurz)
@@ -124,6 +128,8 @@ export function buildSpeicherstadt(): MapData {
     Y: { building: { h: 15, mat: 'brick', tint: 0xd9c496 } },
     G: { building: { h: 9.5, mat: 'plaster', tint: 0xe8d29c } },
     W: { building: { h: 1.7, mat: 'brick', tint: 0xcaa890 } },
+    M: { building: { h: 7.6, mat: 'brick', tint: 0xd9c496 } },
+    K: { building: { h: 5.2, mat: 'plaster', tint: 0xe8d29c } },
     V: { building: { h: 3.6, mat: 'brick', tint: 0xcaa890 } },
     p: { building: { h: 10.1, mat: 'plaster', tint: 0xe0d2b4 } },
     C: { building: { h: -1.2, mat: 'brick', tint: 0x7a6a60, top: 'water' } },
@@ -168,6 +174,8 @@ export function buildSpeicherstadt(): MapData {
     X: { mat: 'brick', tint: 0xc0a290, plinth: { h: 1.2, mat: 'concreteDark', tint: 0x7a6e64 }, pilasters: { every: 8, w: 0.5, mat: 'wood', tint: 0x6a4a30 } },
     '@G': { mat: 'plaster', tint: 0xe8d29c, plinth: { h: 1.0, mat: 'brick', tint: 0x9a7868 }, cornice: { h: 0.4, mat: 'plaster', tint: 0xc4ac78 }, windows: { y: 2.6, h: 2.0, w: 1.4, every: 3.6, mat: 'window' }, pipes: 12 },
     '@W': { mat: 'brick', tint: 0xcaa890, cornice: { h: 0.2, mat: 'concrete', tint: 0xb4a898 } },
+    '@M': { mat: 'brick', tint: 0xd9c496, plinth: { h: 1.0, mat: 'concreteDark', tint: 0x8a7e74 }, band: { y: 3.6, h: 0.3, mat: 'concrete', tint: 0xb8a898 }, cornice: { h: 0.5, mat: 'brick', tint: 0x9a7868 }, pilasters: { every: 6, w: 0.5, mat: 'brick', tint: 0xc0a080 }, windows: [{ y: 1.8, h: 1.6, w: 1.2, every: 3, mat: 'window', tint: 0xcdb8a0 }, { y: 4.6, h: 1.6, w: 1.2, every: 3, mat: 'window', tint: 0xcdb8a0 }] },
+    '@K': { mat: 'plaster', tint: 0xe8d29c, plinth: { h: 1.0, mat: 'brick', tint: 0x9a7868 }, cornice: { h: 0.35, mat: 'plaster', tint: 0xc4ac78 }, windows: { y: 2.2, h: 1.4, w: 1.2, every: 3, mat: 'window' } },
     '@V': { mat: 'brick', tint: 0xcaa890, cornice: { h: 0.2, mat: 'concrete', tint: 0xb4a898 } },
     '@p': { mat: 'plaster', tint: 0xe0d2b4 },
     // Innenräume: weiß gekalkte Wände mit Holzsockel
@@ -211,6 +219,7 @@ export function buildSpeicherstadt(): MapData {
   b.area('Obere Mitte', -6, -58, 6, -20);
   b.area('Fleet-Brücke', -8, -46, 8, -40);
   b.area('Ladehof', -16, -36, -6, -26);
+  b.area('Brückengasse', -36, -36, -16, -28);
   b.area('CT-Rampe', -6, -70, 6, -58);
   b.area('CT-Spawn', -16, -90, 16, -70, 0, 6);
   b.area('Zweite Mitte', 10, -4, 60, 4, -1, 3);
@@ -230,12 +239,12 @@ export function buildSpeicherstadt(): MapData {
   b.area('Wohnungen Nord', 30, -28, 56, -8, 3.5, 11);
   b.area('Wohnungen Süd', 20, 6, 56, 44, 3.5, 11);
   b.area('Treppenhaus', 20, 44, 30, 70, 0.5, 9);
-  b.area('Banane-Anfang', -60, 58, -46, 82);
-  b.area('Banane', -66, 30, -52, 58);
-  b.area('Lieferwagen', -70, 6, -54, 30);
-  b.area('Banane-Brücke', -64, -14, -50, 6);
+  b.area('Banane-Anfang', -58, 58, -46, 82);
+  b.area('Banane', -64, 36, -52, 60);
+  b.area('Lieferwagen', -70, 14, -58, 38);
+  b.area('Banane-Brücke', -76, -14, -64, 16);
   b.area('Spot B', -76, -54, -36, -28, -1, 3);
-  b.area('B-Eingang', -58, -30, -44, -14);
+  b.area('B-Eingang', -76, -30, -64, -14);
   b.area('Dunkel', -86, -48, -76, -32);
   b.area('Baustelle', -46, -84, -34, -54);
   b.area('CT-Passage', -34, -84, -16, -74);
@@ -244,9 +253,9 @@ export function buildSpeicherstadt(): MapData {
 
   // ------------------------------------------------------------------ Spots, Spawns, Kaufzonen
   b.site('A', 'Serverschrank A', [38, 1.0, -76], [66, 8, -52], [46, 1.6, -60]);
-  b.site('B', 'Serverschrank B', [-72, -1, -52], [-40, 4, -30], [-54, 0, -41]);
-  b.spawnGrid('T', -6, 1.6, 67, 8, 2, 3, 0);
-  b.spawnGrid('CT', 0, 1.6, -81, 8, 2, 3, Math.PI);
+  b.site('B', 'Serverschrank B', [-74, -1, -54], [-38, 4, -28], [-65.6, 0, -32.6]);
+  b.spawnGrid('T', -11, 1.6, 63, 8, 2, 3, 0);
+  b.spawnGrid('CT', -2, 1.6, -81, 8, 2, 3, Math.PI);
   b.buy('T', -34, 60, 16, 82);
   b.buy('CT', -16, -90, 16, -70);
 

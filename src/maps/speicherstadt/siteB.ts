@@ -4,18 +4,18 @@ import { F, awning, edge, hoists, ladder, lamp, line, plate, shop, type B } from
 // ====================================================================== Hof B: Brunnen, Serverschränke, Neue Kiste
 export function dressSiteB(b: B): void {
   // Alter Brunnen mit Laternen
-  prop(b, 'fountain', -65, 0, -40, { len: 4.4 });
-  prop(b, 'gasLamp', -68.4, 0, -43.4);
-  prop(b, 'gasLamp', -61.6, 0, -36.6);
-  // Serverschränke (IT-Provisorium): zwei Reihen gegenüber, USV, Klimagerät, Kabel zur Wand, Plane
-  prop(b, 'serverRow', -56.8, 0, -41, { rot: 3, n: 4 });
-  prop(b, 'serverRow', -51.2, 0, -41, { rot: 1, n: 4 });
-  prop(b, 'ups', -56.8, 0, -38);
-  prop(b, 'cooler', -51.2, 0, -37.7);
-  b.decal({ kind: 'letter', pos: [-54, 0.02, -41], size: [5.6, 5.6], text: 'B', color: 0xffffff });
-  b.sign('SERVERSCHRANK B', [-54, 3.2, -44.6], 'pz', 4.4, 1.0, { color: 0xff5a4a, sub: 'IT-PROVISORIUM · BITTE TROCKEN LAGERN' });
-  for (const dx of [-1.9, 1.9]) b.box([-54 + dx - 0.03, 0, -44.7], [-54 + dx + 0.03, 3.1, -44.6], 'metal', { collide: 'none', tint: 0x4a3a2a, noNav: true, occlude: false });
-  b.box([-59.5, 0, -45.4], [-47, 0.02, -37.6], 'black', { collide: 'none', noNav: true, occlude: false, tint: 0x2a2a2a });
+  prop(b, 'fountain', -55, 0, -42, { len: 4.4 });
+  prop(b, 'gasLamp', -58.4, 0, -45.4);
+  prop(b, 'gasLamp', -51.6, 0, -38.6);
+  // Serverschränke (IT-Provisorium) nahe am Eingang: zwei Reihen gegenüber, USV, Klimagerät, Plane
+  prop(b, 'serverRow', -68.4, 0, -32.6, { rot: 3, n: 4 });
+  prop(b, 'serverRow', -62.8, 0, -32.6, { rot: 1, n: 4 });
+  prop(b, 'ups', -68.4, 0, -29.4);
+  prop(b, 'cooler', -62.8, 0, -29.2);
+  b.decal({ kind: 'letter', pos: [-65.6, 0.02, -32.6], size: [5.6, 5.6], text: 'B', color: 0xffffff });
+  b.sign('SERVERSCHRANK B', [-65.6, 3.2, -36.4], 'pz', 4.4, 1.0, { color: 0xff5a4a, sub: 'IT-PROVISORIUM · BITTE TROCKEN LAGERN' });
+  for (const dx of [-1.9, 1.9]) b.box([-65.6 + dx - 0.03, 0, -36.5], [-65.6 + dx + 0.03, 3.1, -36.4], 'metal', { collide: 'none', tint: 0x4a3a2a, noNav: true, occlude: false });
+  b.box([-71.1, 0, -37.2], [-60.1, 0.02, -28.4], 'black', { collide: 'none', noNav: true, occlude: false, tint: 0x2a2a2a });
   // Plane über Kisten (Wetterschutz), mit Seilen
   prop(b, 'crate', -46.2, 0, -50.6, { h: 1.2 });
   prop(b, 'crate', -47.6, 0, -50.6, { h: 1.2 });
@@ -27,12 +27,12 @@ export function dressSiteB(b: B): void {
   prop(b, 'crate', -41.6, 2.4, -33.4, { h: 1.2 });
   prop(b, 'crate', -43.6, 0, -35.6, { h: 1.2 });
   // Deckung im Hof
-  prop(b, 'sacks', -72.4, 0, -32, { len: 3.6, n: 3, rot: 1 });
+  prop(b, 'sacks', -72.4, 0, -46, { len: 3.6, n: 3, rot: 1 });
   prop(b, 'palletStack', -72.6, 0, -50.4, { n: 6 });
-  prop(b, 'barrelGroup', -62, 0, -49.6, {});
+  prop(b, 'barrelGroup', -58, 0, -50.6, {});
   prop(b, 'palletGoods', -70, 0, -29.8, { tint: 0xd2b88a });
   prop(b, 'crateStack', -48, 0, -31);
-  prop(b, 'handTruck', -64, 0, -31, { rot: 2 });
+  prop(b, 'handTruck', -58, 0, -31, { rot: 2 });
   prop(b, 'logs', -73, 0, -41, { len: 3.2, n: 2, rot: 1 });
   prop(b, 'gasLamp', -45, 0, -52.4);
   prop(b, 'gasLamp', -74, 0, -52.4);
@@ -79,17 +79,17 @@ export function dressSiteB(b: B): void {
   // Hofwände: Luken, Schilder, Laternen
   hoists(b, 'px', -76, -54, -48, 0, 1, 6, { len: 1.5 });
   hoists(b, 'px', -76, -32, -28, 0, 1, 6, { len: 1.5 });
-  hoists(b, 'pz', -28, -76, -58, 0, 1, 6, { len: 1.5 });
+  hoists(b, 'pz', -28, -62, -38, 0, 1, 6, { len: 1.5 });
   hoists(b, 'nx', -36, -42, -28, 0, 1, 6, { len: 1.5 });
   hoists(b, 'nx', -36, -42, -28, 0, 2, 6, { len: 1.5, load: 1 });
-  hoists(b, 'pz', -28, -76, -58, 0, 2, 6, { len: 1.5, first: 3, load: 2 });
+  hoists(b, 'pz', -28, -62, -38, 0, 2, 6, { len: 1.5, first: 3, load: 2 });
   plate(b, 'B', -36.7, 3.0, -38, 'nx', 'SERVERSCHRANK', 2.4);
   plate(b, 'BRUNNEN', -75.7, 3.0, -52, 'px', undefined, 2.6);
   plate(b, 'NEUE KISTE', -36.7, 2.2, -31.4, 'nx', undefined, 3.0);
   ladder(b, 'px', -76, -30, 0, 3.6);
   lamp(b, -75.6, 4.2, -50, 'px');
   lamp(b, -36.6, 4.2, -30, 'nx');
-  line(b, 'palletGoods', -56, 0, -28.6, -46, 0, -28.6, 3, { tint: 0xc9ad7c });
+  line(b, 'palletGoods', -58, 0, -28.6, -46, 0, -28.6, 3, { tint: 0xc9ad7c });
 }
 
 // ====================================================================== Baustelle (CT-Seite) und CT-Passage
