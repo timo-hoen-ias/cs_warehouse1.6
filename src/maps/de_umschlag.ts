@@ -5,7 +5,7 @@ import { dressB } from './umschlag/b';
 import { dressCT } from './umschlag/ct';
 import { dressMid } from './umschlag/mid';
 import { dressT } from './umschlag/t';
-import { LV } from './umschlag/common';
+import { LV, railedStairs } from './umschlag/common';
 
 /**
  * de_umschlag — „Umschlag“: der Klassiker de_mirage als Umschlaghalle (Cross-Docking-Hub).
@@ -108,7 +108,7 @@ export function buildUmschlag(): MapData {
     S: { floor: 0, mat: 'concrete', tint: 0xc4bcae, ramp: true, ...out },
     T: { floor: 0, mat: 'concrete', tint: 0xc4bcae, ramp: true, ...out },
     P: { floor: LV.apron, mat: 'concrete', tint: 0xc9c0ae, ...out },
-    V: { floor: LV.apron, mat: 'concrete', tint: 0xb8b0a0, roof: 5.6, roofTop: 6, roofMat: 'corrugatedDark', room: 'hall' },
+    V: { floor: LV.apron, mat: 'concrete', tint: 0xb8b0a0, roof: 7.2, roofTop: 7.6, roofMat: 'corrugatedDark', room: 'hall' },
     L: { floor: 0, mat: 'paving', tint: 0xbab2a2, ...out },
     N: { floor: 0, mat: 'paving', tint: 0xbab2a2, ...out },
     J: { floor: 0, mat: 'paving', tint: 0xb0b8a8, ...out },
@@ -125,9 +125,9 @@ export function buildUmschlag(): MapData {
     E: { floor: 0, mat: 'tile', tint: 0xd0d4d0, roof: 4.2, roofTop: 12, roofMat: 'concreteDark', room: 'room' },
     o: { floor: 0, mat: 'concrete', tint: 0xb4aea0, roof: 3.6, roofTop: 12, roofMat: 'concreteDark', room: 'room' },
   };
-  const hallWall = (tint: number, pil = 0x3a6fa8): FacadeStyle => ({
+  const hallWall = (tint: number, pil = 0x3a6fa8, win = { y: 7.6, h: 2.0 }): FacadeStyle => ({
     mat: 'corrugated', tint, plinth: { h: 1.6, mat: 'concrete', tint: 0x8d8a84 }, band: { y: 1.6, h: 0.3, mat: 'hazard' },
-    pilasters: { every: 8, w: 0.5, mat: 'steel', tint: pil },
+    pilasters: { every: 8, w: 0.5, mat: 'steel', tint: pil }, windows: { y: win.y, h: win.h, w: 4, every: 8, mat: 'skylight', tint: 0xd8e4ee },
   });
   const outdoorHall: FacadeStyle = {
     mat: 'corrugated', tint: 0xc6ccd0, plinth: { h: 1.4, mat: 'concrete', tint: 0x9a968e }, band: { y: 6.4, h: 0.4, mat: 'metal', tint: 0xe08a1c },
@@ -141,8 +141,8 @@ export function buildUmschlag(): MapData {
     '@K': { mat: 'concrete', tint: 0xb8b2a4 },
     '@q': { mat: 'concrete', tint: 0xb0aaa0, band: { y: 1.0, h: 0.25, mat: 'hazard' } },
     H: hallWall(0xd2d6d6),
-    C: hallWall(0xd6d8d4, 0xe08a1c),
-    B: hallWall(0xd2d4d0, 0x2f7d6f),
+    C: hallWall(0xd6d8d4, 0xe08a1c, { y: 5.8, h: 1.8 }),
+    B: hallWall(0xd2d4d0, 0x2f7d6f, { y: 5.4, h: 1.6 }),
     g: { mat: 'concreteDark', tint: 0xb0aca4, band: { y: 1.0, h: 0.3, mat: 'hazard' } },
     n: { mat: 'concreteDark', tint: 0xb0aca4, band: { y: 1.0, h: 0.3, mat: 'hazard' } },
     c: { mat: 'plaster', tint: 0xd8cdb4, plinth: { h: 1.1, mat: 'wallTile', tint: 0x7a8a8a } },
@@ -231,17 +231,17 @@ export function buildUmschlag(): MapData {
 
   // ------------------------------------------------------------------ Rampen & Treppen
   b.stairs(-70, 26, -64, 38, 0, LV.up, 'nz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Wohnungs-Treppe
-  b.stairs(-70, -28, -64, -16, 0, LV.up, 'pz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Wohnungen → B
-  b.stairs(-14, 2, -10, 14, 0, LV.up, 'nz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Steg-Treppe
-  b.stairs(-36, -38, -28, -26, 0, LV.up, 'pz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Kurz → B
+  railedStairs(b, -70, -28, -64, -16, 0, LV.up, 'pz', {}); // Wohnungen → B
+  railedStairs(b, -14, 2, -10, 14, 0, LV.up, 'nz', {}); // Steg-Treppe
+  railedStairs(b, -36, -38, -28, -26, 0, LV.up, 'pz', {}); // Kurz → B
   b.stairs(-14, 16, -4, 22, LV.under, 0, 'px', 'concrete', { tint: 0xa8a49c }); // Unterführung
   b.ramp(-52, -16, -46, -2, LV.under, 0, 'nz', 'concreteDark', { tag: 'ramp' }); // Unterführungs-Rampe
   b.ramp(34, 30, 46, 48, 0, LV.apron, 'nz', 'asphalt', { tag: 'ramp', tint: 0xc9c2b4 }); // T-Rampe (Lkw-Rampe)
   b.stairs(46, -6, 54, 2, 0, LV.apron, 'pz', 'concrete', { tint: 0xc0b8a8 }); // Treppe
   b.stairs(24, -6, 34, 2, 0, LV.apron, 'pz', 'concrete', { tint: 0xc0b8a8 }); // Dschungel-Treppe
   b.stairs(76, 34, 84, 48, 0, LV.palace, 'nz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Palast-Treppe
-  b.stairs(52, 16, 60, 24, LV.apron, LV.palace, 'px', 'steel', { top: 'grating', tint: 0x6a7480 }); // Balkon-Treppe
-  b.stairs(6, -50, 10, -38, 0, LV.up, 'pz', 'steel', { top: 'grating', tint: 0x6a7480 }); // Leitstand-Treppe
+  railedStairs(b, 52, 16, 60, 24, LV.apron, LV.palace, 'px', {}); // Balkon-Treppe
+  railedStairs(b, 6, -50, 10, -38, 0, LV.up, 'pz', {}); // Leitstand-Treppe
 
   // ------------------------------------------------------------------ Callouts
   b.area('T-Spawn', -52, 60, -2, 88);
