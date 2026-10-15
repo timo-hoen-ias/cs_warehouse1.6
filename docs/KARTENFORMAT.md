@@ -148,6 +148,10 @@ jedem Angriffseingang, gültige Hinweise.
 | `plant` | `pos`, `site` | bevorzugter Pflanzplatz (muss in der Spot-Box liegen) |
 | `smoke` | `from`, `target`, `team`, `site?` | bewährter Rauch beim Ausführen (Ziel; `from` = Wurfposition, der Validator prüft den Wurf mit der Granatenphysik) |
 
+Balance-Erfahrung (de_kuehlhaus, Bot-Simulation): `plant`-Hinweise am eigenen Rand eines Spots (nahe den T-Zugängen) verbessern die T-Chancen deutlich, ein weiterer T-Zugang
+zum Spot ebenso; Deckung mitten im Laufweg der T (Kisten direkt vor einer Tür) schadet eher — Deckung an die Seite oder hinter die Tür stellen. Lange gerade Gänge
+(> 25 m ohne Versatz) und Durchblicke durch Türen/Räume (Türen fluchtend) geben den CT die erste Salve; Türen versetzen.
+
 Werkzeug: `bun scripts/bot-sim.ts <karten-id> [runden] [je-team] [skill] [seed] --rounds` spielt Bot-gegen-Bot-
 Runden im Zeitraffer (Statistik: Siege, Pflanzrate, Entschärfungen, Eingänge, Festsitzen, Wand-/Fallfehler);
 `--trace=<runde>` zeigt alle 4 s Auftrag und Zustand je Bot. Im Spiel: `__bots()`, `__botPlan()`.
