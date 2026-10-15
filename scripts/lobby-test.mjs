@@ -103,7 +103,7 @@ async function run() {
     await b.evJson(`(() => { document.querySelector('#mm-joinpw').value = 'falsch'; document.querySelector('[data-act="pw-ok"]').click(); return 1; })()`);
     const kicked = await b.waitFor('document.querySelector(".mm-msg.on")?.textContent', (v) => /Passwort/.test(v), 60000);
     if (kicked) ok(`Falsches Passwort abgewiesen: „${kicked}“`);
-    else fail('Kein Kick bei falschem Passwort');
+    else fail('Kein Kick bei falschem Passwort: ' + JSON.stringify(await b.evJson('[location.search, globalThis.__state?.(), document.querySelector(".mm-msg")?.textContent]')));
 
     // 4) Richtiges Passwort → Beitritt
     await b.waitFor(`document.querySelector('tr[data-room="${ROOM}"]') ? 1 : null`, (v) => v === 1, 30000);
@@ -112,8 +112,8 @@ async function run() {
     await b.evJson(`(() => { document.querySelector('#mm-joinpw').value = 'geheim'; document.querySelector('[data-act="pw-ok"]').click(); return 1; })()`);
     const joined = await a.waitFor('globalThis.__players?.()', (v) => v.filter((p) => !p.bot).length === 2, 60000);
     const mirror = await b.waitFor('globalThis.__lobby?.()', (v) => v.held && !v.host, 30000);
-    if (joined && mirror) ok(`Beitritt mit Passwort: Host sieht ${joined.filter((p) => !p.bot).map((p) => p.name).join(', ')}, Client in der Serverlobby`);
-    else fail(`Beitritt fehlgeschlagen: ${JSON.stringify(joined)} / ${JSON.stringify(mirror)}`);
+    if (joined?.filter((p) => !p.bot).length === 2 && mirror) ok(`Beitritt mit Passwort: Host sieht ${joined.filter((p) => !p.bot).map((p) => p.name).join(', ')}, Client in der Serverlobby`);
+    else fail(`Beitritt fehlgeschlagen: ${JSON.stringify(joined)} / ${JSON.stringify(mirror)} / B=${JSON.stringify(await b.evJson('[location.search, globalThis.__netId?.(), globalThis.__driver?.options?.passwordDigest]'))} A=${JSON.stringify(await a.evJson('[globalThis.__netId?.(), globalThis.__driver?.lobbyConfig?.pw, globalThis.__frames?.()]'))}`);
     const lobbyUi = await b.waitFor('document.querySelector("#lobby.on")?.textContent', (v) => /Warte auf den Host/.test(v), 15000);
     if (lobbyUi) ok('Serverlobby beim Client sichtbar (wartet auf Host)');
     else fail('Serverlobby-Overlay beim Client fehlt');
@@ -126,7 +126,7 @@ async function run() {
     await a.evJson('(() => { document.querySelector("#lobby-start").click(); return 1; })()');
     const started = await a.waitFor('globalThis.__state?.()', (v) => !v.lobby && (v.phase === 'freeze' || v.phase === 'live'), 40000);
     const startedB = await b.waitFor('globalThis.__state?.()', (v) => !v.lobby && v.round >= 1, 30000);
-    if (started && startedB) ok(`Match gestartet: Host ${started.phase}, Client Runde ${startedB.round}`);
+    if (started && !started.lobby && (started.phase === 'freeze' || started.phase === 'live') && startedB && !startedB.lobby && startedB.round >= 1) ok(`Match gestartet: Host ${started.phase}, Client Runde ${startedB.round}`);
     else fail(`Start fehlgeschlagen: ${JSON.stringify(started)} / ${JSON.stringify(startedB)}`);
 
     const errs = [...a.errors, ...b.errors].filter((e) => !/DRACOLoader|KTX2Loader|Websocket connection closed|networking-2\.needle/.test(e));

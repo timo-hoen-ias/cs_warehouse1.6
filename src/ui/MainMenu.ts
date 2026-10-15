@@ -139,7 +139,7 @@ class MainMenu {
     this.root = root;
     const nav = MENU_ENTRIES.map((e, i) => `<button class="mm-item${e.screen === 'quit' ? ' quit' : ''}" data-go="${e.screen}" style="animation-delay:${0.25 + i * 0.06}s"><span class="l">${escapeHtml(e.label)}</span><span class="s">${escapeHtml(e.sub)}</span></button>`).join('');
     root.innerHTML = `
-      <div class="mm-shade"></div><div class="mm-scan"></div><canvas class="mm-grain"></canvas>
+      <div class="mm-shade"></div><div class="mm-scan"></div><div class="mm-grain"></div>
       <header class="mm-top">
         <div class="mm-profile">${ICON.user}<label for="mm-name">Spielername</label><input id="mm-name" maxlength="16" spellcheck="false" autocomplete="nickname"></div>
         <button class="mm-icon" id="mm-mute" title="Musik an/aus (M)" aria-label="Musik an/aus"></button>
@@ -210,21 +210,21 @@ class MainMenu {
     document.documentElement.style.setProperty('--u', `${computeUiScale(window.innerWidth, window.innerHeight, 1)}px`);
   };
 
+  /** Filmkorn: kleine Rauschkachel als wiederholter Hintergrund (in Originalgröße, kein Hochskalieren). */
   private paintGrain(): void {
-    const c = this.q<HTMLCanvasElement>('.mm-grain');
-    c.width = 160;
-    c.height = 160;
+    const el = this.q<HTMLElement>('.mm-grain');
+    const c = document.createElement('canvas');
+    c.width = 192;
+    c.height = 192;
     const ctx = c.getContext('2d');
     if (!ctx) return;
-    const img = ctx.createImageData(160, 160);
+    const img = ctx.createImageData(192, 192);
     for (let i = 0; i < img.data.length; i += 4) {
       const v = Math.random() * 255;
       img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v; img.data[i + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
-    c.style.width = '200%';
-    c.style.height = '200%';
-    c.style.imageRendering = 'pixelated';
+    el.style.backgroundImage = `url(${c.toDataURL('image/png')})`;
   }
 
   private applySettings(s: Settings): void {

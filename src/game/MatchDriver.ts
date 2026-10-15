@@ -189,7 +189,7 @@ export class MatchDriver extends Behaviour {
     if (this.isHost && !this.wasHost) this.becomeHost();
     else if (!this.isHost && this.wasHost) this.wasHost = false;
     if (!this.isHost) this.sendHello();
-    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName} · ${this.net.peers.length + 1} Spieler · ${this.isHost ? 'Host' : 'Client'}` : 'Offline gegen Bots');
+    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName?.replace(/^csw16-/, '')} · ${this.net.peers.length + 1} Spieler · ${this.isHost ? 'Host' : 'Client'}` : 'Offline gegen Bots');
   }
 
   private sendHello(): void {
@@ -220,7 +220,7 @@ export class MatchDriver extends Behaviour {
     }
     for (const p of Object.values(this.match.players)) if (p.bot) this.ensureBot(p);
     this.fillBots();
-    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName} · Host` : 'Offline gegen Bots');
+    this.hud.setNetInfo(this.net.online ? `Raum ${this.net.roomName?.replace(/^csw16-/, '')} · Host` : 'Offline gegen Bots');
     if (this.match.round.round === 0 && this.match.round.phase === 'warmup') {
       // Warmup: alle sofort spawnen
       this.spawnAllNow();

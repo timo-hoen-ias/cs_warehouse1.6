@@ -16,9 +16,14 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 
 ## Spielen
 
-- **Offline gegen Bots:** In der Lobby eine Karte wählen und starten. Beide Teams werden mit Bots aufgefüllt; diese kaufen ein, legen die Bombe, entschärfen sie und jagen Gegner.
-- **Online-Raum erstellen:** In der Lobby einen Raum erstellen. Online-Spiele laufen standardmäßig über das öffentliche Needle-Netzwerk-Backend; Räume werden über einen Code aus 5 Buchstaben betreten.
-- **Raum beitreten / Link teilen:** Raumcode in der Lobby eingeben oder den geteilten Link öffnen. Der Link enthält Raum und Karte, z. B. `http://localhost:3000/?room=ABCDE&map=de_kommission`. Der Host ist autoritativ; Clients senden nur Eingaben. Verlässt der Host das Spiel, wird ein neuer Host bestimmt (Host-Migration).
+Beim Start erscheint das **Hauptmenü** (animierte Lagerhalle im Hintergrund, Menümusik — Browser starten Ton erst nach dem ersten Klick, Hinweis „Klicken für Ton“; Lautsprecher-Knopf oben rechts oder Taste `M` schaltet stumm). Bedienung mit Maus, Pfeiltasten/Enter/Esc oder Gamepad (Steuerkreuz, A, B).
+
+- **Einzelspieler:** Karte wählen (Karten-Kacheln mit Vorschau), Team (automatisch/T/CT), Teamgröße (1 gegen 1 bis 8 gegen 8, Rest Bots) und Bot-Schwierigkeit (Leicht bis Experte) einstellen, „Spiel starten“. „Schnellstart“ auf der Startseite übernimmt die letzten Einstellungen.
+- **Server erstellen:** Servername, Karte, max. Spieler (2–16 Menschen), Auffüllen mit Bots, Bot-Stärke, optionales Passwort, „Im Serverbrowser anzeigen“, „Serverlobby“. Du bist Host; das Spiel läuft in deinem Browser über das öffentliche Needle-Netzwerk-Backend (oder deinen Relay, siehe unten).
+- **Serverlobby:** Bis du „Spiel starten“ drückst, läuft ein Aufwärmen: Spielerliste je Team mit Teamwechsel, Chat, Raumcode und Knopf „Einladungslink“ (kopiert z. B. `http://localhost:3000/?room=ABCDE&map=de_kommission`). „Aufwärmen (herumlaufen)“ blendet die Lobby aus, `Esc` holt sie zurück.
+- **Mehrspieler (Serverbrowser):** listet alle offenen Server (Name, Karte, Spieler + Bots, Latenz, Status, Schloss = Passwort). Filter „Nicht voll“, „Nicht leer“, „Ohne Passwort“, Suche, Sortierung per Spaltenkopf, „Aktualisieren“ (`F5`). Doppelklick oder Enter tritt bei; „Per Code“ tritt einem Raum direkt bei. Ein Einladungslink öffnet den Browser mit vorbelegtem Raum.
+  - *Wie die Erkennung funktioniert:* Needle `context.connection` kann nur einen Raum gleichzeitig. Jeder Client öffnet deshalb eine zweite, schlanke WebSocket-Verbindung zum selben Backend und betritt den gemeinsamen Raum `csw16-lobby`. Der Host meldet dort alle 3 s einen Heartbeat (Name, Karte, Spieler, Phase, Passwort ja/nein, Version); der Browser fragt beim Öffnen aktiv nach (`csw16-q`, mit Zeitstempel → Latenz) und verwirft Einträge nach 10 s ohne Meldung. Funktioniert mit dem Needle-Backend und dem eigenen Relay gleichermaßen.
+  - Der Host prüft Passwort (nur als Prüfsumme übertragen), Spielerlimit und Spielversion; abgelehnte Spieler landen mit Meldung wieder im Menü. Verlässt der Host das Spiel, übernimmt der Dienstälteste (Host-Migration, inkl. Server-Konfiguration).
 - **LAN / Self-Hosting mit Relay:** Ohne Internet oder mit eigenem Server den mitgelieferten Relay starten:
 
   ```bash
@@ -26,7 +31,16 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
   # oder: bun run relay
   ```
 
-  Clients tragen in der Lobby im Feld „Server“ die Adresse ein oder öffnen die Seite mit `?server=ws://<host>:9100/socket` (hinter TLS `wss://`). `GET /status` liefert die aktiven Räume als JSON.
+  Im Menü unter „Erweitert: eigener Server“ die Adresse eintragen oder die Seite mit `?server=ws://<host>:9100/socket` öffnen (hinter TLS `wss://`). `GET /status` liefert die aktiven Räume als JSON.
+- **Automatisierung/Tests:** `?auto=1&fill=4` startet ohne Menü offline; mit `&room=CODE` tritt man bei, `&host=1&sname=Name&pw=…&max=…&lobby=1` hostet. `?menu=browser` öffnet direkt den Serverbrowser.
+
+### HUD
+
+CS-1.6-Aufteilung mit modernem Feinschliff, skaliert automatisch von 1280×720 bis 4K/Ultrawide (Einstellung „HUD-Größe“ zusätzlich): Leben/Rüstung/Geld unten links (mit Geld-Änderung, Kaufzone-, C4- und Kit-Symbol), Waffe/Munition und Inventar unten rechts, Spielstand mit Spieler-Avataren (lebend/tot) und Zeit oben Mitte (Bombe gelegt = rote Uhr), Radar mit A/B-Spots oben links, Kill-Feed mit Waffensilhouetten und Kopfschuss-Symbol oben rechts, dynamisches Fadenkreuz (Farbe/Stil/Länge/Abstand/Stärke einstellbar), Trefferanzeige, Schadensrichtung, Rundenende-Banner („Terroristen gewinnen“ + Grund), Todesinfo („Getötet von X mit AWP (Kopfschuss)“, Rest-HP des Gegners), Zuschauerleiste, Fortschrittsbalken beim Legen/Entschärfen. Kaufmenü (`B`) mit CS-1.6-Tasten 1–8 und Maus, Waffenkarten mit Silhouette, Preis, Werten und Zustand (zu teuer, im Besitz, nur CT/T). Scoreboard (`Tab`) mit K/D, Geld der Teamkameraden, Ping, Bot-/Host-/C4-/Kit-Markierungen.
+
+### Musik
+
+Menümusik: Derek „JoJo“ Stegall, Tracks aus dem Red-Eclipse-Soundpaket (<https://github.com/redeclipse/sounds>), lizenziert unter CC BY-SA; Lautheit normalisiert und neu kodiert. Details: `assets/audio/music/CREDITS.md`.
 
 ## Steuerung
 
@@ -49,6 +63,8 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 | Z / X / C | Funkbefehle (Ziffer wählt) |
 | M | Team-Menü |
 | O | Einstellungen |
+| F | Waffe inspizieren |
+| Esc | Maus freigeben (in der Serverlobby: Lobby zeigen) |
 
 ## Features
 
@@ -60,7 +76,7 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 - Waffen und C4 fallen beim Tod zu Boden und lassen sich aufheben; Kaufen nur in der Kaufzone am Spawn
 - Zuschauer-Kamera nach dem Tod (Klick wechselt den Spieler), Schrittgeräusche, schneller werdendes Bomben-Piepen
 - Vertikalität: Zwischenebenen mit Treppen und Geländer, Laderampen, Paletten und Kisten zum Draufspringen
-- Einstellungen (O): Mausempfindlichkeit, Y-Invertierung, Sichtfeld, Lautstärke, Fadenkreuz (Farbe/Stil/Größe), Kopfbewegung, FPS-Anzeige
+- Einstellungen (O oder im Hauptmenü): Mausempfindlichkeit, Y-Invertierung, Sichtfeld, Lautstärke, Menümusik, Fadenkreuz (Farbe/Stil/Länge/Abstand/Stärke/dynamisch, mit Vorschau), HUD-Größe, Kopfbewegung, FPS-Anzeige
 - Host-autoritativer Mehrspieler mit Host-Migration; Raumcodes, Teilen-Link, optionaler Relay-Server
 - Grafikstufe für schwache Rechner: `?quality=low` (ohne Schatten, reduzierte Auflösung)
 - Karten aus Lager-Daten gebacken und als JSON eingecheckt, damit alle Clients identisch spielen
@@ -99,6 +115,12 @@ BROWSER=/pfad/zu/chromium bun scripts/smoke.mjs      # in einem zweiten
 BROWSER=/pfad/zu/chromium bun scripts/net-test.mjs
 ```
 
+**Serverbrowser-/Lobby-Test** (zwei Browser: Erkennung, Passwort-Kick, Beitritt, Lobby-Start; Dev-Server muss laufen):
+
+```bash
+BROWSER=/pfad/zu/chromium bun scripts/lobby-test.mjs      # optional SHOT_DIR=… für Screenshots
+```
+
 **Karten backen** (`levels/*.json` erzeugen):
 
 ```bash
@@ -115,14 +137,14 @@ Für ein echtes Lager die MSSQL-Zugangsdaten als Umgebungsvariablen setzen (Vorl
 | `src/logic/` | Reine, framework-freie und getestete Logik (Layout, Query, Economy, Runden, Bombe, Waffen, Schaden, Bots, Wegpunkte, Netzwerk-Nachrichten) und Datentabellen wie `weapons.json` |
 | `src/game/` | Spielwelt und Match-Ablauf (`World.ts`, `MatchDriver.ts`) |
 | `src/player/`, `src/entities/` | Spieler-Steuerung und Soldaten-Figuren |
-| `src/multi/` | Netzwerk-Transport (Needle-Backend oder eigener Relay) |
-| `src/ui/` | Lobby und HUD |
+| `src/multi/` | Netzwerk-Transport (Needle-Backend oder eigener Relay), Server-Erkennung (`Discovery.ts`) |
+| `src/ui/` | Hauptmenü (`MainMenu`, Hintergrund `MenuBackdrop`, Musik `MenuMusic`), Serverlobby (`LobbyOverlay`), HUD (`Hud` + `hud.css`), Einstellungen |
 | `src/weapons/` | Schießen, Granaten, Viewmodel, Effekte; `models/` = prozedurale Waffen + Arme |
 | `src/level/` | Darstellung der Karten und Texturen |
 | `src/audio/` | Soundeffekte |
 | `levels/` | Gebackene Karten (JSON) |
-| `assets/` | Laufzeit-Assets (Waffenmodelle), werden nach `dist/assets/` kopiert |
-| `scripts/` | Relay-Server, Map-Bake, Smoke- und Netzwerktest |
+| `assets/` | Laufzeit-Assets (Menümusik, Referenzmodelle), werden nach `dist/assets/` kopiert |
+| `scripts/` | Relay-Server, Map-Bake, Smoke-, Netzwerk- und Lobbytest |
 
 Weitere Hintergründe und der Stand der Umsetzung stehen in `IMPLEMENTIERUNGSPLAN.md`.
 

@@ -126,8 +126,10 @@ async function startGame(context: Context, level: LevelFile, setup: GameSetup): 
   shooter.onEmptyClick = () => sfx.play('empty');
   shooter.onReload = () => sfx.play('reload');
   // Einstellungen (O): live auf Spieler, Shooter, HUD und Sound anwenden
+  // Overlays im selben Stapelkontext wie das HUD (sonst läge das Fadenkreuz darüber)
+  const uiHost = (document.querySelector('needle-engine') as HTMLElement | null) ?? document.body;
   const settingsMenu = new SettingsMenu(safeStorage());
-  settingsMenu.mount();
+  settingsMenu.mount(uiHost);
   let hudMenu = false;
   const syncInput = (): void => { player.inputEnabled = !hudMenu && !settingsMenu.isOpen() && !lobbyOpen(); };
   hud.onMenuChange = (open) => { hudMenu = open; syncInput(); };
@@ -199,7 +201,7 @@ async function startGame(context: Context, level: LevelFile, setup: GameSetup): 
 
     // Serverlobby (gehaltenes Aufwärmen bis „Spiel starten“)
     const lobby = new LobbyOverlay(setup.room, link);
-    lobby.mount();
+    lobby.mount(uiHost);
     lobby.onStart = () => driver.startMatch();
     lobby.onTeam = (team) => driver.requestTeam(team);
     lobby.onChat = (text) => driver.sendChat(text, false);
