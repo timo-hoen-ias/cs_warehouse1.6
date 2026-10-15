@@ -168,6 +168,7 @@ class MainMenu {
     document.body.appendChild(root);
     this.backdrop.mount(root);
     this.backdrop.setMood?.(mapSeed(this.setup.mapId));
+    this.backdrop.setMap?.(this.setup.mapId);
     this.paintGrain();
     const nameInput = this.q<HTMLInputElement>('#mm-name');
     nameInput.value = this.setup.name;
@@ -549,6 +550,7 @@ class MainMenu {
     const n = this.root.querySelector('#mm-mapname');
     if (n) n.textContent = mapById(id).name;
     this.backdrop.setMood?.(mapSeed(this.setup.mapId));
+    this.backdrop.setMap?.(this.setup.mapId);
     uiSound.play('click');
   }
 

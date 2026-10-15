@@ -10,6 +10,7 @@ import { Grenades } from './weapons/Grenades';
 import { MatchDriver } from './game/MatchDriver';
 import { Hud } from './ui/Hud';
 import { showMainMenu } from './ui/MainMenu';
+import { FlightBackdrop } from './ui/MenuFlight';
 import { LobbyOverlay } from './ui/LobbyOverlay';
 import { LocalTransport, NeedleTransport, type NetTransport } from './multi/Transport';
 import { ServerAnnouncer } from './multi/Discovery';
@@ -61,7 +62,23 @@ onStart(async (context) => {
   cam.near = 0.05;
 
   const launch = parseLaunch(window.location.search, mapById(undefined).id);
-  const setup: GameSetup = launch.auto ?? await showMainMenu({ store: safeStorage(), launch, quality, message: takeMenuMessage() });
+  let setup: GameSetup;
+  if (launch.auto) setup = launch.auto;
+  else {
+    // 3D-Kameraflug durch die Karte hinter dem Menü (Canvas-Key-Art bleibt Rückfall); `?flight=0` aus, `?flight=1` auch bei ?quality=low
+    const flightParam = new URL(window.location.href).searchParams.get('flight');
+    const wantFlight = flightParam === '1' || (flightParam !== '0' && quality !== 'low');
+    let flight: FlightBackdrop | undefined;
+    try {
+      if (wantFlight) flight = new FlightBackdrop(context, mapById(undefined).id, quality);
+    } catch (e) {
+      console.warn('[menu] 3D-Hintergrund nicht verfügbar', e);
+    }
+    if (import.meta.env?.DEV) (globalThis as Record<string, unknown>).__menu3d = () => ({ active: !!flight?.active, sceneChildren: scene.children.length });
+    setup = await showMainMenu({ store: safeStorage(), launch, quality, message: takeMenuMessage(), backdrop: flight });
+    // Menü-Welt vor dem Spielstart vollständig entfernen (keine doppelten Szene-Objekte)
+    flight?.releaseWorld();
+  }
 
   // Karten sind Code-Module: alle Clients bauen aus der Karten-ID dieselbe Karte
   const level = loadMapData(setup.mapId);
@@ -342,6 +359,51 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
       }
       return null;
     };
+    /**
+     * Erst schießen, wenn die echte Kamera an der Zielpose steht (Position + Blickrichtung, zwei Frames in Folge) und
+     * der Schütze bereit ist — feste Wartezeiten reichen bei hoher CPU-Last nicht (ein Frame dauert dann Sekunden,
+     * der erste Schuss nimmt die Kamera von VOR dem Teleport). Bots bleiben bis kurz nach dem Schuss angehalten.
+     */
+    /** Bots angehalten bis zu einem Zeitpunkt (spätere Aufrufe verlängern/überschreiben ihn, kein vorzeitiges Freigeben). */
+    let pausedUntil = 0;
+    const pauseBotsUntil = (ms: number, override = false): void => {
+      const until = performance.now() + ms;
+      pausedUntil = override ? until : Math.max(pausedUntil, until);
+      driver.botsPaused = true;
+      setTimeout(() => { if (performance.now() >= pausedUntil) driver.botsPaused = false; }, pausedUntil - performance.now() + 30);
+    };
+    const lastShot: { settleMs: number; settled: boolean; fired: boolean } = { settleMs: 0, settled: false, fired: false };
+    g.__lastShot = () => ({ ...lastShot });
+    const fireWhenSettled = (feet: { x: number; y: number; z: number }, yaw: number, pitch: number, pauseBots: boolean): void => {
+      const t0 = performance.now();
+      const want = yawPitchToDir(yaw, pitch);
+      const pos = new THREE.Vector3();
+      const dir = new THREE.Vector3();
+      lastShot.fired = false;
+      let stable = 0;
+      const atPose = (): boolean => {
+        const c = context.mainCamera;
+        if (!c) return false;
+        c.getWorldPosition(pos);
+        c.getWorldDirection(dir);
+        return Math.hypot(pos.x - feet.x, pos.z - feet.z) < 0.15
+          && Math.abs(pos.y - (feet.y + PLAYER.eye)) < 0.4
+          && dir.x * want.x + dir.y * want.y + dir.z * want.z > 0.9995;
+      };
+      const poll = (): void => {
+        stable = atPose() ? stable + 1 : 0;
+        const timedOut = performance.now() - t0 > 25000;
+        if (stable >= 2 || timedOut) {
+          lastShot.settleMs = Math.round(performance.now() - t0);
+          lastShot.settled = stable >= 2;
+          lastShot.fired = true;
+          document.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+          setTimeout(() => document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })), 60);
+          if (pauseBots) pauseBotsUntil(2500, true);
+        } else requestAnimationFrame(poll);
+      };
+      requestAnimationFrame(poll);
+    };
     g.__aimAtBot = (botsOnly = false) => {
       // Deterministisch auf den nächsten lebenden Gegner zielen (Körpermitte, ~4 m) und mit der Pistole schießen
       const me = driver.local;
@@ -355,8 +417,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
         at = standoff(e.pose.x, e.pose.y, e.pose.z, e.id);
       }
       if (!at) return { error: 'kein Standplatz' };
-      driver.botsPaused = true;
-      setTimeout(() => { driver.botsPaused = false; }, 2500);
+      pauseBotsUntil(30000); // bis nach dem Schuss (fireWhenSettled kürzt auf 2.5 s)
       driver.debugRevive();
       player.spawn(at.x, at.z, 0, at.y);
       const aim = dirToYawPitch((() => {
@@ -366,10 +427,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
       })());
       player.setLook(aim.yaw, aim.pitch);
       shooter.setWeapon(me.loadout.secondary ?? 'knife');
-      setTimeout(() => {
-        document.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
-        setTimeout(() => document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })), 60);
-      }, 700);
+      fireWhenSettled(at, aim.yaw, aim.pitch, true);
       return { ok: true, target: e.id, hp: e.hp, dist: +Math.hypot(e.pose.x - at.x, e.pose.z - at.z).toFixed(2), weapon: shooter.weaponId };
     };
     /** Bewegungstest: Blick in die freieste Richtung (Anlauf ≥ 12 m); liefert die freie Strecke. */
@@ -416,42 +474,45 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
     g.__area = () => world.areaAt({ x: player.motionX(), y: player.feetY(), z: player.motionZ() })?.name ?? null;
     g.__look = (yaw: number, pitch: number) => { player.setLook(yaw, pitch); return true; };
     g.__cam = () => { const c = context.mainCamera!; return { rx: +c.rotation.x.toFixed(3), ry: +c.rotation.y.toFixed(3), rz: +c.rotation.z.toFixed(3), y: +c.position.y.toFixed(2), order: c.rotation.order }; };
-    g.__pauseBots = (ms = 3000) => { driver.botsPaused = true; setTimeout(() => { driver.botsPaused = false; }, ms); return true; };
+    g.__pauseBots = (ms = 3000) => { pauseBotsUntil(ms); return true; };
     g.__reviveId = (id: string) => driver.debugReviveId(id);
     g.__enemyHp = () => Object.values(driver.match.players).filter((p) => p.team !== driver.local?.team).map((p) => ({ id: p.id, hp: p.hp, alive: p.alive }));
     g.__wallShot = () => {
-      // Vom T-Spawn aus die nächste Wand in 3–25 m suchen und auf sie schießen
+      // Vom T-Spawn aus Wände in 4–25 m suchen (nächste zuerst); geprüft wird der echte Schuss: Standpunkt 3 m vor der Wand,
+      // Bodenhöhe dort, Augenstrahl mit der Schussneigung muss die senkrechte Wand binnen 3.5 m treffen
       const t0 = world.spawnPose('T', 0);
-      const eyeY = t0.y + PLAYER.eye;
-      let best: { yaw: number; t: number } | null = null;
+      const pitch = 0.12;
+      const cands: { yaw: number; t: number }[] = [];
       for (let k = 0; k < 32; k++) {
         const yaw = (k / 32) * Math.PI * 2;
-        const d = yawPitchToDir(yaw, 0);
-        const hit = world.collider.raycast({ x: t0.x, y: eyeY, z: t0.z }, d, 40);
-        if (!hit || hit.t <= 4 || hit.t >= 25 || Math.abs(hit.normal.y) >= 0.1 || (best && hit.t >= best.t)) continue;
-        // keine Spieler in der Schusslinie (Bots am Spawn)
+        const hit = world.collider.raycast({ x: t0.x, y: t0.y + PLAYER.eye, z: t0.z }, yawPitchToDir(yaw, 0), 40);
+        if (hit && hit.t > 4 && hit.t < 25 && Math.abs(hit.normal.y) < 0.1) cands.push({ yaw, t: hit.t });
+      }
+      cands.sort((p, q) => p.t - q.t);
+      for (const cand of cands) {
+        const d = yawPitchToDir(cand.yaw, 0);
+        const px = t0.x + d.x * (cand.t - 3);
+        const pz = t0.z + d.z * (cand.t - 3);
+        const gy = world.groundAt(px, pz, t0.y + 0.6);
+        if (world.collider.blockedAt(px, pz, gy, PLAYER.radius, PLAYER.height, PLAYER.step)) continue;
+        const shot = world.collider.raycast({ x: px, y: gy + PLAYER.eye, z: pz }, yawPitchToDir(cand.yaw, pitch), 40);
+        if (!shot || shot.t > 3.5 || Math.abs(shot.normal.y) >= 0.1) continue;
+        // keine Spieler in der Schusslinie / am Standpunkt
         const blockedBy = Object.values(driver.match.players).some((p) => {
           if (!p.alive || p.id === driver.localId) return false;
-          const f = Math.max(0, Math.min(hit.t, (p.pose.x - t0.x) * d.x + (p.pose.z - t0.z) * d.z));
-          return Math.hypot(t0.x + d.x * f - p.pose.x, t0.z + d.z * f - p.pose.z) < 1.5;
+          const f = Math.max(0, Math.min(shot.t, (p.pose.x - px) * d.x + (p.pose.z - pz) * d.z));
+          return Math.hypot(px + d.x * f - p.pose.x, pz + d.z * f - p.pose.z) < 1.5;
         });
-        if (!blockedBy) best = { yaw, t: hit.t };
+        if (blockedBy) continue;
+        pauseBotsUntil(30000);
+        driver.debugRevive();
+        player.spawn(px, pz, cand.yaw, gy);
+        player.setLook(cand.yaw, pitch);
+        shooter.setWeapon(driver.local?.loadout.secondary ?? 'glock');
+        fireWhenSettled({ x: px, y: gy, z: pz }, cand.yaw, pitch, true);
+        return { ok: true, wallDist: +shot.t.toFixed(2), candidates: cands.length };
       }
-      if (!best) return { error: 'keine Wand' };
-      const d = yawPitchToDir(best.yaw, 0);
-      const px = t0.x + d.x * (best.t - 3);
-      const pz = t0.z + d.z * (best.t - 3);
-      driver.botsPaused = true;
-      setTimeout(() => { driver.botsPaused = false; }, 2500);
-      driver.debugRevive();
-      player.spawn(px, pz, best.yaw, world.groundAt(px, pz, t0.y + 0.6));
-      player.setLook(best.yaw, 0.12);
-      shooter.setWeapon(driver.local?.loadout.secondary ?? 'glock');
-      setTimeout(() => {
-        document.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
-        setTimeout(() => document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })), 60);
-      }, 700); // mindestens ein Frame, damit die Kamera am neuen Ort steht
-      return { ok: true };
+      return { error: 'keine Wand', candidates: cands.length };
     };
     g.__throwNade = (kind: 'he' | 'flash' | 'smoke') => {
       const me = driver.local;
