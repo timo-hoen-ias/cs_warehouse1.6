@@ -204,10 +204,13 @@ Was die Bots von einer Karte erwarten (M6.3, gilt für beide Teams):
   Sicht auf einen *weiteren* Eingang werden stark abgewertet (`BOTMAP.exposedPenalty`) — ein Spot braucht daher je Eingang Deckung, von der aus man nur diesen Eingang sieht.
 - **Retake-Ecke vor jedem Spot-Eingang:** Die CT sammeln sich 4–14 m vor dem Eingang an einer Stelle *ohne* Sicht in den Spot (hinter einer Ecke, `retakeStaging`); fehlt so eine
   Ecke (lange gerade Gänge), stehen die Sammelnden im Schussfeld der T, die die Bombe bewachen.
-- **Keine langen Sichtachsen aus T-Gebieten auf CT-Plätze oder den CT-Spawn** (> 40 m aus Mitte, Gassen, Obergeschossen): Die T erschießen Anker, Rotierer und Rettende aus der
-  Ferne (Befund de_speicherstadt: Brückengasse/Ladehof → Hof B, Wohnungen Nord → A, Mitte → CT-Rampe → CT-Spawn; die Karte bleibt ≈ 65–70 % T). Messen: Kill-Positionen der
-  Simulation bzw. Knotenpaare mit `collider.clear` (wie in `de_speicherstadt.test.ts`).
-  *Messbefund (de_speicherstadt, Runde 2):* Sichtlinien sind gegenseitig — das Brechen langer Achsen zu den CT-Plätzen verbesserte die T eher. Wirksam waren die **Zahl der T-Wege** je Spot (ein Nebenweg, den die CT nicht mit abdecken können, kostet ≈ 15 Punkte; als Einbahn/Absatz sperren, für die CT als Rotation lassen), ein CT-Spawn nahe der Rampe und Pflanzpunkte, die nicht beidseitig von Schrankreihen gedeckt sind.
+- **Wege je Spot zählen mehr als Sichtachsen:** Für die Balance entscheidend sind die **Zahl der T-Wege** je Spot (ein
+  Nebenweg, den die CT nicht mit abdecken können, kostet ≈ 15 Punkte CT-Siegquote — als Einbahn/Absatz sperren und den CT
+  als Rotation lassen), die **Lage des CT-Spawns** (nahe der Rampe/den Spots) und **Pflanzpunkte**, die nicht beidseitig
+  von Deckung (z. B. Schrankreihen) eingerahmt sind. Lange Sichtachsen (> 40 m) sind gegenseitig: Sie zu brechen hilft nur,
+  wenn eine Seite sie einseitig nutzen kann (erhöhte Position ohne Gegenblick); in de_speicherstadt machte das Brechen
+  der Achsen die T stärker (Messbefund Runde 2, `IMPLEMENTIERUNGSPLAN.md`). Messen: Kill-Positionen/K:D je Halteplatz
+  aus der Simulation (`bun scripts/bot-sim.ts <id> 20 --deaths`) statt nach Augenmaß.
 - **Balance-Wächter:** Jede Karte ruft in `src/maps/<id>.test.ts` `balanceGuard('<id>')` auf (`src/maps/balanceGuard.ts`: 5 Seeds × 20 Runden, T 30–70 %, Plants auf beiden
   Spots, keine Wand-/Fallfehler, Festsitzen ≤ 6 s). Für Aussagen zur Balance ≥ 2 × 24 Seeds rechnen (Streuung ±4–5 Punkte je Block).
 
