@@ -96,8 +96,9 @@ export function buildSpeicherstadt(): MapData {
     .rect('k', 14, -52, 34, -42); // Kessel
   // Hof B, Dunkel, Grube
   P.rect('j', -76, -54, -36, -28)
-    .rect('n', -86, -48, -78, -32) // Dunkel
+    .rect('n', -86, -48, -78, -20) // Dunkel (dunkles Lager, zwei Türen: zum Hof und zur Banane)
     .rect('Q', -78, -44, -76, -36)
+    .rect('Q', -78, -26, -76, -22)
     .rect('g', 56, -52, 72, -38); // Grube
   // Rampen (Unterbau auf 0 m, Keil kommt explizit)
   P.rect('r', -10, 48, 4, 60) // T-Rampe
@@ -245,15 +246,24 @@ export function buildSpeicherstadt(): MapData {
   b.area('Banane-Brücke', -76, -14, -64, 16);
   b.area('Spot B', -76, -54, -36, -28, -1, 3);
   b.area('B-Eingang', -76, -30, -64, -14);
-  b.area('Dunkel', -86, -48, -76, -32);
+  b.area('Dunkel', -86, -48, -76, -20);
   b.area('Baustelle', -46, -84, -34, -54);
   b.area('CT-Passage', -34, -84, -16, -74);
   b.area('Verladerampe', -80, -62, -46, -54);
   b.area('Büro', -58, -72, -48, -64);
 
   // ------------------------------------------------------------------ Spots, Spawns, Kaufzonen
-  b.site('A', 'Serverschrank A', [38, 1.0, -76], [66, 8, -52], [46, 1.6, -60]);
+  b.site('A', 'Serverschrank A', [38, 1.0, -76], [66, 8, -52], [45.5, 1.6, -55]);
   b.site('B', 'Serverschrank B', [-74, -1, -54], [-38, 4, -28], [-65.6, 0, -32.6]);
+
+  // Bot-Hinweise: bewährte Rauchwürfe der T (Sichtblocker vor den Halte-Positionen der CT), Werte per Wurfsimulation geprüft
+  b.botHint({ kind: 'smoke', from: [-67.5, 0, -18.5], target: [-66, 0, -38], team: 'T', site: 'B' }); // aus der Banane auf die Serverschränke B
+  b.botHint({ kind: 'smoke', from: [-71.5, 0, -22.5], target: [-70, 0, -42], team: 'T', site: 'B' }); // in den Hof, Richtung Dunkel
+  b.botHint({ kind: 'smoke', from: [-75.5, 0, -26.5], target: [-62, 0, -44], team: 'T', site: 'B' }); // über den Brunnen
+  b.botHint({ kind: 'smoke', from: [23.5, 1.1, -39.5], target: [40, 1.6, -56], team: 'T', site: 'A' }); // von der Kurz-Rampe vor den Kessel-Ausgang
+  b.botHint({ kind: 'smoke', from: [31.5, 1.6, -46.5], target: [44, 1.6, -66], team: 'T', site: 'A' }); // aus dem Kessel auf die Container
+  b.botHint({ kind: 'smoke', from: [61.5, 0, -50.5], target: [56, 1.6, -70], team: 'T', site: 'A' }); // aus der Grube in den Friedhof
+  b.botHint({ kind: 'smoke', from: [57.5, 0, -42.5], target: [52, 1.6, -62], team: 'T', site: 'A' }); // aus der Grube auf die Serverschränke A
   b.spawnGrid('T', -11, 1.6, 63, 8, 2, 3, 0);
   b.spawnGrid('CT', -2, 1.6, -81, 8, 2, 3, Math.PI);
   b.buy('T', -34, 60, 16, 82);

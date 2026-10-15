@@ -37,7 +37,7 @@ export function dressBanana(b: B): void {
   awning(b, 'px', -64, 44, 52, 2.6, [0x2f5a3a, 0xe8dcc0]);
 
   // Lieferwagen („Auto“, x −70..−58): halb versperrte Lieferantengasse
-  prop(b, 'van', -64, 0, 26, { rot: 0, tint: 0xe4dfcf });
+  prop(b, 'van', -67.4, 0, 26, { rot: 0, tint: 0xe4dfcf });
   prop(b, 'palletGoods', -68.4, 0, 20, { tint: 0xc9ad7c, rot: 1 });
   prop(b, 'palletGoods', -68.4, 0, 21.4, { tint: 0xd2b88a, rot: 1 });
   prop(b, 'crate', -59.6, 0, 28, { h: 1.2 });
@@ -74,8 +74,9 @@ export function dressBanana(b: B): void {
   prop(b, 'crate', -65.4, 0, -10, { h: 1.2 });
   prop(b, 'gasLamp', -65, 0, -28.6);
   prop(b, 'gasLamp', -75, 0, -14.8);
-  hoists(b, 'px', -76, -28, -6, 0, 1, 6, { len: 1.5 });
+  hoists(b, 'px', -76, -20, -6, 0, 1, 6, { len: 1.5 });
   hoists(b, 'nx', -64, -28, -6, 0, 1, 6, { len: 1.5 });
-  plate(b, 'B-EINGANG', -75.7, 3.0, -23, 'px', undefined, 3.0);
+  plate(b, 'B-EINGANG', -75.7, 3.0, -17, 'px', undefined, 3.0);
+  plate(b, 'DUNKEL', -75.7, 4.4, -24, 'px', 'ZUM LAGER', 2.4);
   lamp(b, -63.7, 4.2, -20, 'nx');
 }

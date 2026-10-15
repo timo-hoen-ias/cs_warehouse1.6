@@ -5,12 +5,12 @@ import { F, awning, edge, hoists, ladder, lamp, line, plate, shop, type B } from
 export function dressSiteA(b: B): void {
   const Y = 1.6;
   // Serverschränke der IT: zwei Reihen gegenüber, USV, Klimagerät; Container und Plane daneben
-  prop(b, 'serverRow', 46, Y, -63, { rot: 0, n: 4 });
-  prop(b, 'serverRow', 46, Y, -57, { rot: 2, n: 4 });
-  b.light({ kind: 'lamp', pos: [46, Y + 3.4, -60], color: 0xcfe4ff, intensity: 1.3, range: 10 });
-  prop(b, 'ups', 43.3, Y, -60);
-  prop(b, 'cooler', 49, Y, -60);
-  b.decal({ kind: 'letter', pos: [46, Y + 0.02, -60], size: [5.6, 5.6], text: 'A', color: 0xffffff });
+  prop(b, 'serverRow', 45.5, Y, -58.5, { rot: 0, n: 4 });
+  prop(b, 'serverRow', 45.5, Y, -51.5, { rot: 2, n: 4 });
+  b.light({ kind: 'lamp', pos: [45.5, Y + 3.4, -55], color: 0xcfe4ff, intensity: 1.3, range: 10 });
+  prop(b, 'ups', 42.4, Y, -55);
+  prop(b, 'cooler', 48.8, Y, -55);
+  b.decal({ kind: 'letter', pos: [45.5, Y + 0.02, -55], size: [5.6, 5.6], text: 'A', color: 0xffffff });
   prop(b, 'container', 39, Y, -66.4, { rot: 1, tint: 0x3a5a7a });
   prop(b, 'crate', 40, Y, -57.4, { h: 1.2 });
   prop(b, 'crate', 41.4, Y, -57.4, { h: 1.2 });

@@ -74,6 +74,11 @@ export function dressSiteB(b: B): void {
   prop(b, 'barrel', -80.6, 0, -33.2);
   prop(b, 'barrel', -81.5, 0, -33.6);
   prop(b, 'sacks', -82, 0, -36, { len: 1.8, n: 2, rot: 1 });
+  prop(b, 'shelf', -84.9, 0, -30, { len: 2.4, rot: 1 });
+  prop(b, 'crate', -81.2, 0, -26.2, { h: 1.2 });
+  prop(b, 'crate', -82.5, 0, -22.6, { h: 1.2 });
+  prop(b, 'palletStack', -84.8, 0, -23.4, { n: 5, rot: 1 });
+  b.hallLamp(-82, 3.4, -26, { color: 0xffa860, intensity: 0.4, range: 7 });
   b.hallLamp(-82, 3.4, -40, { color: 0xffa860, intensity: 0.45, range: 7 });
   plate(b, 'DUNKEL', -75.7, 3.4, -45, 'px', 'LAGER · KEIN LICHT', 3.2);
 

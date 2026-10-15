@@ -90,6 +90,8 @@ export function dressMitte(b: B): void {
   // Zollplatz: Kistenstapel, Sackbarrikade, Handwagen, Laternen
   prop(b, 'crateStack', -13.6, 0, -9);
   prop(b, 'sacks', 3.4, 0, 3.4, { len: 3.6, n: 4, rot: 1 });
+  prop(b, 'container', -2, 0, 4.8, { rot: 0, tint: 0x3a6a8a });
+  prop(b, 'container', -14.4, 0, -1.4, { rot: 1, tint: 0x8a3a2a });
   prop(b, 'palletGoods', -12, 0, 2, { tint: 0xc9ad7c });
   prop(b, 'palletGoods', -12, 0, 3.4, { tint: 0xb8996a });
   prop(b, 'barrelGroup', -15, 0, -16, {});
