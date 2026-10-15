@@ -101,3 +101,13 @@ describe('Headless-Simulation Testkarte (3 gegen 3)', () => {
     expect(plants).toBeGreaterThanOrEqual(3);
   });
 }, 60_000);
+
+describe('Headless-Simulation: Festsitzen (Regression)', () => {
+  it('de_umschlag Seed 106: T am Treppenfuß Kurz/B kommen an einem Kameraden vorbei (vorher 30 s festgesessen)', () => {
+    const sim = new HeadlessMatch(compileMap(loadMapData('de_umschlag')), { perTeam: 5, skill: 0.6, seed: 106 });
+    sim.runRounds(13);
+    const s = summarize(sim.stats);
+    expect(s.maxStuck as number).toBeLessThanOrEqual(6);
+    expect(s.wallViolations).toBe(0);
+  });
+}, 60_000);

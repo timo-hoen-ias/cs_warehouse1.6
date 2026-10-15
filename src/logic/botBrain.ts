@@ -1,15 +1,15 @@
 import type { BombPhase } from './bombs';
 import { BOMB } from './bombs';
-import { aimError, reactionTime } from './botDecide';
+import { aimError, firstSight } from './botDecide';
 import { mateInLineOfFire, nadeHurtsMates, shotSpread, yieldStep } from './botFriendly';
 import {
   aimPoint, chooseWeapon, combatTick, effectiveRange, engage, needsReload, newCombat, onShot as combatOnShot,
   shouldRetreat, type CombatState,
 } from './botCombat';
-import type { NadeOrder, Task } from './botCoach';
+import { BOMB_ESCAPE, type NadeOrder, type Task } from './botCoach';
 import { nearestThreat, type TeamKnowledge } from './botKnowledge';
 import { enemyOf, threatPoints, zoneAt, type BotMapInfo } from './botMap';
-import { inFov } from './botPerception';
+import { viewAngle } from './botPerception';
 import { fireSpread } from './fire';
 import { solveThrow, type ThrowPlan } from './botThrow';
 import type { Collider } from './collision';
@@ -119,6 +119,8 @@ export const BRAIN = {
   lookDwell: [1.4, 3.2] as const,
   /** Angekommen (m). */
   arrive: 1.3,
+  /** Eilige Wege: Gegner weiter weg als das (m) werden nicht im Stehen bekämpft. */
+  passRange: 25,
 } as const;
 
 export class BotBrain {
@@ -293,6 +295,16 @@ export class BotBrain {
       else return this.continueThrow(v, out);
     }
 
+    // --- Bombe explodiert gleich und ich stehe im Wirkungsbereich (T): weglaufen statt kämpfen (außer der Gegner ist ganz nah)
+    if (bombFlight(this.team, v.bomb, s.pos) && task?.goal && !(nearestVisible !== null && nearestVisible < 8)) {
+      this.retreat = null;
+      const o = this.execute(v, out, task);
+      if (nearestVisible !== null) o.look = aimPoint(v.visible[0]!.pos, v.visible[0]!.crouch, false);
+      o.speed = 'run';
+      o.state = 'Abstand zur Bombe';
+      return o;
+    }
+
     // --- Sichtkontakt: kämpfen
     if (v.visible.length) {
       const r = this.fight(v, out, wantWeapon);
@@ -451,9 +463,9 @@ export class BotBrain {
     let t = v.visible.find((e) => e.id === this.target) ?? null;
     if (!t) {
       t = [...v.visible].sort((a, b) => a.dist - b.dist)[0]!;
-      const surprise = inFov(s.yaw, s.pos, t.pos, Math.PI / 3) ? 1 : 1.35;
-      this.reaction = reactionTime(this.skill, this.rnd) * surprise;
-      this.sightTime = 0;
+      const first = firstSight(this.skill, this.rnd, viewAngle(s.yaw, s.pos, t.pos), s.stillFor);
+      this.reaction = first.reaction;
+      this.sightTime = first.sightTime;
       this.target = t.id;
       this.combat.target = null;
     } else {
@@ -503,7 +515,9 @@ export class BotBrain {
     // Außer Reichweite (SMG/Pistole gegen Gegner weit weg): nicht stehen bleiben und sprühen, sondern
     // weiterlaufen (Blick auf den Gegner) bzw. bei Treffern in Deckung — außer man hält bereits seine Position.
     const holding = task?.kind === 'hold' && this.arrivedAt >= 0;
-    if (task?.goal && !holding && def.type !== 'sniper' && def.mode !== 'melee' && t.dist > effectiveRange(def) * 1.2) {
+    // Eiliger Weg (Retake-Sammeln, Retten …): kein Fernduell aus der Bewegung gegen Gegner, die ihren Winkel halten — weiter zum Ziel
+    const passing = task?.kind === 'move' && task.urgent && t.dist > BRAIN.passRange;
+    if (task?.goal && !holding && def.mode !== 'melee' && (passing || (def.type !== 'sniper' && t.dist > effectiveRange(def) * 1.2))) {
       if (this.damage && v.now - this.damage.t < 1.5) {
         const cover = findCover(v.info, v.col, s.pos, t.pos);
         if (cover) {
@@ -756,6 +770,11 @@ export class BotBrain {
     }
     return out;
   }
+}
+
+/** T im Wirkungsbereich der gelegten Bombe kurz vor der Explosion (dann zählt nur noch Abstand). */
+export function bombFlight(team: Team, bomb: BrainInput['bomb'], pos: XYZ): boolean {
+  return team === 'T' && bomb.phase === 'planted' && !!bomb.pos && bomb.fuseLeft < BOMB_ESCAPE.time && Math.hypot(pos.x - bomb.pos.x, (pos.y - bomb.pos.y) * 1.5, pos.z - bomb.pos.z) < BOMB_ESCAPE.safe;
 }
 
 /**

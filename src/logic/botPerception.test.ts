@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SENSE, bodyPoints, canSeePlayer, footstepRange, heardPosition, inFov, shotRange } from './botPerception';
+import { SENSE, bodyPoints, canSeePlayer, footstepRange, heardPosition, inFov, shotRange, viewAngle } from './botPerception';
 import { colliderFor } from './collision';
 import { STEP } from './audioMix';
 
@@ -17,6 +17,13 @@ describe('Bot-Wahrnehmung', () => {
     expect(inFov(lookX, eye, { x: 10, y: 0, z: 8 })).toBe(true); // ~39°
     expect(inFov(lookX, eye, { x: -10, y: 0, z: 0 })).toBe(false);
     expect(inFov(lookX, eye, { x: 0, y: 0, z: 10 })).toBe(false); // 90° seitlich
+  });
+
+  it('Blickwinkel zum Ziel (horizontal)', () => {
+    expect(viewAngle(lookX, eye, { x: 10, y: 3, z: 0 })).toBeCloseTo(0, 5);
+    expect(viewAngle(lookX, eye, { x: 0, y: 0, z: 10 })).toBeCloseTo(Math.PI / 2, 5);
+    expect(viewAngle(lookX, eye, { x: -10, y: 0, z: 0 })).toBeCloseTo(Math.PI, 5);
+    expect(viewAngle(lookX, eye, { x: 10, y: 0, z: 10 })).toBeCloseTo(Math.PI / 4, 5);
   });
 
   it('Sicht: Wand blockiert, Rauch blockiert, ganz nah auch ohne Blickfeld, Reichweite', () => {

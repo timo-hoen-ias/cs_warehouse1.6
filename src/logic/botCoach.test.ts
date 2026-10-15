@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeMap, routesTo, siteInfo, type BotMapInfo } from './botMap';
-import { CTCoach, TCoach, type CoachBot, type CoachCtx } from './botCoach';
-import { newKnowledge, report, sighting } from './botKnowledge';
+import { BOMB_ESCAPE, CTCoach, RETAKE, TCoach, bombEscape, retakeHopeless, retakeSiteClear, saveSpot, type CoachBot, type CoachCtx } from './botCoach';
+import { markDead, newKnowledge, report, sighting } from './botKnowledge';
 import { buildBotTestMap } from './botTestMap';
 import { compileMap } from './mapcompile';
 import type { XYZ } from './nav';
@@ -159,6 +159,20 @@ describe('T-Trainer', () => {
   });
 });
 
+describe('T: Abstand zur Bombe', () => {
+  it('Fluchtpunkt liegt außerhalb der Explosion, auf der eigenen Seite der Bombe', () => {
+    for (const site of ['a', 'b'] as const) {
+      const bomb = siteInfo(info, site)!.plant;
+      const from = { x: bomb.x + 2, y: bomb.y, z: bomb.z + 6 };
+      const p = bombEscape(info, site, bomb, from);
+      expect(Math.hypot(p.x - bomb.x, (p.y - bomb.y) * 1.5, p.z - bomb.z)).toBeGreaterThanOrEqual(BOMB_ESCAPE.safe);
+      // weg von der Bombe (eigene Seite), nicht an ihr vorbei
+      expect((p.x - bomb.x) * (from.x - bomb.x) + (p.z - bomb.z) * (from.z - bomb.z)).toBeGreaterThanOrEqual(0);
+      expect(d2(p, from)).toBeLessThan(BOMB_ESCAPE.safe + 8);
+    }
+  });
+});
+
 describe('CT-Trainer', () => {
   it('Aufstellung: Halte-Aufträge mit Blickpunkt, Anker markiert', () => {
     const coach = new CTCoach();
@@ -212,6 +226,61 @@ describe('CT-Trainer', () => {
     expect(def.kind).toBe('defuse');
     expect(def.nades.some((n) => n.kind === 'smoke')).toBe(true);
     expect(coach.tasks.get('c0')!.label).toContain('Retake');
+  });
+
+  it('Retake: Gegner an der Bombe gemeldet → erst räumen, dann entschärfen', () => {
+    const coach = new CTCoach();
+    const bots = [bot('c0', { x: 40, y: 0, z: 5 }), bot('c1', { x: 30, y: 0, z: 18 }, { hasKit: true })];
+    coach.start(ctx('CT', bots), null);
+    const bomb = siteInfo(info, 'a')!.plant;
+    const planted = { phase: 'planted' as const, spot: 'a' as const, pos: bomb, dropped: null, fuseLeft: 38 };
+    const k = newKnowledge('CT');
+    coach.update(ctx('CT', bots, { now: 50, elapsed: 50, bomb: planted, enemyAlive: 2, know: k }));
+    bots.forEach((b) => (b.pos = coach.tasks.get(b.id)!.goal!));
+    report(k, sighting(info, 't1', { x: bomb.x + 4, y: bomb.y, z: bomb.z + 3 }, 53, 'seen'));
+    coach.update(ctx('CT', bots, { now: 54, elapsed: 54, bomb: { ...planted, fuseLeft: 34 }, enemyAlive: 2, know: k }));
+    // Gegner an der Bombe: der Kit-Träger räumt mit, statt sofort zu entschärfen
+    expect(coach.tasks.get('c1')!.kind).toBe('hold');
+    expect(coach.tasks.get('c1')!.label).toContain('räumen');
+    // Gegner tot → entschärfen
+    markDead(k, 't1');
+    coach.update(ctx('CT', bots, { now: 60, elapsed: 60, bomb: { ...planted, fuseLeft: 28 }, enemyAlive: 1, know: k }));
+    expect(coach.tasks.get('c1')!.kind).toBe('defuse');
+  });
+
+  it('Retake aussichtslos (1 gegen 3) → Waffen retten statt einzeln reinlaufen', () => {
+    const coach = new CTCoach();
+    const bots = [bot('c0', { x: 40, y: 0, z: 5 }, { hasKit: true })];
+    coach.start(ctx('CT', bots), null);
+    const bomb = siteInfo(info, 'a')!.plant;
+    coach.update(ctx('CT', bots, { now: 50, elapsed: 50, bomb: { phase: 'planted', spot: 'a', pos: bomb, dropped: null, fuseLeft: 38 }, enemyAlive: 3 }));
+    expect(coach.stage).toBe('save');
+    expect(coach.tasks.get('c0')!.label).toBe('Retten');
+    expect(retakeHopeless(1, 3)).toBe(true);
+    expect(retakeHopeless(2, 4)).toBe(true);
+    expect(retakeHopeless(1, 2)).toBe(false);
+    expect(retakeHopeless(3, 5)).toBe(false);
+    expect(retakeHopeless(2, 3)).toBe(false);
+  });
+
+  it('Retten: CT-Spawn, außer er liegt nah an der Bombe — dann der am weitesten entfernte Ort', () => {
+    const a = siteInfo(info, 'a')!.plant;
+    const d = (p: XYZ, q: XYZ) => Math.hypot(p.x - q.x, p.z - q.z);
+    if (d(info.spawn.CT, a) >= 30) expect(saveSpot(info, a)).toEqual(info.spawn.CT);
+    const near = { ...info.spawn.CT, x: info.spawn.CT.x + 5 };
+    const away = saveSpot(info, near);
+    expect(d(away, near)).toBeGreaterThan(30);
+  });
+
+  it('Spot geräumt: keine frischen Meldungen nahe der Bombe, Gegner tot oder Zeitnot', () => {
+    const k = newKnowledge('CT');
+    const bomb = { x: 0, y: 0, z: 0 };
+    expect(retakeSiteClear({ enemyAlive: 2, know: k, now: 10 }, bomb, false)).toBe(true);
+    report(k, sighting(info, 't1', { x: 5, y: 0, z: 5 }, 9, 'heard'));
+    expect(retakeSiteClear({ enemyAlive: 2, know: k, now: 10 }, bomb, false)).toBe(false);
+    expect(retakeSiteClear({ enemyAlive: 2, know: k, now: 10 }, bomb, true)).toBe(true);
+    expect(retakeSiteClear({ enemyAlive: 2, know: k, now: 10 + RETAKE.clearAge + 1 }, bomb, false)).toBe(true);
+    expect(retakeSiteClear({ enemyAlive: 0, know: k, now: 10 }, bomb, false)).toBe(true);
   });
 
   it('keine Zeit mehr zum Entschärfen → retten', () => {

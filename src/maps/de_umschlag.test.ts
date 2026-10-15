@@ -3,6 +3,7 @@ import { loadMapData } from './index';
 import { compileMap } from '../logic/mapcompile';
 import { astar, nearestNode, routeLength } from '../logic/nav';
 import { PLAYER } from '../logic/move';
+import { balanceGuard } from './balanceGuard';
 
 /**
  * Kartenspezifische Topologie von de_umschlag (de_mirage als Umschlaghalle): Fenster (Leitstand) über der Mitte,
@@ -127,3 +128,6 @@ describe('de_umschlag: Mirage-Topologie', () => {
     expect(col.ceilingAbove(sandwich.center.x, sandwich.center.z, sandwich.center.y, PLAYER.radius)).toBeGreaterThan(4.5);
   });
 });
+
+/** Balance-Wächter (gemeinsam für alle Karten, `balanceGuard.ts`); Stand und Messung: IMPLEMENTIERUNGSPLAN M6.3. */
+balanceGuard('de_umschlag');

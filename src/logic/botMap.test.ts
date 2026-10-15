@@ -178,4 +178,22 @@ describe('Karten-Analyse – de_lagerstaub', () => {
       }
     }
   });
+
+  it('CT-Halte-Positionen meiden Sicht auf weitere Eingänge (nicht von der Seite erwischt werden)', () => {
+    const sees = (h: { pos: { x: number; y: number; z: number } }, p: { x: number; y: number; z: number }): boolean =>
+      info.col.clear({ x: h.pos.x, y: h.pos.y + 1.6, z: h.pos.z }, { x: p.x, y: p.y + 1.2, z: p.z });
+    let plain = 0;
+    let guarded = 0;
+    for (const s of info.sites) {
+      const entries = siteEntrances(info, s, 'attack');
+      for (const pid of entries) {
+        const others = entries.filter((q) => q !== pid).map((q) => info.portals[q]!.pos);
+        if (!others.length) continue;
+        const exposedCount = (list: { pos: { x: number; y: number; z: number } }[]): number => list.slice(0, 3).filter((h) => others.some((o) => sees(h, o))).length;
+        plain += exposedCount(portalHoldSpots(info, pid, 'CT'));
+        guarded += exposedCount(portalHoldSpots(info, pid, 'CT', { exposed: others }));
+      }
+    }
+    expect(guarded).toBeLessThan(plain);
+  });
 });

@@ -45,6 +45,16 @@ export function inFov(yaw: number, from: XYZ, to: XYZ, fov: number = SENSE.fov):
   return (dx * fx + dz * fz) / l >= Math.cos(fov / 2);
 }
 
+/** Horizontaler Winkel (rad, 0..π) zwischen Blick (yaw, Kamera-Konvention) und der Richtung zu `to`. */
+export function viewAngle(yaw: number, from: XYZ, to: XYZ): number {
+  const dx = to.x - from.x;
+  const dz = to.z - from.z;
+  const l = Math.hypot(dx, dz);
+  if (l < 1e-6) return 0;
+  const c = (dx * -Math.sin(yaw) + dz * -Math.cos(yaw)) / l;
+  return Math.acos(Math.max(-1, Math.min(1, c)));
+}
+
 /** Zielpunkte an einem Spieler (Kopf, Brust) je nach Haltung. */
 export function bodyPoints(feet: XYZ, crouch: boolean): XYZ[] {
   return crouch

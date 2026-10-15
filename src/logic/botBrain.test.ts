@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeMap, siteInfo, type BotMapInfo } from './botMap';
-import { BotBrain, findCover, type BrainInput, type SeenEnemy } from './botBrain';
+import { BotBrain, bombFlight, findCover, type BrainInput, type SeenEnemy } from './botBrain';
 import { makeTask, type Task } from './botCoach';
 import { newKnowledge, report, sighting } from './botKnowledge';
 import { BOT_TEST_ENV, buildBotTestMap } from './botTestMap';
@@ -46,6 +46,34 @@ describe('Bot-Gehirn: Kampf', () => {
     expect(it.fire).not.toBeNull();
     expect(it.fire!.target).toBe('e1');
     expect([1.1, 1.53]).toContain(+it.fire!.aim.y.toFixed(2));
+  });
+
+  it('Vorzielen: wer still auf den Eingang schaut, reagiert schneller als einer, der woanders hinschaut', () => {
+    const pos = { x: 10, y: 0, z: 18 };
+    const e = enemy({ x: 10, y: 0, z: 38 }, 20);
+    const towards = Math.atan2(-(e.pos.x - pos.x), -(e.pos.z - pos.z));
+    const holder = new BotBrain('c1', 'CT', 0.6, mulberry32(4));
+    holder.think(input({ pos, visible: [e], yaw: towards, stillFor: 1 }));
+    const walker = new BotBrain('c1', 'CT', 0.6, mulberry32(4));
+    walker.think(input({ pos, visible: [e], yaw: towards + 0.4, stillFor: 1 }));
+    expect(holder.reaction).toBeLessThan(walker.reaction * 0.7);
+    expect(holder.sightTime).toBeGreaterThan(walker.sightTime);
+  });
+
+  it('T kurz vor der Explosion im Wirkungsbereich: weglaufen statt kämpfen (außer der Gegner ist ganz nah)', () => {
+    const bombPos = { x: 10, y: 0, z: 22 };
+    const bomb = { phase: 'planted' as const, pos: bombPos, fuseLeft: 3, progress: 0 };
+    expect(bombFlight('T', bomb, { x: 10, y: 0, z: 18 })).toBe(true);
+    expect(bombFlight('CT', bomb, { x: 10, y: 0, z: 18 })).toBe(false);
+    expect(bombFlight('T', { ...bomb, fuseLeft: 20 }, { x: 10, y: 0, z: 18 })).toBe(false);
+    expect(bombFlight('T', bomb, { x: 10, y: 0, z: 60 })).toBe(false);
+    const b = new BotBrain('t1', 'T', 0.6, mulberry32(5));
+    const task = makeTask({ kind: 'move', label: 'Abstand zur Bombe', goal: { x: 3, y: 0, z: 40 }, speed: 'run', urgent: true });
+    let it = b.think(input({ task, lo: armed('T'), bomb, visible: [enemy({ x: 10, y: 0, z: 2 }, 16)] }));
+    for (let i = 0; i < 20; i++) it = b.think(input({ task, lo: armed('T'), bomb, visible: [enemy({ x: 10, y: 0, z: 2 }, 16)], now: 50 + i * 0.05 }));
+    expect(it.fire).toBeNull();
+    expect(it.goal).toEqual(task.goal);
+    expect(it.speed).toBe('run');
   });
 
   it('auf Distanz erst anhalten (Gegenlenken), dann schießen', () => {

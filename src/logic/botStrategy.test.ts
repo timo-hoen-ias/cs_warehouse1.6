@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { analyzeMap, routesTo, siteInfo, type BotMapInfo } from './botMap';
 import { newKnowledge, report, sighting } from './botKnowledge';
 import {
-  assignTGroups, chooseExecuteSite, ctSetup, ctSlots, pickTPlan, retakePlan, routeFrom, viaBetween, type TPlanKind,
+  assignTGroups, chooseExecuteSite, ctSetup, ctSlots, pickTPlan, RETAKE_PATH, retakePlan, retakeStaging, routeFrom, segmentPointDist, viaBetween, type TPlanKind,
 } from './botStrategy';
 import { buildBotTestMap } from './botTestMap';
 import { compileMap } from './mapcompile';
 import { mulberry32 } from './rng';
+import { nearestNode } from './nav';
 import { loadMapData } from '../maps';
 
 const m = compileMap(buildBotTestMap());
@@ -143,6 +144,39 @@ describe('Spotwahl, Routen ab Position, Retake', () => {
       expect(Math.hypot(p.staging.x - info.portals[p.entry]!.pos.x, p.staging.z - info.portals[p.entry]!.pos.z)).toBeLessThan(14);
     }
     expect(name(info.portals[plan.get('c3')!.entry]!.from)).toBe('Lang');
+  });
+
+  it('Retake: wer schon im Spot ist, bleibt versteckt dort; Sammelwege führen nicht quer an der Bombe vorbei', () => {
+    const a = siteInfo(info, 'a')!;
+    const inSite = { x: a.plant.x + 1, y: a.plant.y, z: a.plant.z + 1 };
+    const plan = retakePlan(info, 'a', [{ id: 'c1', pos: inSite }, { id: 'c2', pos: info.spawn.CT }], a.plant);
+    expect(Math.hypot(plan.get('c1')!.staging.x - inSite.x, plan.get('c1')!.staging.z - inSite.z)).toBeLessThan(3.5);
+    const c2 = plan.get('c2')!;
+    const clearOnes = a.entrances.filter((pid) => segmentPointDist(info.spawn.CT, retakeStaging(info, a, pid), a.plant) >= RETAKE_PATH.bombClear);
+    if (clearOnes.length) expect(segmentPointDist(info.spawn.CT, c2.staging, a.plant)).toBeGreaterThanOrEqual(RETAKE_PATH.bombClear);
+    // Strecken-Abstand
+    expect(segmentPointDist({ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, { x: 5, y: 0, z: 3 })).toBeCloseTo(3, 5);
+    expect(segmentPointDist({ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, { x: -4, y: 0, z: 3 })).toBeCloseTo(5, 5);
+  });
+
+  it('Retake-Sammelpunkt liegt außen vor dem Eingang, ohne Sicht in den Spot (nicht durch die Tür abschießbar)', () => {
+    let n = 0;
+    let hidden = 0;
+    for (const site of info.sites) {
+      for (const pid of site.entrances) {
+        const st = retakeStaging(info, site, pid);
+        const p = info.portals[pid]!;
+        const eye = { x: st.x, y: st.y + 1.6, z: st.z };
+        expect(Math.hypot(st.x - p.pos.x, st.z - p.pos.z)).toBeLessThan(14.5);
+        expect((st.x - p.pos.x) * p.dir.x + (st.z - p.pos.z) * p.dir.z).toBeLessThan(0);
+        expect(site.zones).not.toContain(info.zoneOf[nearestNode(info.nav, st.x, st.y, st.z, 2)]!);
+        expect(info.col.clear(eye, { x: site.plant.x, y: site.plant.y + 1.2, z: site.plant.z })).toBe(false);
+        n++;
+        // hinter der Ecke: auch der Bereich direkt hinter dem Eingang ist nicht einsehbar (lange gerade Gänge haben keine solche Ecke)
+        if (!info.col.clear(eye, { x: p.pos.x + p.dir.x * 4, y: p.pos.y + 1.2, z: p.pos.z + p.dir.z * 4 })) hidden++;
+      }
+    }
+    expect(hidden).toBeGreaterThanOrEqual(Math.ceil(n * 0.6));
   });
 });
 

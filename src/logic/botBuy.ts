@@ -99,8 +99,9 @@ export function botBuyList(lo: Loadout, money: number, team: Team, kind: BuyKind
     case 'force':
     case 'half': {
       if (!lo.primary) {
-        const reserve = kind === 'half' ? 650 + 400 : 650;
-        const gun = pick(kind === 'half' ? forceGuns.slice(1) : forceGuns, left - reserve) ?? pick(forceGuns, left);
+        // Halb: günstiges Gewehr (Galil/Famas) + Weste, wenn es reicht, sonst SMG — wie ein CS-Team, das „Famas + Weste“ kauft
+        const reserve = kind === 'half' ? 650 + (team === 'CT' ? 200 : 0) : 650;
+        const gun = pick(forceGuns, left - reserve) ?? pick(forceGuns, left);
         if (gun) take(gun);
       }
       armor();

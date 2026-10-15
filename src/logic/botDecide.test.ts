@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOT, BOT_NAMES, aimError, reactionTime } from './botDecide';
+import { BOT, BOT_NAMES, aimError, firstSight, reactionTime } from './botDecide';
 
 const rnd = () => 0.5;
 
@@ -15,6 +15,19 @@ describe('Bot-Grundwerte', () => {
     const r = reactionTime(0, rnd);
     expect(r).toBeGreaterThan(BOT.reactionMin);
     expect(r).toBeLessThanOrEqual(BOT.reactionMax);
+  });
+
+  it('Erstsicht: Vorzielen (still, Blick auf den Gegner) reagiert schneller und trifft früher; Überraschung von der Seite langsamer', () => {
+    const base = reactionTime(0.6, rnd);
+    const pre = firstSight(0.6, rnd, 0.05, 1);
+    expect(pre.reaction).toBeCloseTo(base * BOT.preaimReaction, 5);
+    expect(pre.sightTime).toBe(BOT.preaimSettled);
+    expect(aimError(pre.sightTime, 0.6)).toBeLessThan(aimError(0, 0.6));
+    // in Bewegung oder nicht genau dorthin geschaut: kein Vorteil
+    expect(firstSight(0.6, rnd, 0.05, 0.1)).toEqual({ reaction: base, sightTime: 0 });
+    expect(firstSight(0.6, rnd, 0.3, 1)).toEqual({ reaction: base, sightTime: 0 });
+    // von der Seite (> 30°): Überraschung
+    expect(firstSight(0.6, rnd, 1, 1).reaction).toBeCloseTo(base * BOT.surprise, 5);
   });
 
   it('genug eindeutige Bot-Namen', () => {
