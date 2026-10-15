@@ -1,53 +1,76 @@
 import * as THREE from 'three';
-import type { World } from '../game/World';
-import { CEILING } from '../logic/ceiling';
+import type { MapData } from '../logic/mapkit';
+import { luminance, type RGB } from '../logic/bake';
 
 /**
- * Hallenbeleuchtung: Die vielen Strahler werden durch ein weiches Oberlicht (gerichtet, fast
- * senkrecht, mit Schatten) plus Himmels-/Bodenreflex angenähert; die Lichtflecken am Boden
- * kommen aus der gebackenen Licht-Map. Auf „hoch“ setzen zwei Spotlights die Bombenspots in
- * Szene (warmes Arbeitslicht) — echte Lichter kosten pro Pixel, daher sparsam.
+ * Beleuchtung dynamischer Objekte (Figuren, Waffen, liegende Items): Die Levelgeometrie
+ * ist vorgebacken und unbeleuchtet; für bewegte Objekte gibt es Himmelslicht + Sonne,
+ * deren Stärke einer Lichtsonde aus dem gebackenen Licht an der Kamera folgt (drinnen
+ * dunkler, draußen sonnig), plus auf „hoch“ bis zu vier echte Punktlichter, die die
+ * nächstgelegenen Kartenlampen spiegeln (Obergrenze echter Lichter).
  */
-export function setupLighting(scene: THREE.Scene, renderer: THREE.WebGLRenderer, world: World, quality: 'high' | 'low'): void {
-  const inner = world.inner;
-  const cx = (inner.minX + inner.maxX) / 2;
-  const cz = (inner.minZ + inner.maxZ) / 2;
-  const span = Math.max(inner.maxX - inner.minX, inner.maxZ - inner.minZ) / 2 + 4;
+export class LevelLighting {
+  private readonly hemi: THREE.HemisphereLight;
+  private readonly sun: THREE.DirectionalLight;
+  private readonly points: THREE.PointLight[] = [];
+  private readonly lamps: { pos: THREE.Vector3; color: THREE.Color; intensity: number; range: number }[];
+  private timer = 0;
+  private level = 1;
+  private sunVis = 1;
 
-  scene.background = new THREE.Color(0x0e1014);
-  scene.fog = new THREE.Fog(0x12151a, 45, 160);
-
-  // Reflex: kühles Oberlicht von oben, warmer Bodenreflex von unten
-  scene.add(new THREE.HemisphereLight(0xc9d6e6, 0x4a3f30, 0.62));
-
-  // Oberlicht der Strahlerfelder: fast senkrecht, leicht schräg → Regale werfen kurze Schatten
-  const key = new THREE.DirectionalLight(0xfff0d8, 1.25);
-  key.position.set(cx + 10, world.height + 30, cz + 6);
-  key.target.position.set(cx, 0, cz);
-  key.castShadow = quality === 'high';
-  key.shadow.mapSize.set(2048, 2048);
-  key.shadow.camera.near = 1;
-  key.shadow.camera.far = world.height + 60;
-  key.shadow.camera.left = -span;
-  key.shadow.camera.right = span;
-  key.shadow.camera.top = span;
-  key.shadow.camera.bottom = -span;
-  key.shadow.bias = -0.0004;
-  key.shadow.normalBias = 0.03;
-  scene.add(key, key.target);
-
-  if (quality === 'high') {
-    // Arbeitslicht über den Bombenspots
-    for (const [spot, color] of [[world.zones.a, 0xffd2a0], [world.zones.b, 0xffe2b8]] as const) {
-      const s = new THREE.SpotLight(color, 60, 18, 0.62, 0.65, 1.6);
-      s.position.set(spot.x, world.height - CEILING.lampDrop, spot.z);
-      s.target.position.set(spot.x, 0, spot.z);
-      scene.add(s, s.target);
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer, private readonly map: MapData, private readonly probe: (x: number, y: number, z: number) => RGB, quality: 'high' | 'low') {
+    const env = map.env;
+    scene.background = new THREE.Color(env.skyHorizon);
+    scene.fog = new THREE.Fog(env.fogColor, env.fogNear, env.fogFar);
+    this.hemi = new THREE.HemisphereLight(env.skyTop, 0x6a5a48, 1.2);
+    scene.add(this.hemi);
+    this.sun = new THREE.DirectionalLight(env.sunColor, env.sunIntensity * 1.6);
+    const d = new THREE.Vector3(...env.sunDir).normalize();
+    this.sun.position.copy(d.multiplyScalar(100));
+    scene.add(this.sun, this.sun.target);
+    this.lamps = map.lights.filter((l) => l.kind !== 'window').map((l) => ({ pos: new THREE.Vector3(...l.pos), color: new THREE.Color(l.color), intensity: l.intensity, range: l.range }));
+    if (quality === 'high') {
+      for (let i = 0; i < 4; i++) {
+        const p = new THREE.PointLight(0xffffff, 0, 10, 1.6);
+        scene.add(p);
+        this.points.push(p);
+      }
     }
+    renderer.shadowMap.enabled = false;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
   }
 
-  renderer.shadowMap.enabled = quality === 'high';
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  /** Pro Frame: Sonde an der Kamera auswerten (gedämpft), Punktlichter umhängen. */
+  update(cam: THREE.Vector3, dt: number): void {
+    const L = this.probe(cam.x, cam.y - 1.2, cam.z);
+    const lum = Math.min(2, luminance(L));
+    // draußen ≈ 1.2+, in Hallen 0.2–0.5
+    const target = Math.max(0.12, Math.min(1.4, lum));
+    this.level += (target - this.level) * Math.min(1, dt * 3);
+    this.hemi.intensity = 0.35 + this.level * 0.9;
+    const sunTarget = lum > 0.9 ? 1 : lum > 0.5 ? 0.5 : 0.08;
+    this.sunVis += (sunTarget - this.sunVis) * Math.min(1, dt * 2);
+    this.sun.intensity = this.map.env.sunIntensity * 1.6 * this.sunVis;
+    if (!this.points.length) return;
+    this.timer -= dt;
+    if (this.timer > 0) return;
+    this.timer = 0.4;
+    const near = this.lamps
+      .map((l) => ({ l, d: l.pos.distanceTo(cam) }))
+      .filter((e) => e.d < e.l.range * 1.2)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, this.points.length);
+    this.points.forEach((p, i) => {
+      const e = near[i];
+      if (!e) {
+        p.intensity = 0;
+        return;
+      }
+      p.position.copy(e.l.pos);
+      p.color.copy(e.l.color);
+      p.distance = e.l.range;
+      p.intensity = e.l.intensity * 6;
+    });
+  }
 }

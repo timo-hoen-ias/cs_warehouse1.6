@@ -6,7 +6,7 @@ import {
   AMBIENT_SAMPLE, LIFE_EVENTS, ROOM_BED, SAMPLES, STEP_SAMPLE, SURFACE_IMPACT, nextLifeDelay, pickLifeEvent, sampleFiles, weaponSounds,
 } from './soundBank';
 import { WEAPONS } from './weapons';
-import { mulberry32 } from './demo';
+import { mulberry32 } from './rng';
 import type { RoomKind } from './acoustics';
 
 const AUDIO_DIR = fileURLToPath(new URL('../../assets/audio', import.meta.url));

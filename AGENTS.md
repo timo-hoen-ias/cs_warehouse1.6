@@ -1,14 +1,15 @@
 # Projektregeln — cs_warehouse1.6
 
-CS-1.6-inspirierter Bomben-Modus (de_-Maps) in einem aus der MSSQL-DB gelesenen Lager.
+CS-1.6-inspirierter Bomben-Modus (de_-Maps) in handgebauten Lager-/Logistik-Karten mit mehreren Ebenen.
 Stack: Needle Engine 5.x (Vite + TypeScript, kein React), Bun 1.4, Vitest.
 
 ## Testpflicht (verpflichtend, oberste Regel)
 
 - **Jede neue oder geänderte Logik bekommt Tests** (Vitest), die **vor** Abschluss der Aufgabe
   grün sein müssen (`bun run test`). Das gilt für:
-  - Pure Logic (`src/logic/**`): Layout, Query-Gruppierung, Economy, Round-State-Machine, Bomben-Timer,
-    Waffen-Daten/Schadens-/Recoil-Mathematik, Wegpunkt-/Bot-Logik.
+  - Pure Logic (`src/logic/**`): Kollision/Rampen, Navigation, Kartenbaukasten/Compiler, Licht-Backen, Economy,
+    Round-State-Machine, Bomben-Timer, Waffen-Daten/Schadens-/Recoil-Mathematik, Bot-Logik.
+  - Karten (`src/maps/**`): jede Karte muss den Validator `src/maps/maps.test.ts` bestehen.
   - Jede weitere nicht-triviale Funktion (Verzweigung, Schleife, Parser, Geld-/Sicherheitslogik).
 - Ausnahme: reine Trivialitäten (Einzeiler ohne Verzweigung) brauchen keinen Test.
 - Tests liegen als `*.test.ts` **neben** der Quelle (z. B. `layout.test.ts` neben `layout.ts`).
@@ -28,7 +29,12 @@ Stack: Needle Engine 5.x (Vite + TypeScript, kein React), Bun 1.4, Vitest.
 - Rechen- und Spiel-Daten (Waffen, Preise, Timer, Balancen) als **Datenmodule** (Tabellen/Konstanten),
   nicht hart in Komponenten verdrahten.
 - **Keine neuen Abhängigkeiten** für Dinge, die wenige Zeilen Standardlösung sind (ponytail-Prinzip).
-- Karten sind DB-abhängig → Bake-Ergebnisse (`levels/*.json`) committen, damit alle Clients identisch spielen.
+- Karten sind **TypeScript-Module** (`src/maps/<id>.ts`, Registry `src/maps/index.ts`), gebaut mit `src/logic/mapkit.ts`,
+  `mapplan.ts` (Grundriss-Raster + Fassaden) und `mapprops.ts`; der Compiler (`mapcompile.ts`) ist deterministisch → kein
+  Bake-Schritt, alle Clients bauen aus der Karten-ID dieselbe Welt. Format, Gestaltungsregeln (Laufzeiten, Wege) und
+  Anleitung: `docs/KARTENFORMAT.md`. Draufsicht/Laufzeiten: `bun run overview <id>`.
+- Kollision/Strahlen nur über den `Collider` (`src/logic/collision.ts`, Raster + Rampen), Navigation über `src/logic/nav.ts`
+  (`World.findPath`, `World.areaAt`); keine Schleifen über alle Brushes pro Frame.
 - Waffen-Modelle sind **prozedural** (`src/weapons/models/`, eine Builder-Funktion je Waffe, Katalog-Test `catalog.test.ts`); Zuordnung in `weapons.ts` (`visual.model`). Animationen als pure Clips in `src/logic/viewAnim.ts`. **Geometrie je Modell** (Länge, Mündung, Auswurf, Schuss-/Stützhand, Kimme/Korn, Haltung) steht in `src/logic/weaponGeom.ts` und ist die einzige Quelle für Viewmodel-Anker, Soldaten-Haltung (`entities/soldierHold.ts`), Drops und Effekte — bei Modelländerungen dort nachziehen, `catalog.test.ts` prüft die Modelle dagegen; Sichtprüfung: `weapon-lab.html` + `scripts/weapon-sheet.mjs`. Die Quaternius-OBJs unter `assets/weapons/` sind nur noch Referenz. Neue Assets in `assets/` ablegen (Needle kopiert `assets/` → `dist/assets/`).
 - Netzwerk: Host authoritativ (Dienstältester im Raum), Clients senden Posen/Schüsse/Käufe, Host sendet
   Snapshots + Ereignisse (`src/logic/net.ts`, `src/game/MatchDriver.ts`). Neue Spielregeln immer als pure
@@ -37,8 +43,7 @@ Stack: Needle Engine 5.x (Vite + TypeScript, kein React), Bun 1.4, Vitest.
   Driver (eigene Uhr, Teilschritte).
 - Vor größeren Refactors/Features `IMPLEMENTIERUNGSPLAN.md` lesen und nach Abschluss aktualisieren.
 
-## Wiederverwendung aus ias.warehouse-map (Framework-frei)
+## Karten-Pipeline (seit M4)
 
-`query.ts`, `layout.ts`, `transform.ts` (+ `phys.ts`, `boxes.ts`-Logik) werden 1:1 portiert;
-R3F-Komponenten (`Rack.tsx`, `Cell.tsx`, …) werden **nicht** übernommen, sondern in Needle neu gebaut.
-Details: `UMSETZUNGSPLAN.md` / `IMPLEMENTIERUNGSPLAN.md`.
+Die frühere DB-Pipeline (`query.ts`, `layout.ts`, `transform.ts`, `scripts/bake-map.ts`, `levels/*.json`) wurde
+entfernt; Karten werden von Hand entworfen. Details: `docs/KARTENFORMAT.md`, `IMPLEMENTIERUNGSPLAN.md` (M4).

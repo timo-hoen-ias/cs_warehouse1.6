@@ -17,7 +17,7 @@ import {
   beepPitch, dist, earRing, flybyCheck, flybyGain, nearFarMix, stepGain, type V3,
 } from '../logic/audioMix';
 import { roomAt, type AcousticZone, type AmbientEmitter, type RoomKind, type Surface } from '../logic/acoustics';
-import { mulberry32 } from '../logic/demo';
+import { mulberry32 } from '../logic/rng';
 import { AudioEngine, type AudioStats, type Voice } from './AudioEngine';
 import { Ambience } from './Ambience';
 import { SynthFallback, type SynthName } from './SynthFallback';

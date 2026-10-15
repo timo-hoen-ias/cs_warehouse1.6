@@ -1,6 +1,6 @@
 import { onStart, type Context } from '@needle-tools/engine';
 import * as THREE from 'three';
-import type { LevelFile } from './shared/level';
+import type { MapData } from './logic/mapkit';
 import { World } from './game/World';
 import { FpsPlayer } from './player/FpsPlayer';
 import { Shooter } from './weapons/Shooter';
@@ -14,21 +14,14 @@ import { LocalTransport, NeedleTransport, type NetTransport } from './multi/Tran
 import { Sfx } from './audio/Sfx';
 import { AudioListener } from './audio/AudioListener';
 import { connectWorldAudio } from './audio/worldHooks';
-import { mapById } from './logic/maps';
+import { loadMapData, mapById } from './maps';
 import { SettingsMenu } from './ui/SettingsMenu';
-import { setupLighting } from './level/Lighting';
+import { LevelLighting } from './level/Lighting';
+import { yawPitchToDir, dirToYawPitch } from './logic/combat';
+import { PLAYER } from './logic/move';
 import type { Settings } from './logic/settings';
 import { WEAPONS } from './logic/weapons';
 
-/** Karten lazy laden (Vite bündelt jede als eigenes Chunk). */
-const LEVELS = import.meta.glob<{ default: LevelFile }>('../levels/*.json');
-
-async function loadLevel(mapId: string): Promise<LevelFile> {
-  const key = `../levels/${mapId}.json`;
-  const loader = LEVELS[key] ?? LEVELS[`../levels/${mapById(mapId).id}.json`];
-  if (!loader) throw new Error(`Karte fehlt: ${mapId}`);
-  return (await loader()).default;
-}
 
 /**
  * Spiel-Start: Lobby → Karte laden → Welt + Spieler + Driver. Offline = lokaler
@@ -63,7 +56,8 @@ onStart(async (context) => {
       }
     : await showLobby();
 
-  const level = await loadLevel(lobby.mapId);
+  // Karten sind Code-Module: alle Clients bauen aus der Host-ID dieselbe Karte
+  const level = loadMapData(lobby.mapId);
   await startGame(context, level, lobby);
 });
 
@@ -79,10 +73,10 @@ function safeStorage(): Storage | null {
 let settingsMenuOpen: () => boolean = () => false;
 let graphicsQuality: 'high' | 'low' = 'high';
 
-async function startGame(context: Context, level: LevelFile, lobby: LobbyResult): Promise<void> {
+async function startGame(context: Context, level: MapData, lobby: LobbyResult): Promise<void> {
   const scene = context.scene;
   const world = new World(level, graphicsQuality);
-  setupLighting(scene, context.renderer, world, graphicsQuality);
+  const lighting = new LevelLighting(scene, context.renderer, world.data, world.view.probe, graphicsQuality);
   scene.add(world.group);
 
   const sfx = new Sfx(graphicsQuality);
@@ -92,16 +86,16 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   document.addEventListener('keydown', unlock);
 
   const hud = new Hud();
-  hud.mount(world.solids);
+  hud.mount();
+  hud.setRadarMap(world.radar);
   hud.setRadarLabel(world.mapName);
 
   const playerRoot = new THREE.Object3D();
   scene.add(playerRoot);
   const player = playerRoot.addComponent(FpsPlayer);
-  player.solids = world.solids;
+  player.collider = world.collider;
   const shooter = playerRoot.addComponent(Shooter);
-  shooter.solids = world.solids;
-  shooter.aabbs = world.aabbs;
+  shooter.aabbs = world.collider;
   shooter.player = player;
   shooter.onHud = (s) => hud.update(s);
   shooter.menuOpen = () => hud.menuOpen() || settingsMenuOpen();
@@ -140,7 +134,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
 
   const fx = playerRoot.addComponent(Fx);
   const viewModel = playerRoot.addComponent(ViewModel);
-  viewModel.solids = world.solids;
+  viewModel.solids = [];
   shooter.fx = fx;
   shooter.viewModel = viewModel;
   const grenades = playerRoot.addComponent(Grenades);
@@ -163,11 +157,18 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
 
   // Startposition bis zum ersten Spawn
   const t = world.spawnPose('T', 0);
-  player.spawn(t.x, t.z, t.yaw);
+  player.spawn(t.x, t.z, t.yaw, t.y);
   shooter.setWeapon('knife');
 
-  // HUD-Overlay-Tick, Audio-Hörer an der Kamera
-  playerRoot.addComponent(HudTicker).hud = hud;
+  // HUD-Overlay-Tick + Licht für dynamische Objekte + Wandabstand der Waffe
+  const ticker = playerRoot.addComponent(HudTicker);
+  ticker.hud = hud;
+  ticker.tickWorld = (dt) => {
+    const cam = context.mainCamera;
+    if (!cam) return;
+    lighting.update(cam.position, dt);
+    viewModel.solids = world.blockersNear(cam.position.x, cam.position.y, cam.position.z);
+  };
   playerRoot.addComponent(AudioListener).sfx = sfx;
   grenades.onBounce = (p) => sfx.grenade('bounce', p);
 
@@ -182,10 +183,12 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
   if (import.meta.env?.DEV) {
     const g = globalThis as Record<string, unknown>;
     g.__csw = {
-      solids: world.solids.length,
+      solids: world.collider.items.length,
       hasCam: !!context.mainCamera,
       sceneChildren: scene.children.length,
       map: world.mapName,
+      nav: world.nav.count,
+      view: world.view.stats,
     };
     g.__audio = () => ({ ...sfx.stats(), world: audioWorld });
     g.__sfx = sfx;
@@ -217,7 +220,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     g.__netId = () => ({ id: net.id, host: net.hostId, peers: [...net.peers], online: net.online });
     g.__bots = () => driver.debugBotPos();
     g.__soldierMuzzle = (id: string) => driver.debugSoldierMuzzle(id);
-    g.__pos = () => ({ x: +player.motionX().toFixed(2), z: +player.motionZ().toFixed(2), yaw: +player.yawNow().toFixed(2), hp: player.hp, dead: player.isDead() });
+    g.__pos = () => ({ x: +player.motionX().toFixed(2), y: +player.feetY().toFixed(2), z: +player.motionZ().toFixed(2), yaw: +player.yawNow().toFixed(2), hp: player.hp, dead: player.isDead(), area: world.areaAt({ x: player.motionX(), y: player.feetY(), z: player.motionZ() })?.name ?? null });
     g.__killTeam = (team: 'T' | 'CT') => { driver.debugKillTeam(team); return driver.debugState(); };
     g.__buy = (item: string) => { driver.requestBuy(item); return driver.local?.loadout; };
     g.__switch = (slot: number) => { shooter.selectSlot(slot); return { weapon: shooter.weaponId }; };
@@ -236,46 +239,97 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
     g.__decals = () => fx.decalStats();
     g.__fxWall = () => fx.wallDecals;
     g.__nades = () => grenades.count();
-    g.__teleport = (x: number, z: number, yaw = 0) => { driver.debugTeleport(x, z, yaw); return g.__pos; };
+    g.__teleport = (x: number, z: number, yaw = 0, y?: number) => { driver.debugTeleport(x, z, yaw, y); return g.__pos; };
     g.__zones = () => world.zones;
+    /** Freie Schussposition ~4 m vor einem Ziel mit Sichtlinie (Karte hat Wände in alle Richtungen). */
+    const standoff = (tx: number, ty: number, tz: number, ignore = ''): { x: number; y: number; z: number } | null => {
+      // andere Spieler dürfen nicht in der Schusslinie stehen
+      const others = Object.values(driver.match.players).filter((p) => p.alive && p.id !== ignore && p.id !== driver.localId);
+      const blocked = (x: number, z: number): boolean => others.some((o) => {
+        const vx = tx - x, vz = tz - z, l2 = vx * vx + vz * vz;
+        const f = Math.max(0, Math.min(1, ((o.pose.x - x) * vx + (o.pose.z - z) * vz) / l2));
+        return Math.hypot(x + vx * f - o.pose.x, z + vz * f - o.pose.z) < 1.0;
+      });
+      for (const dist of [4, 3, 5, 2.5, 6]) {
+        for (let k = 0; k < 16; k++) {
+          const a = (k / 16) * Math.PI * 2;
+          const x = tx + Math.cos(a) * dist;
+          const z = tz + Math.sin(a) * dist;
+          const y = world.groundAt(x, z, ty + 0.6);
+          if (Math.abs(y - ty) > 0.6) continue;
+          if (world.collider.blockedAt(x, z, y, PLAYER.radius, PLAYER.height, PLAYER.step)) continue;
+          if (!world.collider.clear({ x, y: y + PLAYER.eye, z }, { x: tx, y: ty + 1.0, z: tz })) continue;
+          if (blocked(x, z)) continue;
+          return { x, y, z };
+        }
+      }
+      return null;
+    };
     g.__aimAtBot = (botsOnly = false) => {
-      // Deterministisch auf den nächsten lebenden Gegner zielen (Körpermitte, 4 m) und mit der Pistole schießen
+      // Deterministisch auf den nächsten lebenden Gegner zielen (Körpermitte, ~4 m) und mit der Pistole schießen
       const me = driver.local;
       const enemies = Object.values(driver.match.players).filter((p) => p.alive && p.team !== me?.team && (!botsOnly || p.bot));
       if (!enemies.length || !me) return { error: 'kein Gegner' };
-      const e = enemies[0]!;
+      let e = enemies[0]!;
+      let at = standoff(e.pose.x, e.pose.y, e.pose.z, e.id);
+      for (const cand of enemies) {
+        if (at) break;
+        e = cand;
+        at = standoff(e.pose.x, e.pose.y, e.pose.z, e.id);
+      }
+      if (!at) return { error: 'kein Standplatz' };
       driver.botsPaused = true;
       setTimeout(() => { driver.botsPaused = false; }, 2500);
-      const px = e.pose.x - 4;
-      const pz = e.pose.z;
       driver.debugRevive();
-      player.spawn(px, pz, 0);
-      const dx = e.pose.x - px;
-      const dz = e.pose.z - pz;
-      const dist = Math.hypot(dx, dz);
-      const yaw = Math.atan2(-dx, -dz);
-      const pitch = Math.asin((1.0 - 1.65) / dist);
-      player.setLook(yaw, pitch);
+      player.spawn(at.x, at.z, 0, at.y);
+      const aim = dirToYawPitch((() => {
+        const dx = e.pose.x - at!.x, dy = e.pose.y + 1.0 - (at!.y + PLAYER.eye), dz = e.pose.z - at!.z;
+        const l = Math.hypot(dx, dy, dz);
+        return { x: dx / l, y: dy / l, z: dz / l };
+      })());
+      player.setLook(aim.yaw, aim.pitch);
       shooter.setWeapon(me.loadout.secondary ?? 'knife');
       setTimeout(() => {
         document.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
         setTimeout(() => document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })), 60);
       }, 700);
-      return { ok: true, target: e.id, hp: e.hp, dist: +dist.toFixed(2), weapon: shooter.weaponId };
+      return { ok: true, target: e.id, hp: e.hp, dist: +Math.hypot(e.pose.x - at.x, e.pose.z - at.z).toFixed(2), weapon: shooter.weaponId };
     };
     g.__counters = () => driver.debugCounters();
-    g.__platforms = () => world.solids.filter((s) => s.kind === 'platform' || s.kind === 'dock').map((s) => ({ kind: s.kind, minX: s.minX, maxX: s.maxX, minZ: s.minZ, maxZ: s.maxZ, maxY: s.maxY }));
+    g.__map = () => ({ id: world.data.id, brushes: world.data.brushes.length, nav: world.nav.count, areas: world.nav.areas.map((a) => a.name), view: world.view.stats });
+    g.__area = () => world.areaAt({ x: player.motionX(), y: player.feetY(), z: player.motionZ() })?.name ?? null;
     g.__look = (yaw: number, pitch: number) => { player.setLook(yaw, pitch); return true; };
     g.__cam = () => { const c = context.mainCamera!; return { rx: +c.rotation.x.toFixed(3), ry: +c.rotation.y.toFixed(3), rz: +c.rotation.z.toFixed(3), y: +c.position.y.toFixed(2), order: c.rotation.order }; };
     g.__pauseBots = (ms = 3000) => { driver.botsPaused = true; setTimeout(() => { driver.botsPaused = false; }, ms); return true; };
     g.__reviveId = (id: string) => driver.debugReviveId(id);
     g.__enemyHp = () => Object.values(driver.match.players).filter((p) => p.team !== driver.local?.team).map((p) => ({ id: p.id, hp: p.hp, alive: p.alive }));
     g.__wallShot = () => {
-      const wall = world.solids.find((s) => s.kind === 'wall' && s.label === 'wand-ost');
-      if (!wall) return { error: 'wand-ost fehlt' };
+      // Vom T-Spawn aus die nächste Wand in 3–25 m suchen und auf sie schießen
+      const t0 = world.spawnPose('T', 0);
+      const eyeY = t0.y + PLAYER.eye;
+      let best: { yaw: number; t: number } | null = null;
+      for (let k = 0; k < 32; k++) {
+        const yaw = (k / 32) * Math.PI * 2;
+        const d = yawPitchToDir(yaw, 0);
+        const hit = world.collider.raycast({ x: t0.x, y: eyeY, z: t0.z }, d, 40);
+        if (!hit || hit.t <= 4 || hit.t >= 25 || Math.abs(hit.normal.y) >= 0.1 || (best && hit.t >= best.t)) continue;
+        // keine Spieler in der Schusslinie (Bots am Spawn)
+        const blockedBy = Object.values(driver.match.players).some((p) => {
+          if (!p.alive || p.id === driver.localId) return false;
+          const f = Math.max(0, Math.min(hit.t, (p.pose.x - t0.x) * d.x + (p.pose.z - t0.z) * d.z));
+          return Math.hypot(t0.x + d.x * f - p.pose.x, t0.z + d.z * f - p.pose.z) < 1.5;
+        });
+        if (!blockedBy) best = { yaw, t: hit.t };
+      }
+      if (!best) return { error: 'keine Wand' };
+      const d = yawPitchToDir(best.yaw, 0);
+      const px = t0.x + d.x * (best.t - 3);
+      const pz = t0.z + d.z * (best.t - 3);
+      driver.botsPaused = true;
+      setTimeout(() => { driver.botsPaused = false; }, 2500);
       driver.debugRevive();
-      player.spawn(wall.minX - 3, (wall.minZ + wall.maxZ) / 2, -Math.PI / 2);
-      player.setLook(-Math.PI / 2, 0.35);
+      player.spawn(px, pz, best.yaw, world.groundAt(px, pz, t0.y + 0.6));
+      player.setLook(best.yaw, 0.12);
       shooter.setWeapon(driver.local?.loadout.secondary ?? 'glock');
       setTimeout(() => {
         document.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
@@ -303,7 +357,7 @@ async function startGame(context: Context, level: LevelFile, lobby: LobbyResult)
       for (const p of Object.values(driver.match.players)) if (p.id !== me.id) p.loadout.bomb = false;
       const a = world.zones.a;
       driver.debugRevive();
-      player.spawn(a.x, a.z, 0);
+      player.spawn(a.x, a.z, 0, a.y);
       shooter.setWeapon('c4');
       setTimeout(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', bubbles: true })), 100);
       setTimeout(() => document.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyE', bubbles: true })), 5000);
@@ -347,7 +401,10 @@ import { Behaviour, registerType } from '@needle-tools/engine';
 @registerType
 class HudTicker extends Behaviour {
   hud!: Hud;
+  tickWorld?: (dt: number) => void;
   update(): void {
-    this.hud.tick(Math.min(this.context.time.deltaTime, 0.1));
+    const dt = Math.min(this.context.time.deltaTime, 0.1);
+    this.hud.tick(dt);
+    this.tickWorld?.(dt);
   }
 }

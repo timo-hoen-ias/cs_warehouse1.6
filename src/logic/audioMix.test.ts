@@ -3,7 +3,7 @@ import {
   OCCLUSION, STEP, advanceStep, airLowpass, beepPitch, busGains, distanceGain, earRing, flybyCheck, flybyGain, isBounce,
   asSurface, keypadPresses, nearFarMix, segmentBlocked, newVertical, pickVariant, randomPitch, reverbSend, stepGain, stepStride, trackVertical, type StepState,
 } from './audioMix';
-import { mulberry32 } from './demo';
+import { mulberry32 } from './rng';
 
 describe('busGains', () => {
   it('klemmt und biegt die Kanäle quadratisch', () => {

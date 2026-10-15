@@ -146,7 +146,9 @@ async function run() {
     // 6b) Mündung der Spielfigur: vor dem Körper, auf Brust-/Kopfhöhe (Mündungsfeuer/Leuchtspur fremder Spieler)
     const bm = b2?.length ? await evJson(`globalThis.__soldierMuzzle?.(${JSON.stringify(b2[0].id)})`) : null;
     const bmd = bm ? Math.hypot(bm.x - bm.rx, bm.z - bm.rz) : 0;
-    if (bm && bm.y > 1.0 && bm.y < 1.75 && bmd > 0.3 && bmd < 1.2) ok(`Mündung des Bots: ${bmd.toFixed(2)} m vor dem Körper, Höhe ${bm.y}`);
+    // Höhe relativ zu den Füßen (Bots stehen auf der Karte auch auf Rampen/Ebenen)
+    const bmh = bm ? bm.y - (bm.ry ?? 0) : 0;
+    if (bm && bmh > 1.0 && bmh < 1.75 && bmd > 0.3 && bmd < 1.2) ok(`Mündung des Bots: ${bmd.toFixed(2)} m vor dem Körper, Höhe ${bmh.toFixed(2)} über den Füßen`);
     else fail(`Mündung des Bots unplausibel: ${JSON.stringify(bm)}`);
 
     // 7) Schuss auf Gegner-Bot (AWP, Körpermitte, 4 m)

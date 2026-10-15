@@ -4,11 +4,10 @@ import { WEAPONS, nextZoomLevel, zoomFov, type GrenadeKind, type WeaponDef } fro
 import { fireSpread, makeGun, startReload, tickGun, tryShoot, type GunState } from '../logic/fire';
 import { VIEW_PUNCH_SHARE, defaultSpray, fireRecoil, makeRecoil, sprayOffset, tickRecoil, type RecoilState } from '../logic/recoil';
 import { offsetDir, resolveRay, shotDirs } from '../logic/combat';
-import { surfaceNormalOnBoxes, type Vec3 } from '../logic/hitbox';
+import { type Blockers, type Vec3 } from '../logic/hitbox';
 import type { SolidBox } from '../logic/level';
 import type { Loadout } from '../logic/loadout';
 import { bestWeapon, cycleWeapon, weaponInSlot } from '../logic/loadout';
-import type { Aabb } from '../logic/hitbox';
 
 const RELOAD_KEY = 'KeyR';
 const LAST_WEAPON_KEY = 'KeyQ';
@@ -56,7 +55,8 @@ export class Shooter extends Behaviour {
 
   /** Solide Level-Boxen (Wände/Regale) für die lokale Strahl-Vorschau. */
   solids: SolidBox[] = [];
-  aabbs: Aabb[] = [];
+  /** Strahl-Hindernisse (Kollisionswelt der Karte). */
+  aabbs: Blockers = [];
 
   /** Liefert das aktuelle Inventar (Host: Match-Objekt, Client: Spiegel). */
   loadout?: () => Loadout | undefined;
@@ -367,7 +367,7 @@ export class Shooter extends Behaviour {
       const hit = resolveRay(ray.origin, d, def.range, this.aabbs, []);
       this.fx?.tracer(scoped ? ray.origin : muzzle, hit.point);
       if (hit.kind === 'wall') {
-        const n = surfaceNormalOnBoxes(this.aabbs, hit.point) ?? { x: 0, y: 1, z: 0 };
+        const n = hit.normal;
         this.fx?.impact({ kind: 'wall', point: hit.point, normal: n }, d);
         if (d === dirs[0]) this.onWallHit?.(hit.point);
       }

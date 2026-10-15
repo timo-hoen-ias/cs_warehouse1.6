@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxSurfaceNormal, castParts, humanPartBoxes, nearestAabbDistance, rayEntryNormal, rayIntersectAabb } from './hitbox';
+import { boxSurfaceNormal, castBlockers, isRayCaster, castParts, humanPartBoxes, nearestAabbDistance, rayEntryNormal, rayIntersectAabb } from './hitbox';
 
 // Ziel steht bei (0,0,0) mit Fußpunkt y=0, Blickrichtung +z? Strahlen kommen aus -z.
 const parts = humanPartBoxes({ x: 0, y: 0, z: 0 });
@@ -154,5 +154,24 @@ describe('rayEntryNormal', () => {
   });
   it('verfehlter Strahl → null', () => {
     expect(rayEntryNormal(box, { x: 50, y: 1, z: -5 }, { x: 0, y: 0, z: 1 })).toBeNull();
+  });
+});
+
+describe('castBlockers', () => {
+  const box = { minX: 2, maxX: 3, minY: 0, maxY: 2, minZ: -1, maxZ: 1 };
+  it('Quaderliste: nächster Treffer mit Eintrittsnormale, maxT begrenzt', () => {
+    const h = castBlockers([box], { x: 0, y: 1, z: 0 }, { x: 1, y: 0, z: 0 }, 10)!;
+    expect(h.t).toBeCloseTo(2);
+    expect(h.normal).toEqual({ x: -1, y: 0, z: 0 });
+    expect(castBlockers([box], { x: 0, y: 1, z: 0 }, { x: 1, y: 0, z: 0 }, 1.5)).toBeNull();
+    expect(isRayCaster([box])).toBe(false);
+  });
+  it('Strahl-Welt (castRay) wird direkt gefragt; Treffer ≤ 2 cm werden übersprungen', () => {
+    let calls = 0;
+    const caster = { castRay: (o: { x: number }, _d: unknown, maxT: number) => { calls++; return o.x < 0.02 ? { t: 0.01, normal: { x: -1, y: 0, z: 0 } } : maxT > 3 ? { t: 3, normal: { x: -1, y: 0, z: 0 } } : null; } };
+    expect(isRayCaster(caster)).toBe(true);
+    const h = castBlockers(caster, { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, 10)!;
+    expect(h.t).toBe(3);
+    expect(calls).toBe(2);
   });
 });

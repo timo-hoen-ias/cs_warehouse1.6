@@ -1,4 +1,4 @@
-import { MAPS, mapById } from '../logic/maps';
+import { MAPS, mapById } from '../maps';
 import { roomCode, sanitizeName } from '../logic/net';
 import type { Team } from '../logic/economy';
 

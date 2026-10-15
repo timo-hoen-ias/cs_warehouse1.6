@@ -1,5 +1,5 @@
 import { canSee, type Smoke } from './grenade';
-import type { PartBox } from './hitbox';
+import type { Blockers } from './hitbox';
 import type { Team } from './economy';
 import type { BombPhase } from './bombs';
 
@@ -33,7 +33,8 @@ export const BOT = {
   spotRadius: 2.0,
 } as const;
 
-export type XZ = { x: number; z: number };
+/** Position (Fußpunkt); y optional — fehlt sie, gilt Bodenhöhe 0. */
+export type XZ = { x: number; z: number; y?: number };
 
 export type BotMemory = {
   reaction: number;
@@ -64,7 +65,8 @@ export function newBotMemory(rnd: () => number = Math.random): BotMemory {
 export type BotWorld = {
   self: { id: string; team: Team; pos: XZ; hasBomb: boolean; weaponRange: number; auto: boolean; skill: number; index: number };
   enemies: { id: string; pos: XZ }[];
-  solids: PartBox[];
+  /** Sicht-Hindernisse (Kollisionswelt der Karte oder Quaderliste). */
+  solids: Blockers;
   smokes: Smoke[];
   zones: { a: XZ; b: XZ; t: XZ; ct: XZ };
   bomb: { phase: BombPhase; spot: 'a' | 'b' | null; pos: XZ | null; dropped?: XZ | null };
@@ -84,17 +86,18 @@ export type BotDecision = {
   role: 'fight' | 'hunt' | 'plant' | 'defuse' | 'goal' | 'hold';
 };
 
-const dist = (a: XZ, b: XZ): number => Math.hypot(a.x - b.x, a.z - b.z);
+/** Abstand; Höhenunterschiede zählen 1.5-fach (andere Ebene = „nicht angekommen“). */
+const dist = (a: XZ, b: XZ): number => Math.hypot(a.x - b.x, a.z - b.z, a.y !== undefined && b.y !== undefined ? (a.y - b.y) * 1.5 : 0);
 
 /** Nächster sichtbarer Gegner (Sichtlinie über Solids + Rauch). */
 export function visibleEnemy(w: BotWorld): { id: string; pos: XZ; dist: number } | null {
   let best: { id: string; pos: XZ; dist: number } | null = null;
-  const eye = { x: w.self.pos.x, y: BOT.eye, z: w.self.pos.z };
+  const eye = { x: w.self.pos.x, y: (w.self.pos.y ?? 0) + BOT.eye, z: w.self.pos.z };
   for (const e of w.enemies) {
     const d = dist(w.self.pos, e.pos);
     if (d > BOT.sight) continue;
     if (best && d >= best.dist) continue;
-    if (!canSee(eye, { x: e.pos.x, y: BOT.eye - 0.3, z: e.pos.z }, w.solids, w.smokes)) continue;
+    if (!canSee(eye, { x: e.pos.x, y: (e.pos.y ?? 0) + BOT.eye - 0.3, z: e.pos.z }, w.solids, w.smokes)) continue;
     best = { id: e.id, pos: e.pos, dist: d };
   }
   return best;
@@ -123,7 +126,7 @@ function roleGoal(w: BotWorld, mem: BotMemory): { moveTo: XZ | null; plant: bool
   if (self.team === 'T') {
     if (planted && bombPos) {
       // Bombe verteidigen: Position mit Versatz um die Bombe halten
-      const hold = { x: bombPos.x + mem.jitter.x * 1.5, z: bombPos.z + mem.jitter.z * 1.5 };
+      const hold = { x: bombPos.x + mem.jitter.x * 1.5, z: bombPos.z + mem.jitter.z * 1.5, y: bombPos.y };
       return { moveTo: dist(self.pos, hold) > BOT.arrive ? hold : null, plant: false, defuse: false, role: 'hold' };
     }
     // Liegende C4 aufsammeln (vor dem Plant hat das Vorrang)
@@ -134,7 +137,7 @@ function roleGoal(w: BotWorld, mem: BotMemory): { moveTo: XZ | null; plant: bool
       return { moveTo: target, plant: false, defuse: false, role: 'goal' };
     }
     // Begleiter: Spot sichern, leicht versetzt
-    const hold = { x: target.x + mem.jitter.x, z: target.z + mem.jitter.z };
+    const hold = { x: target.x + mem.jitter.x, z: target.z + mem.jitter.z, y: target.y };
     return { moveTo: dist(self.pos, hold) > BOT.arrive ? hold : null, plant: false, defuse: false, role: dist(self.pos, hold) > BOT.arrive ? 'goal' : 'hold' };
   }
 
@@ -145,7 +148,7 @@ function roleGoal(w: BotWorld, mem: BotMemory): { moveTo: XZ | null; plant: bool
   }
   // Vor dem Plant: abwechselnd A/B bewachen
   const guard = spot(self.index % 2 === 0 ? 'a' : 'b');
-  const hold = { x: guard.x + mem.jitter.x, z: guard.z + mem.jitter.z };
+  const hold = { x: guard.x + mem.jitter.x, z: guard.z + mem.jitter.z, y: guard.y };
   return { moveTo: dist(self.pos, hold) > BOT.arrive ? hold : null, plant: false, defuse: false, role: dist(self.pos, hold) > BOT.arrive ? 'goal' : 'hold' };
 }
 

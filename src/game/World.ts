@@ -1,70 +1,119 @@
 import * as THREE from 'three';
-import type { LevelFile, Vec3 } from '../shared/level';
 import type { Team } from '../logic/economy';
 import type { Pose } from '../logic/match';
 import type { SolidBox } from '../logic/level';
-import type { Aabb, PartBox } from '../logic/hitbox';
-import { innerBounds } from '../logic/level';
-import { layoutRacks, rackBounds } from '../logic/layout';
-import { buildWaypoints, type WaypointGraph } from '../logic/waypoints';
-import { spawnPoints, yawTowards } from '../logic/spawns';
-import { buildLevelView } from '../level/LevelView';
-import { groundBlockers } from '../logic/structures';
-import { ceilingBox } from '../logic/ceiling';
+import type { MapData, Site, Spawn } from '../logic/mapkit';
+import type { AcousticZone, AmbientEmitter, Surface } from '../logic/acoustics';
+import { COL, type Collider } from '../logic/collision';
+import { compileMap, inBuyZoneBox, siteAt, type CompiledMap, type P3 } from '../logic/mapcompile';
+import { areaAt, findPath, forNodesNear, nearestNode, type NavArea, type NavGraph, type NavPath, type PathOpts, type XYZ } from '../logic/nav';
+import { renderOverview, type Raster } from '../logic/overview';
+import { PLAYER } from '../logic/move';
+import { buildLevelView, type LevelBuild } from '../level/LevelView';
 
 /**
- * Welt eines Spiels: Level-Geometrie (Sicht + Kollision), Wegpunkte, Zonen,
- * Spawnpunkte je Team. Wird einmal nach der Lobby gebaut und von Driver, Bots
- * und Shooter geteilt.
+ * Welt eines Spiels: kompilierte Karte (Kollision mit Rampen + Raster, Navigation,
+ * Spots, Spawns, Kaufzonen, Akustik) und ihre Darstellung. Wird einmal nach der Lobby
+ * gebaut und von Driver, Bots, Spieler, Shooter, HUD und Audio geteilt.
  */
 export class World {
+  readonly data: MapData;
+  readonly map: CompiledMap;
+  readonly view: LevelBuild;
   readonly group: THREE.Group;
-  readonly solids: SolidBox[];
-  /** Solids als reine AABBs (Kampf-/Granaten-Logik). */
-  readonly aabbs: Aabb[];
-  /** Solids als PartBoxen (Sichtlinien in der Bot-Logik). */
-  readonly parts: PartBox[];
-  readonly waypoints: WaypointGraph;
-  readonly inner: { minX: number; maxX: number; minZ: number; maxZ: number };
-  readonly zones: { a: { x: number; z: number }; b: { x: number; z: number }; t: { x: number; z: number }; ct: { x: number; z: number } };
-  readonly spawns: Record<Team, Vec3[]>;
+  /** Kollision + Strahlen (Schüsse, Sicht, Granaten). */
+  readonly collider: Collider;
+  /** 3D-Navigationsgraph (Bots). */
+  readonly nav: NavGraph;
+  readonly zones: { a: P3; b: P3; t: P3; ct: P3 };
+  readonly spawns: Record<Team, Spawn[]>;
+  readonly sites: Site[];
+  /** Akustik-Vertrag für die Audio-Schicht. */
+  readonly acoustics: { zones: AcousticZone[]; emitters: AmbientEmitter[] };
+  /** Radarbild (Draufsicht) für das HUD. */
+  readonly radar: Raster;
 
-  /** Hallenhöhe (Unterkante Dach). */
-  readonly height: number;
-
-  constructor(readonly level: LevelFile, quality: 'high' | 'low' = 'high') {
-    const view = buildLevelView(level, quality);
-    this.height = view.height;
-    this.group = view.group;
-    this.solids = view.solids;
-    // Geländer sind offene Gitter: blockieren Bewegung, aber keine Schüsse, Sicht oder Granaten
-    this.aabbs = this.solids.filter((s) => s.kind !== 'rail').map((s) => ({ minX: s.minX, minY: s.minY, minZ: s.minZ, maxX: s.maxX, maxY: s.maxY, maxZ: s.maxZ }));
-    // Dach: nur für Schüsse, Sicht und Granaten (nicht in `solids`, sonst blockierte es Radar/Wegpunkte/Waffen-Wandabstand)
-    this.aabbs.push(ceilingBox(view.inner, view.height));
-    this.parts = this.aabbs.map((box) => ({ part: 'body' as const, box }));
-    // Bots laufen am Boden: Requisiten, Stützen, Stufen, Rampe blockieren; hohe Plattformen/Geländer nicht
-    this.waypoints = buildWaypoints(level.lager, undefined, groundBlockers(this.solids.filter((s) => s.kind !== 'rack' && s.kind !== 'wall')));
-    this.inner = view.inner;
-    const z = level.zones;
-    this.zones = { a: { x: z.a[0], z: z.a[2] }, b: { x: z.b[0], z: z.b[2] }, t: { x: z.t[0], z: z.t[2] }, ct: { x: z.ct[0], z: z.ct[2] } };
-    const bounds = rackBounds(layoutRacks(level.lager.lagerorte));
-    const innerB = bounds ? innerBounds(bounds) : this.inner;
-    this.spawns = {
-      T: level.spawns?.t?.length ? level.spawns.t : spawnPoints(z.t, 10, this.solids, innerB),
-      CT: level.spawns?.ct?.length ? level.spawns.ct : spawnPoints(z.ct, 10, this.solids, innerB),
-    };
+  constructor(data: MapData, quality: 'high' | 'low' = 'high') {
+    this.data = data;
+    this.map = compileMap(data);
+    this.collider = this.map.collider;
+    this.nav = this.map.nav;
+    this.zones = this.map.zones;
+    this.spawns = this.map.spawns;
+    this.sites = this.map.sites;
+    this.acoustics = this.map.acoustics;
+    this.view = buildLevelView(data, quality);
+    this.group = this.view.group;
+    this.radar = renderOverview(data, { pxPerM: 3, radar: true });
   }
 
-  /** Spawn-Pose für Team/Index (zyklisch), Blick Richtung Hallenmitte. */
+  /** Spawn-Pose für Team/Index (zyklisch), Blick aus der Kartendefinition. */
   spawnPose(team: Team, index: number): Pose {
     const list = this.spawns[team];
-    const p = list[index % Math.max(1, list.length)] ?? [this.zones[team === 'T' ? 't' : 'ct'].x, 0, this.zones[team === 'T' ? 't' : 'ct'].z];
-    const towards: Vec3 = [(this.zones.a.x + this.zones.b.x) / 2, 0, (this.zones.a.z + this.zones.b.z) / 2];
-    return { x: p[0], y: 0, z: p[2], yaw: yawTowards(p, towards), pitch: 0 };
+    const s = list[index % Math.max(1, list.length)];
+    if (!s) {
+      const z = this.zones[team === 'T' ? 't' : 'ct'];
+      return { x: z.x, y: z.y, z: z.z, yaw: 0, pitch: 0 };
+    }
+    return { x: s.pos[0], y: s.pos[1], z: s.pos[2], yaw: s.yaw, pitch: 0 };
+  }
+
+  /** Bombenspot am Fußpunkt (oder null). */
+  siteAt(p: P3): 'a' | 'b' | null {
+    return siteAt(this.sites, p);
+  }
+
+  inBuyZone(team: Team, p: P3): boolean {
+    return inBuyZoneBox(this.map.buyZones, team, p);
+  }
+
+  /** Oberfläche unter einem Punkt (Schrittklang); Standard Beton. */
+  surfaceAt(x: number, y: number, z: number): Surface {
+    return this.collider.surfaceAt(x, y, z) ?? 'concrete';
+  }
+
+  /**
+   * Bodenhöhe an (x,z): mit yHint die höchste Fläche knapp darunter (Drops, Teleports
+   * auf einer Ebene), ohne die unterste begehbare Ebene (Navigationsknoten), sonst Kollision.
+   */
+  groundAt(x: number, z: number, yHint?: number): number {
+    if (yHint !== undefined) return this.collider.groundHeight(x, z, yHint, PLAYER.radius, 0.1);
+    let lowest = Infinity;
+    forNodesNear(this.nav, x, z, 0.8, (i) => {
+      lowest = Math.min(lowest, this.nav.y[i]!);
+    });
+    return this.collider.groundHeight(x, z, (lowest === Infinity ? 40 : lowest) + 0.3, PLAYER.radius, 0.1);
+  }
+
+  /** Weg für Bots (A*, geglättet). */
+  findPath(from: XYZ, to: XYZ, opts: PathOpts = {}): NavPath | null {
+    return findPath(this.nav, this.collider, from, to, opts);
+  }
+
+  /** Callout-Bereich an einer Position. */
+  areaAt(p: XYZ): NavArea | null {
+    return areaAt(this.nav, p);
+  }
+
+  nearestNode(p: XYZ): number {
+    return nearestNode(this.nav, p.x, p.y, p.z);
+  }
+
+  /**
+   * Bewegungs-Blocker in der Nähe, die die Augenhöhe schneiden (als SolidBox) —
+   * z. B. für den Wandabstand der Waffe im Viewmodel.
+   */
+  blockersNear(x: number, eyeY: number, z: number, r = 2.5): SolidBox[] {
+    const out: SolidBox[] = [];
+    for (const it of this.collider.query(x - r, z - r, x + r, z + r, COL.shot)) {
+      if (it.minY > eyeY + 0.3 || it.maxY < eyeY - 0.3) continue;
+      out.push({ kind: 'wall', minX: it.minX, maxX: it.maxX, minY: it.minY, maxY: it.maxY, minZ: it.minZ, maxZ: it.maxZ, label: '' });
+    }
+    return out;
   }
 
   /** Kartenname fürs HUD. */
   get mapName(): string {
-    return this.level.meta?.name ?? this.level.name;
+    return this.data.name;
   }
 }

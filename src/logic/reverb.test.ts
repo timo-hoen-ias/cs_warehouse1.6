@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { REVERB, buildImpulse, impulseLength } from './reverb';
-import { mulberry32 } from './demo';
+import { mulberry32 } from './rng';
 import type { RoomKind } from './acoustics';
 
 const SR = 8000;

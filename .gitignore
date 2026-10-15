@@ -7,12 +7,10 @@ bun.lockb
 dist
 build.log
 
-# Env & Datenbank-Zugangsdaten
+# Env
 .env
 .env.*
-!.env.example
 
-# lokale Levels (aus DB gebacken) bewusst NICHT ignorieren → werden committet
 # Needle-Editor-Artefakte
 src/generated/
 include/three/

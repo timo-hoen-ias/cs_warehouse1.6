@@ -9,9 +9,9 @@
 
 ## Ziel
 
-CS-1.6-inspirierter Bomben-Modus („de_"-Maps) in **echten, aus der MSSQL-DB gelesenen Lagern**.
-Online spielbar (Host-authoritativ, Needle-Raum oder eigener Relay) mit Bots, vollem CS-1.6-Arsenal,
-Economy, Granaten, Zielfernrohr, Spray-Mustern und mehreren Lager-Karten mit Vertikalität.
+CS-1.6-inspirierter Bomben-Modus („de_"-Maps) in **großen, handgebauten Lager-/Logistik-Karten** mit
+echter Vertikalität. Online spielbar (Host-authoritativ, Needle-Raum oder eigener Relay) mit Bots, vollem
+CS-1.6-Arsenal, Economy, Granaten, Zielfernrohr und Spray-Mustern.
 
 ## Fixe Entscheidungen (Beschlüsse)
 
@@ -21,10 +21,10 @@ Economy, Granaten, Zielfernrohr, Spray-Mustern und mehreren Lager-Karten mit Ver
 | 2 | Runtime/Tooling: **Bun 1.4** (install/dev/build/test/Skripte). |
 | 3 | Reine TS-Logik in `src/logic/` (framework-frei, getestet); Render-/Netz-Teile in `src/game`, `src/multi`, `src/ui`, `src/weapons`, `src/level`, `src/entities`, `src/audio`. |
 | 4 | Netzwerk: Needle `context.connection` (JSON-Broadcast, ein Nachrichten-Key `csw16`). **Host = Dienstältester im Raum** (erste ID in Beitrittsreihenfolge des Servers; alle Clients sehen dieselbe Reihenfolge). Host rechnet Runde, Bombe, Treffer, Economy, Bots, Granaten, Drops; Clients simulieren ihre Bewegung selbst, senden Posen (20 Hz), Schüsse, Würfe, Käufe; Host sendet Snapshots (10 Hz) + Ereignisse. Host-Migration beim Verlassen. |
-| 5 | Kollision: deterministische AABB-Physik (`logic/move.ts`) inkl. **Bodenhöhe/Stufen** (≤ 0.55 m ohne Sprung, Sprung ~1.2 m). Kein Rapier: Granaten prallen pur an AABBs ab (`logic/grenade.ts`). |
+| 5 | Kollision: deterministische Physik (`logic/move.ts` auf `logic/collision.ts`): Quader **und Rampen (Keile)** in einem XZ-Raster, Bodenhöhe/Stufen (≤ 0.55 m), Rampen ≤ 40°, Kopf-Kollision, Kanten; Strahlen per 2D-DDA. Kein Rapier: Granaten prallen per Strahl an Flächennormalen ab (auch auf Rampen). |
 | 6 | Schüsse = **Hitscan** auf Kopf-/Körper-Boxen (`logic/combat.ts`), Rüstungsformel nach CS (`armoredDamage`), Distanzabfall. |
 | 7 | Spielmodus: **Bomben (de_)**, feste Teams (Wechsel per M), erster auf 16 Runden. |
-| 8 | Karten: Bake-Ergebnisse (`levels/de_*.json`, Format 2: Lager + Zonen + Requisiten + Spawns + Strukturen) werden committet → alle Clients identisch. |
+| 8 | Karten: **handgebaute TypeScript-Module** (`src/maps/<id>.ts`, Format in `docs/KARTENFORMAT.md`), deterministisch kompiliert (Kollision, Navigation, Zonen) → kein Bake-Schritt, alle Clients identisch. (Bis M3: aus der MSSQL-DB gebackene Hallen.) |
 | 9 | Waffen-/Spieldaten als Tabellen (`weapons.json`, `ECONOMY`, `ROUND`, `BOMB`, `GRENADE`, `BOT`). |
 | 10 | Lizenz: Needle-Basic-Label (nicht-kommerziell); öffentliche/kommerzielle Nutzung → Needle-Lizenz prüfen. |
 | 11 | Sprache: Nutzertexte/UI/Kommentare deutsch, Bezeichner englisch. |
@@ -34,29 +34,31 @@ Economy, Granaten, Zielfernrohr, Spray-Mustern und mehreren Lager-Karten mit Ver
 ## Repo-Struktur (Ist)
 
 ```
-levels/de_{kommission,hochregal,blocklager,rampe}.json   # gebackene Karten (Format 2)
-scripts/bake-map.ts          # MSSQL/Demo → levels/*.json (alle Karten oder eine DB-Kennung)
+src/maps/                    # Handgebaute Karten (de_lagerstaub) + Registry (index.ts) + Validator (maps.test.ts)
+docs/KARTENFORMAT.md         # Kartenformat, Gestaltungsregeln, Anleitung für neue Karten
+scripts/map-overview.ts      # Draufsicht (PNG, nur Node-Bordmittel) + Laufzeiten + Bereichsgraph
 scripts/relay-server.ts      # Bun-WebSocket-Relay (Needle-Raum-Protokoll), Dockerfile.relay
 scripts/smoke.mjs            # E2E im headless Chromium/Edge (CDP)
 scripts/net-test.mjs         # Zwei-Client-Netztest inkl. Host-Migration
 scripts/screenshot.mjs       # Screenshot + JS-Auswertung (Sichtprüfung)
 scripts/weapon-sheet.mjs     # First-Person-Bild je Waffe (Dev-Hooks __vmShow/__vmPreview) → weapon-contact.py = Kontaktbogen
 scripts/weapon-lab.mjs       # weapon-lab.html (src/dev/weaponLab.ts): Raster aller Waffen als Soldat / liegend / Seitenansicht mit Markern
-src/logic/                   # PURE + getestet: weapons, fire, recoil (Spray), combat, damage, loadout,
-                             # economy, round, bombs, match, net, drops, grenade, botDecide, waypoints,
-                             # move (Stufen), level, structures, props, spawns, maps, demo, zones, radar,
-                             # settings, ceiling, viewAnim, weaponGeom (Mündung/Griffe/Auswurf/Sicht/Länge je Modell), viewPlace,
-                             # stretch, dropRest, layout/query/transform (Port aus ias.warehouse-map)
-src/game/World.ts            # Level → Sicht + Kollision + Wegpunkte + Spawns
-src/game/MatchDriver.ts      # Host-Simulation + Client-Spiegel + Ereignisse + Bots + Zuschauer + Audio
+src/logic/                   # PURE + getestet: collision (Raster, Rampen, Strahlen), move, nav (3D-Graph, A*, Bereiche),
+                             # mapkit/mapplan/mapprops (Kartenbaukasten), mapcompile, bake (Licht-Backen), levelmesh
+                             # (Geometrie + Vertex-Licht), overview (Draufsicht/Radar), weapons, fire, recoil, combat, damage,
+                             # loadout, economy, round, bombs, match, net, drops, grenade, botDecide, zones, radar, settings,
+                             # viewAnim, acoustics, rng, weaponGeom, viewPlace, stretch, dropRest,
+                             # audioMix, reverb, soundBank, ambientFallback
+src/game/World.ts            # Kompilierte Karte + Darstellung; API: collider, nav, findPath, areaAt, siteAt, surfaceAt, acoustics
+src/game/MatchDriver.ts      # Host-Simulation + Client-Spiegel + Ereignisse + Bots (Navigation) + Zuschauer + Audio
 src/multi/Transport.ts       # LocalTransport (offline) / NeedleTransport (Raum)
-src/player/FpsPlayer.ts      # Bewegung, Blick, Ducken, Shake, Todes-/Zuschauerkamera
+src/player/FpsPlayer.ts      # Bewegung (Collider), Blick, Ducken (Kopffreiheit), Shake, Todes-/Zuschauerkamera
 src/weapons/                 # Shooter (Slots, Zoom, Spray, Messer, G), ViewModel, Fx, Grenades, DroppedView
-src/weapons/models/          # Prozedurale Waffenmodelle (Builder, Materialien, Pistolen/Gewehre/MG/Schrot/SMG,
-                             # Messer/Granaten/C4) + First-Person-Arme mit Handschuhen je Team
+src/weapons/models/          # Prozedurale Waffenmodelle + First-Person-Arme
 src/entities/Soldier.ts      # Spielfiguren (Bots + entfernte Spieler); soldierHold.ts = Waffenhaltung/Arm-IK (pure, getestet)
-src/level/                   # LevelView (Regale instanziert, Strukturen, Schilder), Canvas-Texturen
-src/ui/                      # Lobby, Hud (Kaufmenü, Scoreboard, Radar, Feed, Chat, Scope), SettingsMenu
+src/level/                   # LevelView (Geometrie je Material/Kachel, Deko-Instanzen, Schilder, Markierungen, Himmel,
+                             # Lichtkegel), Lighting (Sonde + echte Lichter für Figuren), decor, textures (Canvas)
+src/ui/                      # Lobby, Hud (Kaufmenü, Scoreboard, Radar mit Kartenbild, Feed, Chat, Scope), SettingsMenu
 src/audio/                   # Sfx (Fassade), AudioEngine (Lader, 3D, Hall, Verdeckung), Ambience,
                              # MatchAudio (Schritte/Bombe/Treffer für den Driver), SynthFallback, worldHooks
 src/logic/{audioMix,reverb,soundBank,ambientFallback}.ts  # Audio-Entscheidungen, Hall-IRs, Klang-Katalog
@@ -88,10 +90,10 @@ Runden-/Bomben-/Economy-Logik, erste Bots, HUD.
 - [x] **Bots** beider Teams (`logic/botDecide.ts`): Sicht inkl. Rauch, Reaktionszeit, Zielfehler nach Skill, Burst-Feuer, Erinnerung/Jagd, Rollen (Plant, Spot halten, Bombe verteidigen/entschärfen), Kauf
 - [x] **Netzwerk**: Host-Wahl nach Beitrittsreihenfolge, Snapshots (Spieler, Runde, Granaten, Rauch, Bombe, Drops), Posen-Interpolation, Ereignisse, Host-Migration (Snapshot-Zähler, Geisterspieler, Bot-IDs, kein Doppelstart), Eingabe-Validierung auf dem Host (Waffe im Inventar, Kadenz, Strahlen, Ursprung), Relay-Server für LAN
 - [x] **UI**: Lobby (Name, Karte, Team, Spielerzahl, Bot-Stärke, Raum erstellen/beitreten, Server), HUD (HP/Rüstung/Geld, Munition, Slots, Rundenleiste, Kill-Feed, Radar, Hinweise, Blend-/Schadens-Overlay, Zielfernrohr), Kaufmenü (B), Scoreboard (Tab), Chat (Y), Teamwahl (M), Einstellungen (O)
-- [x] **Karten**: 4 Lager-Profile (Kommissionierhalle, Hochregallager, Blocklager, Verladerampe), Requisiten (Paletten, Gitterboxen, Kisten, Container), Zwischenebenen mit Treppe/Geländer, Laderampe, Spawns je Team, Zonen nach CS-Dramaturgie
+- [x] **Karten**: 4 Lager-Profile (Kommissionierhalle, Hochregallager, Blocklager, Verladerampe), Requisiten (Paletten, Gitterboxen, Kisten, Container), Zwischenebenen mit Treppe/Geländer, Laderampe, Spawns je Team, Zonen nach CS-Dramaturgie *(abgelöst durch M4)*
 - [x] **Grafik**: Regale mit Stehern/Traversen/Paletten/Kartons (instanziert), Bodenmarkierungen, Hängeschilder, Hallendach mit Leuchten, Tonemapping, Canvas-Texturen; Grafikstufe `?quality=low`
 - [x] **Spielfiguren** (`entities/Soldier.ts`, `soldierParts.ts`, `soldierAnim.ts` getestet): T in Wüstentarn mit Sturmhaube, CT in Navy mit Helm/Brille, Weste, Rucksack, Zweihand-Waffenhaltung (IK), Gehen/Ducken mit Kniebeuge, Fallanimation; 8 Draw-Calls je Figur
-- [x] **Hallendecke + Beleuchtung** (`level/Ceiling.ts`, `level/Lighting.ts`, `logic/ceiling.ts` getestet): Hallenhöhe 8 m, Dach als Kollision (Granaten/Schüsse), Fachwerkbinder, Pfetten, Lichtbänder, Lüftungskanal, Sprinkler, Hallenstrahler mit Lichtkegeln, gebackene Boden-Licht-Map, Arbeitslicht über den Bombenspots, Notausgang-Schilder
+- [x] **Hallendecke + Beleuchtung** *(in M4 durch gebackenes Licht ersetzt; `Ceiling.ts`/`ceiling.ts` entfernt)*: Hallenhöhe 8 m, Dach als Kollision (Granaten/Schüsse), Fachwerkbinder, Pfetten, Lichtbänder, Lüftungskanal, Sprinkler, Hallenstrahler mit Lichtkegeln, gebackene Boden-Licht-Map, Arbeitslicht über den Bombenspots, Notausgang-Schilder
 - [x] **Waffenmodelle + Animationen** (`weapons/models/`, `logic/viewAnim.ts` getestet): alle 29 Einträge prozedural modelliert (abgeschrägte Profile, Holz/Polymer/Brünierung, bewegliche Teile: Schlitten, Spannhebel, Kammerstängel, Pumpe, Magazin, MG-Deckel, Splint), First-Person-Arme mit Ärmeln/Handschuhen je Team und Hand-Zielen; Clip-Bibliothek (Ziehen, Inspizieren `F`, Magazin-/Pistolen-/Schrot-/MG-Nachladen, Repetieren, Schlitten-Zyklus, Trockenschuss, Messer, Granate, C4) mit Überblendung, dazu Atmen, Lauf-Bob, Strafe-Neigung, Sprint-Haltung und Rückstoß-Feder; dieselben Modelle für Drops und Spielfiguren
 - [x] **Audio**: synthetisierte Schüsse je Waffentyp, Treffer/Kopfschuss/Kill, Schritte (geduckt lautlos), Bomben-Piepen, Granaten, Rundenjingles
 - [x] **Zuschauer** nach dem Tod (Teamkameraden aus deren Sicht, Klick wechselt), Todeskamera
@@ -150,11 +152,40 @@ Auslöser: „die Models müssen passen“. Systematische Prüfung statt Augenma
 - Debug: `__audio()` (geladen/Stimmen/Raum/gespielt je Gruppe), `__audioProbe()` (alle Pfade), `__sfx`.
 - Offen: Nachladen/Ziehen entfernter Spieler (keine Netz-Ereignisse), Messer gegen Wand, Funk-Sprachsamples.
 
+### M4 — Karten-Overhaul: handgebaute Karten, Rampen, 3D-Navigation, gebackenes Licht ✅ (Okt 2026)
+- [x] **Kartenformat** (`logic/mapkit.ts`): Brushes (Quader/Keile, Material, Farbton, Kollisionsart, Clip, Oberfläche, eingepasste UVs), Wände mit Öffnungen, Treppen (Stufen + Clip-Rampe), Geländer, Deko, Lichter, Schilder, Bodenmarkierungen, Callout-Bereiche, Spots (Box + Pflanzpunkt), Spawns, Kaufzonen, Akustik (Vertrag `logic/acoustics.ts`), Umgebung
+- [x] **Grundriss-Raster** (`logic/mapplan.ts`): 2-m-Zellen malen, Rest = Gebäudemasse; Böden, Dächer, Fensterwände, automatische Stürze, Akustik-Zonen, **Fassaden** (Verkleidung, Sockel, Band, Gesims/Attika, Fenster, Pilaster, Fallrohre)
+- [x] **Requisiten** (`logic/mapprops.ts`, 36 Arten): Paletten, Ware in Folie, Kisten, Gitterboxen, Container, Auflieger, Zugmaschine, Stapler, Fässer, Kabeltrommeln, Hochregale mit Ware, Fachregale, Serverschränke/-reihen, USV, Kühlung, Förderband, IBC, Rolltore, Stahltüren, Dachaufbauten …
+- [x] **Compiler** (`logic/mapcompile.ts`): Collider, Navigation, Spots/Spawns/Kaufzonen, Zonen-Mittelpunkte, Akustik — deterministisch
+- [x] **Physik** (`logic/collision.ts`, `move.ts`): Rampen (Boden folgt der Schräge, bergab ohne Hüpfen, > 40° = Wand, seitlich blockiert nur der hohe Teil), Kopf-Kollision, Unterquerungen, Kanten/Fallen, Boden unter null (Tunnel), Ducken bleibt unter niedriger Decke
+- [x] **Strahlen** mit XZ-Raster (2D-DDA) für Schüsse, Sicht, Blendung, HE, Granaten (Abprall an Flächennormalen, Rollen auf Rampen) — `Blockers`-Abstraktion (`hitbox.ts`) für Quaderlisten und Kollisionswelt
+- [x] **3D-Navigation** (`logic/nav.ts`): Knoten (1 m) auf allen begehbaren Flächen, Kanten nach Bewegungsregeln (Stufen, Rampen, Wände, Kopffreiheit), Herunterspringen als Einbahnkante, A* mit Binär-Heap + Ausweichzonen, String Pulling, Raster-Hash, Callout-Bereiche + Bereichsgraph, Flags (Deckung, Engstelle, erhöht, geduckt)
+- [x] **Bots** auf Navigation umgestellt (Pfad, Neuplanung bei Stillstand, Ebenen-bewusste Sicht und Ziele, Sprint-Tempo) — Pflanzen/Entschärfen/Kampf Ende-zu-Ende geprüft
+- [x] **Darstellung** (`level/LevelView.ts`, `logic/levelmesh.ts`, `logic/bake.ts`): Geometrie je Material und Kachel (verdeckte Teilflächen entfallen), Welt-UVs, **gebackenes Vertex-Licht** (Sonne mit Voxel-Schatten, Himmelsverdeckung, Lampen mit Schatten, AO), unbeleuchtete Materialien, instanzierte Deko (Fässer, Stapler, Server mit LEDs, Leuchten …), Schilder, Markierungen, Himmel mit Sonne und Skyline, Lichtkegel (hoch); Figuren über Lichtsonde + ≤ 4 echte Punktlichter
+- [x] **Referenzkarte `de_lagerstaub`** (Grundriss nach dem Klassiker, Logistik-Optik): T-Hof, Außen Lang, Lang-Tor, Lang-Ecke, Grube, Lang A (Hochregale, Stapler, Stützen), Lang-Empore, A-Rampe, A-Plattform (Laderampe mit Vordach, „Serverschrank A“), Gans, Kurz A, Steg (Gitterrost), Mitte, Xbox, Obere Mitte, Mitteltür, CT-Mitte, CT-Spawn, B-Gang, B-Fenster (IT-Lager), Serverhalle B (Hintere Plattform, B-Empore, „Serverschrank B“), Oberer/Unterer Tunnel, Tunnelkreuzung, Außen Tunnel; 160 × 162 m, Ebenen −1.6 … +4.4 m
+- [x] **Validator** (`src/maps/maps.test.ts`): Spawns (≥ 8, Boden, frei, Kaufzone), Spots begehbar, Erreichbarkeit, keine Fallen/großen unerreichbaren Flächen, Laufzeiten, CT schneller, Mitte umkämpft, Vertikalität, Größe, Determinismus, Grenzen
+- [x] **Werkzeug** `scripts/map-overview.ts` (PNG-Draufsicht mit Höhenfarben, Rampenpfeilen, Spots, Spawns, Callouts, Laufzeiten), Doku `docs/KARTENFORMAT.md`
+- [x] Lobby/Registry auf `src/maps`; alte DB-Pipeline entfernt (query/layout/transform/demo/level-Generatoren, `levels/*.json`, `bake-map.ts`, MSSQL-Abhängigkeit); HUD-Radar zeigt vorgerenderte Kartendraufsicht
+- **Verifikation:** `bun run test`, `tsc`, `build`, Smoke (angepasst: Schussposition mit Sichtlinie, Wand-Suche per Strahl) und Netztest grün; Screenshots hoch/niedrig gesichtet.
+
+**Laufzeiten de_lagerstaub (Sprint 6.2 m/s, Knotenwege):** T → A 145 m ≈ 23.4 s, T → B 146 m ≈ 23.5 s, CT → A 50 m ≈ 8.1 s, CT → B 77 m ≈ 12.5 s, T → Mitte ≈ 9.6 s, CT → Mitte ≈ 11.4 s.
+
+**Erkenntnisse/Notizen (M4):**
+- Referenztempo für Laufzeiten ist der Sprint (≈ CS-Lauftempo 250 u/s); mit Gehtempo 4.2 m/s wären es ~35 s. CT → A ist wie im Vorbild bewusst kurz (≈ 8 s).
+- Gebackenes Licht + unbeleuchtete Materialien sind in Software-GL kaum teurer als einfarbige Flächen; die Qualitätsstufe ändert nur Raster/Strahlen beim Backen und die Extras (Lichtkegel, Leuchthöfe).
+- Lichtproben für Deko nicht im eigenen Kollisionskörper nehmen (sonst schwarz) — hellste freie Probe über dem Objekt.
+- Fassaden-Verkleidung muss dicker sein als der Verdeckungs-Test (0.04 m), damit die Gebäudefläche dahinter entfällt.
+- Treppen-Clip-Rampe über die Stufenkanten legen (sonst sinkt man in die Stufen ein); Stufen selbst blockieren nur Strahlen.
+- `groundAt` ohne Höhenhinweis = unterste begehbare Ebene an der Stelle (Navigationsknoten), sonst landet man auf Dächern.
+- `stepPlayer` unterteilt große Zeitschritte (statt sie auf 0.05 s zu kappen) — sonst liefen Bots/Spieler bei niedriger Bildrate (Host-Teilschritte 0.1 s) nur halb so schnell und brauchten auf den großen Karten doppelt so lange.
+- Der Obere Tunnel hat einen Knick vor Spot B, damit CTs aus B nicht 70 m geradeaus in den Tunnel sehen; CT-Bots teilen sich nach Rang im Team auf A/B auf.
+
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON
 - [ ] Wallbangs (Durchschuss durch dünne Requisiten), Fallschaden
 - [ ] Sprach-Chat (Needle `Voip`), Chat-Teamfilter
-- [ ] Bots auf Zwischenebenen (Wegpunkte in mehreren Höhen)
+- [ ] Weitere Karten im neuen Format (z. B. Hafen/Containerterminal, Kühlhaus), taktische Bots auf dem Bereichsgraphen (Rollen je Callout, Smokes/Flashes, Rotationen)
+- [ ] Sprung-Kanten in der Navigation (Kisten ≤ 1.1 m), Leitern
 - [ ] Anti-Cheat jenseits der Plausibilitätsprüfungen (Absender-IDs sind im Needle-Protokoll nicht signiert)
 
 ---

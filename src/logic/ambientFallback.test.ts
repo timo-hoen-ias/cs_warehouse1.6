@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fallbackAcoustics } from './ambientFallback';
 import { emitterGain, roomAt } from './acoustics';
 import { AMBIENT_SAMPLE } from './soundBank';
-import { mulberry32 } from './demo';
+import { mulberry32 } from './rng';
 
 const inner = { minX: -40, maxX: 40, minZ: -60, maxZ: 60 };
 

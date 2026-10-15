@@ -1,6 +1,6 @@
 # CS Warehouse 1.6
 
-Ein Ego-Shooter im Browser: ein Counter-Strike-1.6-inspirierter Bomben-Modus (Terroristen gegen Counter-Terroristen), der in Lagerhallen spielt. Die Karten (`de_`-Maps) werden aus den Daten einer Lager-Datenbank (MSSQL) erzeugt: Regale, Zellen und Wege des echten Lagers werden zum Level. Gebaut mit Needle Engine 5, Vite und TypeScript; Bun dient als Laufzeit und Paketmanager. Man kann offline gegen Bots spielen oder online mit Freunden per Raumcode.
+Ein Ego-Shooter im Browser: ein Counter-Strike-1.6-inspirierter Bomben-Modus (Terroristen gegen Counter-Terroristen), der in Lagerhallen und Logistikzentren spielt. Die Karten (`de_`-Maps) sind von Hand gebaut — mit Rampen, Treppen, Laufstegen, Emporen, Gruben und Tunneln auf mehreren Ebenen, gebackenem Licht und einem 3D-Navigationsgraphen für die Bots. Gebaut mit Needle Engine 5, Vite und TypeScript; Bun dient als Laufzeit und Paketmanager. Man kann offline gegen Bots spielen oder online mit Freunden per Raumcode.
 
 ## Schnellstart
 
@@ -18,7 +18,7 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 
 - **Offline gegen Bots:** In der Lobby eine Karte wählen und starten. Beide Teams werden mit Bots aufgefüllt; diese kaufen ein, legen die Bombe, entschärfen sie und jagen Gegner.
 - **Online-Raum erstellen:** In der Lobby einen Raum erstellen. Online-Spiele laufen standardmäßig über das öffentliche Needle-Netzwerk-Backend; Räume werden über einen Code aus 5 Buchstaben betreten.
-- **Raum beitreten / Link teilen:** Raumcode in der Lobby eingeben oder den geteilten Link öffnen. Der Link enthält Raum und Karte, z. B. `http://localhost:3000/?room=ABCDE&map=de_kommission`. Der Host ist autoritativ; Clients senden nur Eingaben. Verlässt der Host das Spiel, wird ein neuer Host bestimmt (Host-Migration).
+- **Raum beitreten / Link teilen:** Raumcode in der Lobby eingeben oder den geteilten Link öffnen. Der Link enthält Raum und Karte, z. B. `http://localhost:3000/?room=ABCDE&map=de_lagerstaub`. Der Host ist autoritativ; Clients senden nur Eingaben. Verlässt der Host das Spiel, wird ein neuer Host bestimmt (Host-Migration).
 - **LAN / Self-Hosting mit Relay:** Ohne Internet oder mit eigenem Server den mitgelieferten Relay starten:
 
   ```bash
@@ -59,22 +59,23 @@ Der Build verwendet `base: "./"` und läuft daher auch unter einem Unterpfad (z.
 - Waffengefühl nach CS: feste, lernbare Spray-Muster bei Automatikwaffen (gegenziehen!), Noscope-Streuung, Zielfernrohr mit Auto-Rezoom, Repetierzeiten, Rüstungsdurchschlag, Distanz-Schadensabfall, Kopfschüsse
 - Waffen und C4 fallen beim Tod zu Boden und lassen sich aufheben; Kaufen nur in der Kaufzone am Spawn
 - Zuschauer-Kamera nach dem Tod (Klick wechselt den Spieler), Schrittgeräusche, schneller werdendes Bomben-Piepen
-- Vertikalität: Zwischenebenen mit Treppen und Geländer, Laderampen, Paletten und Kisten zum Draufspringen
+- Große, handgebaute Karten (~160 × 160 m) mit echter Vertikalität: Rampen, Treppen, Laufstege, Emporen, Laderampen, Gruben, Unter- und Obertunnel; Kisten und Paletten zum Draufspringen
+- Gebackene Beleuchtung (Sonne mit Schatten, Himmel, Hallenleuchten, Lichtkegel, Ambient Occlusion) bei minimalen Laufzeitkosten; Himmel mit Sonne und Industrie-Skyline
+- Bots navigieren in 3D (A* über alle Ebenen, Callout-Bereiche), legen und entschärfen die Bombe
 - Einstellungen (O): Mausempfindlichkeit, Y-Invertierung, Sichtfeld, Lautstärke, Fadenkreuz (Farbe/Stil/Größe), Kopfbewegung, FPS-Anzeige
 - Host-autoritativer Mehrspieler mit Host-Migration; Raumcodes, Teilen-Link, optionaler Relay-Server
-- Grafikstufe für schwache Rechner: `?quality=low` (ohne Schatten, reduzierte Auflösung)
-- Karten aus Lager-Daten gebacken und als JSON eingecheckt, damit alle Clients identisch spielen
+- Grafikstufe für schwache Rechner: `?quality=low` (gröberes Licht-Raster, keine Lichtkegel, reduzierte Auflösung)
+- Karten sind Code-Module: alle Clients bauen aus der Karten-ID des Hosts dieselbe Welt (kein Bake-Schritt)
 
 ## Karten
 
-| Karte | Lagertyp |
+| Karte | Beschreibung |
 |---|---|
-| `de_kommission` | Kommissionierhalle |
-| `de_hochregal` | Hochregallager |
-| `de_blocklager` | Blocklager |
-| `de_rampe` | Verladerampe |
+| `de_lagerstaub` | **Lagerstaub** — Logistikzentrum im Abendlicht nach klassischem Grundriss: T-Hof (Speditionshof), Außen Lang → Hallentor → Lang A mit Grube und Stapler („Auto“), A-Rampe auf die Laderampe mit dem „Serverschrank A“, Kurz A über den Gitterrost-Steg aus der Mitte (Xbox-Kiste), Mitteltür (Brandschutztor) zum CT-Bereich, Außen Tunnel → Ober-/Untertunnel (Versorgungstunnel) → Serverraum B mit Hinterer Plattform, B-Empore, B-Fenster und B-Tür. |
 
-Die gebackenen Karten liegen in `levels/*.json`.
+Laufzeiten (Sprint): T → A ≈ 23 s, T → B ≈ 24 s, CT → A ≈ 8 s, CT → B ≈ 12.5 s, Mitte für beide ≈ 10 s.
+Das Kartenformat und eine Anleitung für neue Karten stehen in [`docs/KARTENFORMAT.md`](docs/KARTENFORMAT.md).
+Eine Draufsicht (PNG) samt Laufzeiten erzeugt `bun run overview [karten-id] [datei.png] [px-pro-meter] [--areas]`.
 
 ## Entwicklung
 
@@ -99,30 +100,29 @@ BROWSER=/pfad/zu/chromium bun scripts/smoke.mjs      # in einem zweiten
 BROWSER=/pfad/zu/chromium bun scripts/net-test.mjs
 ```
 
-**Karten backen** (`levels/*.json` erzeugen):
+**Karten-Übersicht und Validator:**
 
 ```bash
-bun run bake                    # alle Karten
-bun run bake <lagerkennung>     # ein echtes Lager aus der MSSQL-DB
+bun run overview de_lagerstaub karte.png 5 --areas   # Draufsicht + Laufzeiten + Bereichsgraph
+bun run test src/maps                                # Karten-Validator (Spawns, Spots, Wege, Laufzeiten …)
 ```
-
-Für ein echtes Lager die MSSQL-Zugangsdaten als Umgebungsvariablen setzen (Vorlage: `.env.example`: `MSSQL_SERVER`, `MSSQL_DATABASE`, `MSSQL_USER`, `MSSQL_PASSWORD`). Ist die Datenbank nicht erreichbar, wird das Demo-Lager gebacken. Die Ergebnisse werden eingecheckt und nicht in der CI gebacken.
 
 ### Projektstruktur
 
 | Pfad | Inhalt |
 |---|---|
-| `src/logic/` | Reine, framework-freie und getestete Logik (Layout, Query, Economy, Runden, Bombe, Waffen, Schaden, Bots, Wegpunkte, Netzwerk-Nachrichten) und Datentabellen wie `weapons.json` |
+| `src/logic/` | Reine, framework-freie und getestete Logik (Kollision mit Rampen, Navigation, Kartenbaukasten/Compiler, Licht-Backen, Economy, Runden, Bombe, Waffen, Schaden, Bots, Netzwerk-Nachrichten) und Datentabellen wie `weapons.json` |
+| `src/maps/` | Handgebaute Karten (TypeScript-Module) + Registry |
 | `src/game/` | Spielwelt und Match-Ablauf (`World.ts`, `MatchDriver.ts`) |
 | `src/player/`, `src/entities/` | Spieler-Steuerung und Soldaten-Figuren |
 | `src/multi/` | Netzwerk-Transport (Needle-Backend oder eigener Relay) |
 | `src/ui/` | Lobby und HUD |
 | `src/weapons/` | Schießen, Granaten, Viewmodel, Effekte; `models/` = prozedurale Waffen + Arme |
-| `src/level/` | Darstellung der Karten und Texturen |
+| `src/level/` | Darstellung der Karten (Geometrie mit gebackenem Licht, Deko-Instanzen, Himmel, Texturen, Licht für Figuren) |
 | `src/audio/` | Soundeffekte |
-| `levels/` | Gebackene Karten (JSON) |
+| `docs/` | Kartenformat und Anleitung für neue Karten |
 | `assets/` | Laufzeit-Assets (Waffenmodelle), werden nach `dist/assets/` kopiert |
-| `scripts/` | Relay-Server, Map-Bake, Smoke- und Netzwerktest |
+| `scripts/` | Relay-Server, Karten-Übersicht (PNG), Smoke-, Screenshot- und Netzwerktest |
 
 Weitere Hintergründe und der Stand der Umsetzung stehen in `IMPLEMENTIERUNGSPLAN.md`.
 

@@ -8,7 +8,7 @@
 import { emitterGain, type AmbientEmitter, type RoomKind } from '../logic/acoustics';
 import { AMBIENT_SAMPLE, LIFE_EVENTS, ROOM_BED, SAMPLES, nextLifeDelay, pickLifeEvent } from '../logic/soundBank';
 import { OCCLUSION, type V3 } from '../logic/audioMix';
-import { mulberry32 } from '../logic/demo';
+import { mulberry32 } from '../logic/rng';
 import type { AudioEngine, Voice } from './AudioEngine';
 
 type EmitterState = { e: AmbientEmitter; key: string; voice: Voice | null; silentFor: number; occluded: boolean; checkIn: number };

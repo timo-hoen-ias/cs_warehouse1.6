@@ -13,7 +13,7 @@ import {
 } from '../logic/audioMix';
 import { REVERB, buildImpulse } from '../logic/reverb';
 import type { RoomKind } from '../logic/acoustics';
-import { mulberry32 } from '../logic/demo';
+import { mulberry32 } from '../logic/rng';
 
 export type PlayOpts = {
   /** Weltposition (null/fehlend = am Hörer, nicht positioniert). */
