@@ -5,7 +5,7 @@ import { humanPartBoxes, type PartBox } from '../logic/hitbox';
 import { WEAPONS } from '../logic/weapons';
 import { WEAPON_GEOM, weaponGeom, type WeaponGeom } from '../logic/weaponGeom';
 import { worldGeometry } from '../weapons/models';
-import { CROUCH_DROP, LEG, fallPose, solveLegAngles, walkPose } from './soldierAnim';
+import { CROUCH_DROP, LEG, fallPose, legHeading, solveLegAngles, walkPose } from './soldierAnim';
 import { holdPlan, type HoldPlan } from './soldierHold';
 import {
   SHOULDER_X, SHOULDER_Y, TORSO_PIVOT_Y,
@@ -37,6 +37,8 @@ export class Soldier {
   private readonly matGun: THREE.MeshStandardMaterial;
   /** Alles außer dem Namensschild (wird beim Umfallen um den Fußpunkt gedreht). */
   private readonly fallGroup = new THREE.Group();
+  /** Hüfte mit beiden Beinen: dreht sich in die Laufrichtung, der Oberkörper folgt dem Blick. */
+  private readonly hips = new THREE.Group();
   private readonly weaponNode = new THREE.Group();
   private readonly torso = new THREE.Group();
   private readonly torsoMesh: THREE.Mesh;
@@ -55,6 +57,10 @@ export class Soldier {
   private weaponId = '';
   private walkPhase = 0;
   private walkAmp = 0;
+  /** Gehzyklus vorwärts (1) oder rückwärts (−1), Ziel-/Ist-Verdrehung der Hüfte. */
+  private walkDir: 1 | -1 = 1;
+  private legTarget = 0;
+  private poseAt = 0;
   private lastX = 0;
   private lastZ = 0;
   private crouch = 0;
@@ -63,6 +69,8 @@ export class Soldier {
   private readonly fallDir: 1 | -1;
   private readonly fallRoll: number;
   alive = true;
+  /** Namensschild für den Betrachter erlaubt (nur eigenes Team, `logic/nameplate.ts`). */
+  private labelAllowed = false;
 
   constructor(readonly id: string, public name: string, team: Team) {
     this.team = team;
@@ -98,7 +106,8 @@ export class Soldier {
     this.torso.add(this.torsoMesh, this.armL, this.armR, this.weaponNode);
     this.torso.position.y = TORSO_PIVOT_Y;
 
-    this.fallGroup.add(this.thighL, this.thighR, this.torso);
+    this.hips.add(this.thighL, this.thighR);
+    this.fallGroup.add(this.hips, this.torso);
     this.root.add(this.fallGroup);
     for (const m of [this.torsoMesh, this.armL, this.armR, this.thighL, this.thighR, this.shinL, this.shinR]) m.castShadow = true;
     this.buildBody();
@@ -113,6 +122,7 @@ export class Soldier {
     // Namensschild
     this.label = makeLabel(name, team);
     this.label.position.y = 2.05;
+    this.label.visible = false;
     this.root.add(this.label);
     this.setWeapon('knife');
     this.applyPose(0, 0, 0, 0);
@@ -186,8 +196,18 @@ export class Soldier {
     this.lastZ = p.z;
     this.root.position.set(p.x, p.y, p.z);
     this.root.rotation.y = p.yaw + Math.PI; // Modell blickt +Z, Kamera-Yaw 0 = -Z
+    const now = performance.now();
+    const dt = this.poseAt ? Math.min(0.1, (now - this.poseAt) / 1000) : 0;
+    this.poseAt = now;
+    // Beine in Laufrichtung (seitwärts/rückwärts laufen statt seitlich gleiten); im Stand zurück nach vorn
+    if (dt > 0 && moved / dt > 0.6) {
+      const h = legHeading(Math.atan2(-dx, -dz), p.yaw);
+      this.legTarget = h.offset;
+      this.walkDir = h.dir;
+    } else if (moved < 0.0005) this.legTarget = 0;
+    this.hips.rotation.y += (this.legTarget - this.hips.rotation.y) * (1 - Math.exp(-dt * 14));
     // Gehanimation (Amplitude weich nachgeführt, damit Anhalten nicht ruckt)
-    if (moved > 0.0005) this.walkPhase += moved * 6;
+    if (moved > 0.0005) this.walkPhase += moved * 6 * this.walkDir;
     const targetAmp = Math.min(0.6, moved * 40);
     this.walkAmp += (targetAmp - this.walkAmp) * 0.4;
     // Ducken: Hüfte senken, Beine anwinkeln
@@ -264,13 +284,22 @@ export class Soldier {
     if (!alive) {
       this.deathStart = performance.now();
       this.falling = true;
-      this.label.visible = false;
     } else {
       this.falling = false;
       this.fallGroup.rotation.set(0, 0, 0);
       this.fallGroup.position.set(0, 0, 0);
-      this.label.visible = true;
     }
+    this.label.visible = this.alive && this.labelAllowed;
+  }
+
+  /** Namensschild zeigen (der Aufrufer entscheidet nach Team, Tote haben nie eins). */
+  setLabelVisible(allowed: boolean): void {
+    this.labelAllowed = allowed;
+    this.label.visible = this.alive && allowed;
+  }
+
+  get labelShown(): boolean {
+    return this.label.visible;
   }
 
   /** Fall-Animation (~0.4 s) um den Fußpunkt; läuft über root.updateMatrixWorld. */

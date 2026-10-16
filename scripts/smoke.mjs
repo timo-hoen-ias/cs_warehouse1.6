@@ -144,6 +144,14 @@ async function run() {
     if (b1?.length >= 2 && moved) ok(`Bots: ${b1.length}, bewegen sich`);
     else fail(`Bots bewegen sich nicht: ${JSON.stringify(b1)} → ${JSON.stringify(b2)}`);
 
+    // 6b) Namensschilder: nur lebende Kameraden, nie Gegner (sonst durch Wände zu orten)
+    const me = await evJson('globalThis.__players?.().find((p) => !p.bot)');
+    const labels = await evJson('globalThis.__labels?.()');
+    const enemyShown = labels?.filter((l) => l.team !== me?.team && l.shown) ?? [];
+    const mateShown = labels?.filter((l) => l.team === me?.team && l.alive && l.shown) ?? [];
+    if (labels?.length && !enemyShown.length && mateShown.length) ok(`Namensschilder: ${mateShown.length} Kameraden sichtbar, 0 Gegner`);
+    else fail(`Namensschilder falsch: ${JSON.stringify({ team: me?.team, labels })}`);
+
     // 6b) Mündung der Spielfigur: vor dem Körper, auf Brust-/Kopfhöhe (Mündungsfeuer/Leuchtspur fremder Spieler)
     const bm = b2?.length ? await evJson(`globalThis.__soldierMuzzle?.(${JSON.stringify(b2[0].id)})`) : null;
     const bmd = bm ? Math.hypot(bm.x - bm.rx, bm.z - bm.rz) : 0;

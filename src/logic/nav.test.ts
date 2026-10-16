@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MapBuilder } from './mapkit';
 import { colliderFromMap, compileMap, inBuyZoneBox, siteAt } from './mapcompile';
-import { EDGE, NAV_FLAG, areaAt, astar, findPath, nearestNode, pathLength, reachableFrom, routeLength, traverse } from './nav';
+import { EDGE, NAV, NAV_FLAG, areaAt, astar, findPath, nearestNode, pathLength, reachableFrom, routeLength, traverse } from './nav';
 
 const ENV = { sunDir: [0.3, 0.8, 0.2] as [number, number, number], sunColor: 0xffffff, sunIntensity: 1, skyTop: 0x88aaff, skyHorizon: 0xddeeff, skyIntensity: 0.5, ambient: 0.1, fogColor: 0x999999, fogNear: 50, fogFar: 200 };
 
@@ -86,6 +86,49 @@ describe('Navigation', () => {
     const lower = nearestNode(g, 26, 0, 4);
     expect(g.y[upper]!).toBeCloseTo(4);
     expect(g.y[lower]!).toBeCloseTo(0);
+  });
+
+  it('Randabstand: Knoten an Wänden sind Rand, in der Raummitte nicht', () => {
+    const wall = nearestNode(g, 0, 0, 10); // erster Knoten an der Außenwand
+    expect(g.rim[wall]).toBe(0);
+    expect(g.rim[nearestNode(g, g.x[wall]! + 1, 0, 10)]).toBe(1);
+    expect(g.rim[nearestNode(g, 15, 0, 4)]).toBe(0); // an der Trennwand
+    expect(g.rim[nearestNode(g, 5.5, 0, 10)]).toBe(NAV.wallCost.length); // frei
+  });
+
+  it('Wege halten Abstand zu Wänden: mittig durch die Tür, Abkürzungen mit Freiraum', () => {
+    // Start und Ziel dicht an der Südwand: der kürzeste Weg schrammte an der Wand entlang zur Türkante
+    const from = { x: 3.5, y: 0, z: 1.5 }, to = { x: 27.5, y: 0, z: 18.5 };
+    const nodes = astar(g, nearestNode(g, from.x, 0, from.z), nearestNode(g, to.x, 0, to.z));
+    const door = nodes.filter((i) => Math.abs(g.x[i]! - 15) < 0.6);
+    expect(door.length).toBeGreaterThan(0);
+    for (const i of door) expect(g.z[i]!).toBeCloseTo(9.5); // Türmitte (Tür z 8..11)
+    // Anteil der Randknoten auf dem Weg klein (nur Start/Ziel-Nähe und die Tür selbst)
+    const rimShare = nodes.filter((i) => g.rim[i] === 0).length / nodes.length;
+    expect(rimShare).toBeLessThan(0.3);
+    // ohne Wandabstand (Laufzeit-Messung) bleibt es der kürzeste Knotenweg
+    const hug = astar(g, nearestNode(g, from.x, 0, from.z), nearestNode(g, to.x, 0, to.z), { hugWalls: true });
+    expect(routeLength(g, from, to)).toBeCloseTo(pathLength(hug.map((i) => ({ x: g.x[i]!, y: g.y[i]!, z: g.z[i]! }))));
+    // geglättete Strecken: Freiraum ≥ smoothRadius bis auf den Knoten-Anschluss
+    const p = findPath(g, col, from, to)!;
+    let tight = 0, samples = 0;
+    let prev = from;
+    for (const q of p.points) {
+      const n = Math.max(2, Math.ceil(Math.hypot(q.x - prev.x, q.z - prev.z) / 0.25));
+      for (let k = 1; k < n; k++) {
+        const x = prev.x + ((q.x - prev.x) * k) / n, z = prev.z + ((q.z - prev.z) * k) / n;
+        samples++;
+        if (col.blockedAt(x, z, 0, NAV.smoothRadius - 0.05, 1.8, 0.45)) tight++;
+      }
+      prev = q;
+    }
+    expect(tight / samples).toBeLessThan(0.15);
+  });
+
+  it('traverse: größerer Freiraum blockiert Strecken dicht an der Wand', () => {
+    const a = { x: 3, y: 0, z: 0.8 }, b = { x: 10, y: 0, z: 0.8 };
+    expect(traverse(col, a, b)).toBe(EDGE.walk);
+    expect(traverse(col, a, b, 1.8, 0.9)).toBe(0);
   });
 
   it('A*: Ausweichzonen verlängern den Weg, unerreichbar → leer', () => {

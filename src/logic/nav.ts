@@ -20,6 +20,14 @@ export const NAV = {
   crouchHeight: 1.2,
   /** Hash-Zelle (m) für die Knotensuche. */
   cell: 4,
+  /**
+   * Wandabstand: Aufschlag auf die Kantenkosten beim Betreten eines Knotens am Rand der begehbaren
+   * Fläche (Wand, Kiste, Plattformkante) bzw. eine Reihe dahinter. Wege laufen so durch die Mitte von
+   * Gängen und Türen und nehmen Ecken weiter, statt an Wänden entlangzuschrammen.
+   */
+  wallCost: [0.6, 0.2] as readonly number[],
+  /** Freiraum der geglätteten Wegstrecken (m): Abkürzungen streifen keine Kistenecken mehr. */
+  smoothRadius: 0.6,
 } as const;
 
 export const NAV_FLAG = { cover: 1, choke: 2, high: 4, crouch: 8 } as const;
@@ -48,6 +56,8 @@ export type NavGraph = {
   y: Float32Array;
   z: Float32Array;
   flags: Uint8Array;
+  /** Abstand zum Rand der begehbaren Fläche in Knotenreihen (0 = Randknoten, gedeckelt bei `NAV.wallCost.length`). */
+  rim: Uint8Array;
   /** Bereichs-Index je Knoten (−1 = keiner). */
   area: Int16Array;
   edgeStart: Int32Array;
@@ -72,7 +82,7 @@ const BODY_R = PLAYER.radius;
  * Boden je Schritt (Stufen/Rampen), Wände blockieren; fällt die Strecke über eine Kante
  * ab, ist es eine Abwärts-Kante. 0 = nicht begehbar.
  */
-export function traverse(col: Collider, a: XYZ, b: XYZ, height: number = PLAYER.height): number {
+export function traverse(col: Collider, a: XYZ, b: XYZ, height: number = PLAYER.height, radius: number = BODY_R): number {
   const dx = b.x - a.x;
   const dz = b.z - a.z;
   const dist = Math.hypot(dx, dz);
@@ -82,7 +92,7 @@ export function traverse(col: Collider, a: XYZ, b: XYZ, height: number = PLAYER.
   for (let i = 1; i <= n; i++) {
     const x = a.x + (dx * i) / n;
     const z = a.z + (dz * i) / n;
-    if (col.blockedAt(x, z, feet, BODY_R, height, STEP)) return 0;
+    if (col.blockedAt(x, z, feet, radius, height, STEP)) return 0;
     const g = col.groundHeight(x, z, feet, BODY_R, STEP);
     if (g < feet - STEP - 1e-6) {
       if (feet - g > NAV.maxDrop) return 0;
@@ -162,6 +172,7 @@ export function buildNav(col: Collider, areaDefs: NavAreaDef[] = []): NavGraph {
     y: Float32Array.from(nodes, (n) => n.y),
     z: Float32Array.from(nodes, (n) => n.z),
     flags: Uint8Array.from(nodes, (n) => n.flags),
+    rim: new Uint8Array(count),
     area: new Int16Array(count).fill(-1),
     edgeStart: new Int32Array(count + 1),
     edgeTo: new Int32Array(adj.reduce((s, l) => s + l.length, 0)),
@@ -181,10 +192,41 @@ export function buildNav(col: Collider, areaDefs: NavAreaDef[] = []): NavGraph {
     }
   }
   g.edgeStart[count] = e;
+  computeRim(g);
   buildHash(g);
   annotate(g, col);
   assignAreas(g, areaDefs);
   return g;
+}
+
+/**
+ * Randabstand je Knoten: Randknoten haben nicht alle acht Nachbarn über ebene Lauf-Kanten
+ * (Wand, Hindernis, Kante); von dort per Breitensuche über Lauf-Kanten weiter nach innen.
+ */
+export function computeRim(g: NavGraph): void {
+  const cap = NAV.wallCost.length;
+  g.rim.fill(cap);
+  const queue = new Int32Array(g.count);
+  let head = 0, tail = 0;
+  for (let i = 0; i < g.count; i++) {
+    let n = 0;
+    for (let k = g.edgeStart[i]!; k < g.edgeStart[i + 1]!; k++) if (g.edgeKind[k] === EDGE.walk) n++;
+    if (n < 8) {
+      g.rim[i] = 0;
+      queue[tail++] = i;
+    }
+  }
+  while (head < tail) {
+    const cur = queue[head++]!;
+    const r = g.rim[cur]! + 1;
+    if (r >= cap) continue;
+    for (let k = g.edgeStart[cur]!; k < g.edgeStart[cur + 1]!; k++) {
+      const nb = g.edgeTo[k]!;
+      if (g.edgeKind[k] !== EDGE.walk || g.rim[nb]! <= r) continue;
+      g.rim[nb] = r;
+      queue[tail++] = nb;
+    }
+  }
 }
 
 function buildHash(g: NavGraph): void {
@@ -351,7 +393,13 @@ export function areaAt(g: NavGraph, pos: XYZ): NavArea | null {
 
 /** Ausweich-Zone: Knoten im Radius kosten extra (z. B. bekannte Gegnerposition, Rauch). */
 export type Avoid = { x: number; y: number; z: number; r: number; cost: number };
-export type PathOpts = { avoid?: Avoid[]; allowCrouch?: boolean; maxExpand?: number };
+export type PathOpts = {
+  avoid?: Avoid[];
+  allowCrouch?: boolean;
+  maxExpand?: number;
+  /** Kürzester Knotenweg ohne Wandabstand (Laufzeit-Messungen der Kartenregeln). */
+  hugWalls?: boolean;
+};
 export type NavPath = { nodes: number[]; points: XYZ[]; length: number };
 
 // Wiederverwendbare Suchpuffer je Graph
@@ -380,6 +428,7 @@ export function astar(g: NavGraph, start: number, goal: number, opts: PathOpts =
     }
     return c;
   };
+  const wall = opts.hugWalls ? [] : NAV.wallCost;
   let size = 0;
   const less = (a: number, b: number): boolean => B.f[a]! < B.f[b]!;
   const push = (i: number): void => {
@@ -440,7 +489,8 @@ export function astar(g: NavGraph, start: number, goal: number, opts: PathOpts =
       const nb = g.edgeTo[k]!;
       if (B.closed[nb] === gen) continue;
       if (!opts.allowCrouch && (g.flags[nb]! & NAV_FLAG.crouch)) continue;
-      const cost = B.g[cur]! + g.edgeCost[k]! + (avoid.length ? extra(nb) : 0);
+      const ec = g.edgeCost[k]!;
+      const cost = B.g[cur]! + ec * (1 + (wall[g.rim[nb]!] ?? 0)) + (avoid.length ? extra(nb) : 0);
       if (B.stamp[nb] === gen && cost >= B.g[nb]!) continue;
       B.stamp[nb] = gen;
       B.g[nb] = cost;
@@ -462,6 +512,7 @@ export function pathLength(points: XYZ[]): number {
 /**
  * Glättet eine Knotenfolge (String Pulling): von jedem Ankerpunkt aus wird der
  * weiteste noch direkt begehbare Knoten angesteuert (Suchweite halbiert sich).
+ * Abkürzungen brauchen den Freiraum `NAV.smoothRadius`, damit sie Ecken nicht streifen.
  */
 export function smoothPath(g: NavGraph, col: Collider, nodes: number[], from?: XYZ): XYZ[] {
   const P = (i: number): XYZ => ({ x: g.x[i]!, y: g.y[i]!, z: g.z[i]! });
@@ -474,7 +525,7 @@ export function smoothPath(g: NavGraph, col: Collider, nodes: number[], from?: X
     let next = i + 1;
     while (step >= 1) {
       const j = i + step;
-      if (traverse(col, anchor, P(nodes[j]!)) === EDGE.walk) {
+      if (traverse(col, anchor, P(nodes[j]!), PLAYER.height, step > 1 ? NAV.smoothRadius : BODY_R) === EDGE.walk) {
         next = j;
         break;
       }
@@ -505,7 +556,7 @@ export function findPath(g: NavGraph, col: Collider, from: XYZ, to: XYZ, opts: P
 export function routeLength(g: NavGraph, from: XYZ, to: XYZ, opts: PathOpts = {}): number {
   const a = nearestNode(g, from.x, from.y, from.z);
   const b = nearestNode(g, to.x, to.y, to.z);
-  const nodes = astar(g, a, b, opts);
+  const nodes = astar(g, a, b, { hugWalls: true, ...opts });
   if (!nodes.length) return Infinity;
   const pts = nodes.map((i) => ({ x: g.x[i]!, y: g.y[i]!, z: g.z[i]! }));
   return pathLength(pts);
