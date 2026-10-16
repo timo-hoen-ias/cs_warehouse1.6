@@ -56,6 +56,28 @@ export function walkPose(phase: number, amp: number): WalkPose {
   };
 }
 
+/** Größte Verdrehung der Beine/Hüfte gegen den Oberkörper (rad, ≈ 80°). */
+export const LEG_TURN_MAX = 1.4;
+
+const wrapAngle = (a: number): number => {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+};
+
+/**
+ * Laufrichtung der Beine: Der Oberkörper folgt dem Blick, die Hüfte dreht sich in die
+ * Bewegungsrichtung (seitwärts laufen = Beine seitwärts statt Gleiten). Läuft der Soldat
+ * eher rückwärts (> 100° gegen den Blick), zeigen die Beine nach vorn und der Gehzyklus
+ * läuft rückwärts (`dir` = −1). Yaw-Konvention wie `Pose` (0 = Blick nach −Z).
+ */
+export function legHeading(moveYaw: number, bodyYaw: number): { offset: number; dir: 1 | -1 } {
+  const rel = wrapAngle(moveYaw - bodyYaw);
+  const back = Math.abs(rel) > (100 * Math.PI) / 180;
+  const off = back ? wrapAngle(rel + Math.PI) : rel;
+  return { offset: Math.max(-LEG_TURN_MAX, Math.min(LEG_TURN_MAX, off)), dir: back ? -1 : 1 };
+}
+
 /**
  * Zwei-Knochen-IK: Ellbogenposition für Schulter S, Hand H, Segmentlängen l1/l2.
  * `pole` gibt die Richtung vor, in die der Ellbogen ausweicht.

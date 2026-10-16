@@ -39,6 +39,7 @@ import { HintFader, objectiveHint } from '../logic/hudHint';
 import type { RadarPlayer } from '../logic/radar';
 import { SpotTracker, type SpotViewer } from '../logic/radarSpot';
 import { canSeePlayer, SENSE } from '../logic/botPerception';
+import { nameplateVisible } from '../logic/nameplate';
 
 export type DriverOptions = {
   localName: string;
@@ -1325,6 +1326,7 @@ export class MatchDriver extends Behaviour {
       if (s.team !== p.team) s.setTeam(p.team);
       if (s.name !== p.name) s.setName(p.name);
       s.setAlive(p.alive);
+      s.setLabelVisible(nameplateVisible(this.local?.team, p.team, p.alive));
       s.setWeapon(p.weapon);
       let pose: Pose;
       let crouch = false;
@@ -1556,6 +1558,11 @@ export class MatchDriver extends Behaviour {
       const st = bots.state(id);
       return { id, x: +pose.x.toFixed(2), y: +pose.y.toFixed(2), z: +pose.z.toFixed(2), alive: !!this.match.players[id]?.alive, area: this.world.areaAt(pose)?.name ?? null, team: this.match.players[id]?.team, role: st?.role, task: st?.task, state: st?.state };
     });
+  }
+
+  /** Debug/Smoke: welche Namensschilder der lokale Spieler sieht (nur eigenes Team). */
+  debugLabels(): { id: string; team: Team; alive: boolean; shown: boolean }[] {
+    return [...this.soldiers].map(([id, s]) => ({ id, team: s.team, alive: s.alive, shown: s.labelShown }));
   }
 
   /** Debug: Pläne der Bot-Teams (T-Strategie, CT-Stufe). */

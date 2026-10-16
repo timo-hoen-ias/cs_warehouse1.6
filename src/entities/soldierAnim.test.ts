@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CROUCH_DROP, FALL_TIME, LEG, fallPose, solveLegAngles, solveTwoBone, walkPose } from './soldierAnim';
+import { CROUCH_DROP, FALL_TIME, LEG, fallPose, legHeading, LEG_TURN_MAX, solveLegAngles, solveTwoBone, walkPose } from './soldierAnim';
 
 /** Vorwärts-Kinematik: Knöchelposition (y, z) relativ zur Hüfte; rotation.x dreht ein Abwärts-Segment nach (−cos, −sin). */
 function ankle(drop: number) {
@@ -91,5 +91,30 @@ describe('fallPose', () => {
       expect(f).toBeGreaterThanOrEqual(prev);
       prev = f;
     }
+  });
+});
+
+describe('legHeading', () => {
+  it('vorwärts: Beine wie der Oberkörper', () => {
+    expect(legHeading(0.3, 0.3)).toEqual({ offset: 0, dir: 1 });
+  });
+
+  it('seitwärts: Hüfte dreht in die Laufrichtung (gedeckelt)', () => {
+    const left = legHeading(Math.PI / 2, 0);
+    expect(left.dir).toBe(1);
+    expect(left.offset).toBeCloseTo(Math.min(Math.PI / 2, LEG_TURN_MAX));
+    expect(legHeading(-0.5, 0).offset).toBeCloseTo(-0.5);
+  });
+
+  it('rückwärts: Beine nach vorn, Gehzyklus rückwärts', () => {
+    expect(legHeading(Math.PI, 0)).toEqual({ offset: 0, dir: -1 });
+    const diag = legHeading(Math.PI - 0.4, 0);
+    expect(diag.dir).toBe(-1);
+    expect(diag.offset).toBeCloseTo(-0.4);
+  });
+
+  it('über die ±π-Grenze hinweg', () => {
+    const r = legHeading(-Math.PI + 0.1, Math.PI - 0.1);
+    expect(r).toEqual({ offset: expect.closeTo(0.2, 5), dir: 1 });
   });
 });

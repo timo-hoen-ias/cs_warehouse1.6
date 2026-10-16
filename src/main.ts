@@ -367,6 +367,7 @@ async function startGame(context: Context, level: MapData, setup: GameSetup): Pr
     g.__netId = () => ({ id: net.id, host: net.hostId, peers: [...net.peers], online: net.online });
     g.__bots = () => driver.debugBotPos();
     g.__botPlan = () => driver.debugBotPlan();
+    g.__labels = () => driver.debugLabels();
     g.__soldierMuzzle = (id: string) => driver.debugSoldierMuzzle(id);
     g.__pos = () => ({ x: +player.motionX().toFixed(2), y: +player.feetY().toFixed(2), z: +player.motionZ().toFixed(2), yaw: +player.yawNow().toFixed(2), speed: +player.speedXZ().toFixed(2), air: player.airborne(), run: +player.runSpeed.toFixed(2), hp: player.hp, dead: player.isDead(), area: world.areaAt({ x: player.motionX(), y: player.feetY(), z: player.motionZ() })?.name ?? null });
     g.__killTeam = (team: 'T' | 'CT') => { driver.debugKillTeam(team); return driver.debugState(); };

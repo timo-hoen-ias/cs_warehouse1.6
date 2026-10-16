@@ -409,6 +409,31 @@ Plants auf beiden Spots, glaubwürdiges Verhalten — über allgemeine Bot-Logik
   → Spot A (55–70 m), Mitte/Obere Mitte → CT-Rampe → CT-Spawn (55–77 m, trifft Rotierer und Rettende). Dazu kommt die reparierte Bomben-Flucht der T (vorher ≈ 13 % der T-Tode dort).
   Braucht einen Kartenumbau von Hof B (Deckung für CT mit nur einem Eingang im Blick) und das Brechen der Sichtachsen; de_kuehlhaus liegt mit ≈ 42 % am CT-Rand (Nuke-Charakter).
 
+### M6.4 — Bot-Bewegung und Namensschilder (Okt 2026) ✅
+Auslöser (Spielertest): Bots wirken dumm und bewegen sich nicht richtig; als T sah man die Namensschilder der CT durch Wände.
+
+**Befund** (Browser-Beobachtung + Headless-Messung, 8 Runden je Karte): Navigation und Festsitzen waren in Ordnung (0 Wand-/Fallfehler), aber
+- **Wandschrammen**: A* nahm den kürzesten Knotenweg (Knoten bis 0.4 m an Wänden), die Glättung prüfte nur den Spielerradius → 11–17 % der Laufzeit
+  lief ein Bot dichter als 0.25 m an Wand/Kiste/Geländer entlang, Kurven wurden eng um die Ecke geschnitten (dort hingen sie auch fest, bis 3.6 s).
+- **Gleiten**: Das ganze Modell drehte sich zum Blick (Vorzielen beim Laufen, Rückzug mit Blick zum Gegner); die Beine schwangen trotzdem vor/zurück →
+  seitlich/rückwärts „schwebende“ Soldaten.
+- **Namensschilder** wurden für alle Spieler ohne Tiefentest gezeichnet.
+
+**Änderungen**:
+- [x] **Wandabstand im A*** (`nav.ts`): Randabstand je Knoten (`NavGraph.rim`, 0 = nicht alle acht Nachbarn über ebene Lauf-Kanten → Wand, Hindernis,
+  Kante; Breitensuche nach innen), Aufschlag `NAV.wallCost` [0.6, 0.2] auf die Kantenkosten. Wege laufen durch Gang- und Türmitte, Rampen/Treppen mittig.
+  `routeLength` misst weiter den kürzesten Knotenweg (`hugWalls: true`), damit die Laufzeit-Regeln der Karten unverändert gelten.
+- [x] **Glättung mit Freiraum** (`smoothPath`, `traverse(…, radius)`): Abkürzungen brauchen `NAV.smoothRadius` 0.6 m → Ecken werden weiter genommen.
+- [x] **Beine in Laufrichtung** (`entities/soldierAnim.legHeading`, `Soldier.hips`): Hüfte dreht bis ±80° in die Bewegungsrichtung, rückwärts läuft der
+  Gehzyklus rückwärts; Oberkörper und Waffe folgen weiter dem Blick.
+- [x] **Namensschilder nur fürs eigene Team** (`logic/nameplate.ts`, `Soldier.setLabelVisible`): lebende Kameraden ja, Gegner nie (auch nicht als Zuschauer).
+  Smoke-Test prüft es im Browser (`__labels`).
+
+**Messung** (5v5, Skill 0.6, Seed 5, 8 Runden; Anteil der Laufzeit < 0.25 m an einem Hindernis, vorher → nachher): Lagerstaub 13.6 → 0.6 %,
+Umschlag 15.7 → 2.2 %, Speicherstadt 10.6 → 1.4 %, Kühlhaus 16.9 → 5.7 %, Güterbahnhof 12.4 → 3.3 %. Balance-Wächter (5 Seeds × 20 Runden, T-Anteil
+vorher → nachher): Lagerstaub 40 → 53 %, Kühlhaus 35 → 52 %, Güterbahnhof 43 → 46 %, Speicherstadt 37 → 53 %, Umschlag 63 → 63 %; Festsitzen ≤ 1.2 s
+(vorher bis 3.6 s).
+
 ### Offen / Ideen
 - [ ] Weitere Modi (Geiselbefreiung `cs_`, Deathmatch), Map-Editor auf dem Level-JSON
 - [ ] Wallbangs (Durchschuss durch dünne Requisiten); Sturzschaden für Bots
